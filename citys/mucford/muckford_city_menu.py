@@ -1,0 +1,1803 @@
+import pygame
+import random
+import math
+from settings import *
+from menus.base_menu import BaseMenu
+from ui_kit import draw_text, font_main, font_small, font_title, UIButton, draw_panel, draw_item_slot_background, draw_item_tooltip, WHITE, GOLD_COLOR, GREEN, RED, GRAY
+from sound_manager import sound_system
+
+# Kartta ja objektit
+from assets.tiles.arena import Arena as MuckfordArena
+from assets.tiles.vfx import MapVFX
+from units.villager import Villager
+from units.human import Human
+from ai.villager_ai import VillagerAI
+from races import get_random_name
+from units.farm_animals import Cow, Chicken
+from items.tools.bucket import BucketEmpty, BucketMilk, BucketWater
+from items.tools.weak_pickaxe import WeakPickaxe
+from items.tools.weak_lumberaxe import WeakLumberAxe
+from items.swords.weak_sword import WeakSword
+from items.shields.weak_shield import WeakShield
+from assets.tiles.farm_objects import Manure, ManurePile, FarmStorage, Apple, Egg, GrassPatch
+from assets.tiles.muckford_objects import MuckfordTree, ScrapPileBig, TavernBuilding, TownHall, AppleTree, Smeltery, Well, ChickenCoop, ScrapIronBuilding, MuckfordStage, MuckfordStall
+from crafting.swamp.scrap_pile import ScrapPile
+from quest_system import quest_manager
+from ai.life_ai import DIALOGUE_TOPICS
+
+class MuckfordCityMenu(BaseMenu):
+    def __init__(self, manager):
+        super().__init__(manager)
+        
+        # Käytetään seediä myös asukkaille, jotta ne ovat aina samoilla paikoilla alussa
+        self.rng = random.Random(54321)
+        
+        # 1. Alusta kartta
+        self.arena = MuckfordArena()
+        self.manager.current_arena = self.arena
+        self.vfx = MapVFX()
+        self.manager.current_map_vfx = self.vfx
+        
+        # Rekisteröi callback manageriin jotta Coop voi kutsua sitä
+        self.manager.spawn_chicken = self.spawn_chicken
+        
+        # 2. Pelaaja
+        self.player = self.manager.player_character
+        # Aseta pelaaja oletuksena keskelle, tai tavernan ovelle jos tullaan sieltä
+        # Etsitään taverna (ensimmäinen talo)
+        self.tavern_house = None
+        for p in self.arena.props:
+            if isinstance(p, TavernBuilding):
+                self.tavern_house = p
+                break
+        
+        self.blacksmith_house = None
+        for p in self.arena.props:
+            if isinstance(p, ScrapIronBuilding):
+                self.blacksmith_house = p
+                break
+        
+        # Etsitään kaikki talot (NPC-simulaatiota varten)
+        self.buildings = []
+        for p in self.arena.props:
+            if "House" in p.__class__.__name__:
+                # Tallenna oven sijainti (alareuna keskellä)
+                self.buildings.append((p.rect.centerx, p.rect.bottom - 20))
+        
+        if self.tavern_house:
+            # Spawnataan tavernan ovelle
+            # Ovi on vasemmalla alhaalla (offset määritelty luokassa)
+            base_x, base_y = self.tavern_house.image_pos
+            door_off = getattr(self.tavern_house, "door_offset", (self.tavern_house.rect.w//2, self.tavern_house.rect.h))
+            self.player.rect.centerx = base_x + door_off[0]
+            self.player.rect.bottom = base_y + door_off[1] + 50
+        else:
+            self.player.rect.center = (self.arena.width//2, self.arena.height//2)
+            
+        self.player.facing_right = True
+        
+        # 3. Kamera
+        self.camera_x = 0
+        self.camera_y = 0
+        self._update_camera()
+        
+        # 4. NPC:t (50 kpl)
+        self.npcs = []
+        self._spawn_population()
+        self._spawn_guards()
+        
+        # 5. Eläimet (Lehmät)
+        self.animals = []
+        self._spawn_animals()
+
+        # 6. Tehtävät & Tehtävänantajat
+        self.farmer_gus = None
+        self._spawn_quest_givers()
+        
+        # Audio
+        sound_system.play_music('assets/music/swamp_theme.mp3')
+        
+        # --- PAUSE MENU ---
+        self.show_pause_menu = False
+        self.pause_buttons = []
+        
+        cx = SCREEN_WIDTH // 2
+        cy = SCREEN_HEIGHT // 2
+        btn_w = 250
+        btn_h = 50
+        gap = 20
+        start_y = cy - 100
+        
+        self.btn_resume = UIButton(cx - btn_w//2, start_y, btn_w, btn_h, "RESUME", None, GRAY)
+        self.btn_hub = UIButton(cx - btn_w//2, start_y + (btn_h+gap), btn_w, btn_h, "BACK TO HUB", None, GRAY)
+        self.btn_save = UIButton(cx - btn_w//2, start_y + (btn_h+gap)*2, btn_w, btn_h, "SAVE GAME", None, GRAY)
+        self.btn_load = UIButton(cx - btn_w//2, start_y + (btn_h+gap)*3, btn_w, btn_h, "LOAD GAME", None, GRAY)
+        self.btn_exit = UIButton(cx - btn_w//2, start_y + (btn_h+gap)*4, btn_w, btn_h, "EXIT GAME", None, (200, 60, 60))
+        
+        self.pause_buttons = [self.btn_resume, self.btn_hub, self.btn_save, self.btn_load, self.btn_exit]
+        
+        # --- SMELTERY UI ---
+        self.active_smeltery = None
+        self.smelter_buttons = []
+
+    def on_enter(self):
+        """Kutsutaan aina kun tähän valikkoon tullaan."""
+        # Varmistetaan, että manager tietää meidän olevan tässä kartassa (eikä esim. tavernassa)
+        self.manager.current_arena = self.arena
+        self.manager.current_map_vfx = self.vfx
+        
+        # PÄIVITYS: Varmistetaan että pelaaja-referenssi on tuore
+        self.player = self.manager.player_character
+
+        # Varmistetaan referenssit (jos Arena on generoitu uudelleen tai initin jälkeen)
+        if not self.tavern_house:
+            for p in self.arena.props:
+                if isinstance(p, TavernBuilding): self.tavern_house = p; break
+        
+        if not self.blacksmith_house:
+            for p in self.arena.props:
+                if isinstance(p, ScrapIronBuilding): self.blacksmith_house = p; break
+
+        # --- SPAWN LOGIC ---
+        spawn_target = getattr(self.manager, "city_spawn_point", None)
+        self.manager.city_spawn_point = None # Nollaa heti käytön jälkeen
+        
+        spawned = False
+
+        # 1. Blacksmith Spawn
+        if spawn_target == "blacksmith" and self.blacksmith_house:
+            base_x, base_y = self.blacksmith_house.image_pos
+            door_off = getattr(self.blacksmith_house, "door_offset", (self.blacksmith_house.rect.w//2, self.blacksmith_house.rect.h))
+            self.player.rect.centerx = base_x + door_off[0]
+            self.player.rect.bottom = base_y + door_off[1] + 50
+            spawned = True
+
+        # 2. Tavern Spawn (Oletus)
+        if not spawned and self.tavern_house:
+            base_x, base_y = self.tavern_house.image_pos
+            door_off = getattr(self.tavern_house, "door_offset", (self.tavern_house.rect.w//2, self.tavern_house.rect.h))
+            self.player.rect.centerx = base_x + door_off[0]
+            self.player.rect.bottom = base_y + door_off[1] + 50
+            spawned = True
+            
+        # 3. Fallback (Keskelle)
+        if not spawned:
+            self.player.rect.center = (self.arena.width//2, self.arena.height//2)
+            
+        # Kerää kokoontumispaikat (Gathering Spots)
+        self.gathering_spots = []
+        for p in self.arena.props:
+            if isinstance(p, (Well, TownHall, Smeltery, TavernBuilding, ScrapIronBuilding)):
+                 # Lisää pisteitä rakennuksen eteen
+                 base_y = p.rect.bottom + 30
+                 self.gathering_spots.append((p.rect.centerx, base_y))
+                 self.gathering_spots.append((p.rect.centerx + 50, base_y))
+                 self.gathering_spots.append((p.rect.centerx - 50, base_y))
+            
+            elif isinstance(p, MuckfordStage):
+                 # Lavan eteen "yleisömeri"
+                 # Lavan hitbox on yläreunassa (y), kuva on korkea (h).
+                 # Haluamme pisteet kuvan alareunan eteen.
+                 base_y = p.image_pos[1] + p.image.get_height() + 40
+                 for ox in range(-200, 201, 50): # Leveämpi alue isommalle lavalle
+                     self.gathering_spots.append((p.rect.centerx + ox, base_y + random.randint(-20, 40)))
+            
+            elif isinstance(p, MuckfordStall):
+                 # Kojun eteen
+                 self.gathering_spots.append((p.rect.centerx, p.rect.bottom + 40))
+
+        self._update_camera()
+
+    def _spawn_population(self):
+        for _ in range(50):
+            # Arvo sijainti kadulta (vältä talojen sisustaa)
+            # Yksinkertainen tapa: Arvo kunnes ei törmää esteeseen
+            for attempt in range(10):
+                rx = self.rng.randint(100, self.arena.width - 100)
+                ry = self.rng.randint(100, self.arena.height - 100)
+                dummy_rect = pygame.Rect(rx, ry, 32, 48)
+                
+                collision = False
+                for obs in self.arena.obstacles:
+                    if dummy_rect.colliderect(obs.rect):
+                        collision = True
+                        break
+                
+                # Tarkista myös propit (puut, kivet, romukasat)
+                if not collision:
+                    for prop in self.arena.props:
+                        if dummy_rect.colliderect(prop.rect):
+                            collision = True
+                            break
+
+                # Tarkista muut jo luodut NPC:t (ettei synny päällekkäin)
+                if not collision:
+                    for npc in self.npcs:
+                        if dummy_rect.colliderect(npc.rect):
+                            collision = True
+                            break
+                
+                if not collision:
+                    race = self.rng.choice(["Human", "Goblin", "Dwarf", "Elf"])
+                    name = get_random_name(race)
+                    
+                    # Käytetään GREEN (sama kuin pelaaja), jotta eivät pelkää toisiaan tai pelaajaa
+                    v = Villager(name, race, rx, ry, team_color=GREEN)
+                    
+                    # Alustetaan sim_state, jotta kaupunkisimulaatio (kävely, juttelu) toimii
+                    v.sim_state = "IDLE"
+                    v.sim_timer = self.rng.randint(0, 60)
+                    
+                    # Estetään VillagerAI:n oma satunnainen haahuilu, jotta CityMenu saa ohjata idle-liikettä
+                    if hasattr(v, "ai_controller") and isinstance(v.ai_controller, VillagerAI):
+                        v.ai_controller.allow_idle_wander = False
+                    
+                    # Varmistetaan työkalut (vaikka Villager-luokka tekee tämän, varmistus ei haittaa)
+                    if not hasattr(v, "inventory") or v.inventory is None:
+                        v.inventory = []
+
+                    # Siivotaan mahdolliset None-arvot (jos Villager-luokan create_item epäonnistui)
+                    v.inventory = [i for i in v.inventory if i is not None]
+
+                    if len(v.inventory) == 0:
+                        v.inventory.append(WeakPickaxe())
+                        v.inventory.append(WeakLumberAxe())
+                        v.inventory.append(BucketEmpty())
+
+                    self.npcs.append(v)
+                    break
+
+    def _spawn_guards(self):
+        """Lisää vartijat (Human) jotka käyttävät Combat AI:ta (eivät pelkää)."""
+        for i in range(6):
+            for attempt in range(10):
+                rx = self.rng.randint(100, self.arena.width - 100)
+                ry = self.rng.randint(100, self.arena.height - 100)
+                dummy_rect = pygame.Rect(rx, ry, 32, 48)
+                
+                collision = False
+                for obs in self.arena.obstacles:
+                    if dummy_rect.colliderect(obs.rect):
+                        collision = True
+                        break
+                
+                if not collision:
+                    # Vartijat ovat Human-luokkaa (Gladiator), joten ne käyttävät HumanAI:ta (Combat)
+                    # Eivätkä VillagerAI:ta (Työt/Pako)
+                    guard = Human(f"City Guard", rx, ry, GREEN, "Guard")
+                    guard.equip_item(WeakSword())
+                    guard.equip_item(WeakShield())
+                    
+                    self.npcs.append(guard)
+                    break
+
+    def _spawn_animals(self):
+        # Jos areenalla on farm_area, spawnataan lehmät sinne
+        if hasattr(self.arena, "farm_area"):
+            area = self.arena.farm_area
+            for i in range(3):
+                # Yritä löytää vapaa paikka (ei ladon tai aidan sisällä)
+                for _ in range(10):
+                    x = self.rng.randint(area.left + 50, area.right - 50)
+                    y = self.rng.randint(area.top + 50, area.bottom - 50)
+                    dummy = pygame.Rect(x, y, 64, 48)
+                    
+                    collision = False
+                    for obs in self.arena.obstacles:
+                        if dummy.colliderect(obs.rect):
+                            collision = True
+                            break
+                    
+                    # Tarkista propit ja muut eläimet
+                    if not collision:
+                        for prop in self.arena.props:
+                            if dummy.colliderect(prop.rect):
+                                collision = True
+                                break
+                        for other_cow in self.animals:
+                            if dummy.colliderect(other_cow.rect):
+                                collision = True
+                                break
+                    
+                    if not collision:
+                        cow = Cow(x, y, team_color=GREEN) # Vihreä tiimi = ei vihollinen
+                        cow.farm_rect = area # Aseta rajaus AI:lle
+                        if i == 0: cow.milk_ready = True
+                        self.animals.append(cow)
+                        break
+            
+            # Ruoho (Lehmät tarvitsevat tätä tuottaakseen maitoa)
+            for _ in range(20):
+                gx = self.rng.randint(area.left, area.right)
+                gy = self.rng.randint(area.top, area.bottom)
+                # Lisätään floor_props listaan (jos arena tukee), muuten props
+                self.arena.floor_props.append(GrassPatch(gx, gy))
+
+            # Kanat
+            for _ in range(5):
+                for _ in range(10):
+                    cx, cy = self.rng.randint(area.left, area.right), self.rng.randint(area.top, area.bottom)
+                    dummy = pygame.Rect(cx, cy, 20, 20)
+                    collision = False
+                    
+                    # Tarkista esteet kanoillekin
+                    for obs in self.arena.obstacles:
+                        if dummy.colliderect(obs.rect): collision = True; break
+                    for prop in self.arena.props:
+                        if dummy.colliderect(prop.rect): collision = True; break
+                        
+                    if not collision:
+                        c = Chicken(cx, cy, team_color=GREEN)
+                        c.facing_right = True # Alustetaan puuttuva attribuutti
+                        self.animals.append(c)
+                        break
+
+    def spawn_chicken(self, x, y):
+        """Callback jota ChickenCoop kutsuu."""
+        c = Chicken(x, y, team_color=GREEN)
+        c.facing_right = True # Alustetaan puuttuva attribuutti
+        self.animals.append(c)
+        self.manager.vfx.show_damage(x, y - 20, "Hatched!", color=GREEN)
+
+    def _spawn_quest_givers(self):
+        # Sijoitetaan Farmer Gus maatilan portin lähelle
+        if hasattr(self.arena, "farm_area"):
+            farm_gate_x = self.arena.farm_area.centerx
+            farm_gate_y = self.arena.farm_area.bottom + 50
+            
+            gus = Villager("Farmer Gus", "Dwarf", farm_gate_x, farm_gate_y, team_color=GREEN)
+            # Estetään häntä liikkumasta
+            gus.ai_controller = None 
+            gus.animation_state = "idle"
+            
+            self.farmer_gus = gus
+            self.npcs.append(gus) # Lisätään piirrettäviin ja päivitettäviin
+
+    def _open_smelter_ui(self, smelter):
+        self.active_smeltery = smelter
+        self.smelter_buttons = []
+        
+        cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+        panel_w, panel_h = 700, 500
+        px = cx - panel_w // 2
+        py = cy - panel_h // 2
+        
+        # Actions
+        # Scrap Bar (Vasemmalla)
+        btn_scrap = UIButton(px + 40, py + 200, 280, 60, "Smelt Scrap Bar", None, (60, 60, 70))
+        btn_scrap.action = "smelter_scrap"
+        self.smelter_buttons.append(btn_scrap)
+        
+        # Iron Bar (Oikealla)
+        btn_iron = UIButton(px + 380, py + 200, 280, 60, "Smelt Iron Bar", None, (60, 60, 70))
+        btn_iron.action = "smelter_iron"
+        self.smelter_buttons.append(btn_iron)
+        
+        # Deposit (Alhaalla)
+        btn_dep = UIButton(px + 200, py + 400, 300, 50, "Deposit Resources", None, (40, 70, 40))
+        btn_dep.action = "smelter_deposit"
+        self.smelter_buttons.append(btn_dep)
+
+    def handle_event(self, event):
+        # Varmistetaan että pelaaja-referenssi on ajan tasalla
+        self.player = self.manager.player_character
+        
+        # --- UNIVERSAL MAP EDITOR ---
+        if self.handle_editor_event(event):
+            return
+
+        # 0. DIALOGUE POPUP HANDLING (Smeltery yms.)
+        # Tämä pysäyttää pelin ja antaa syötteen dialogille
+        if self.manager.active_dialogue:
+            if event.type == pygame.KEYDOWN:
+                opts = self.manager.active_dialogue.get("options", [])
+                if event.key == pygame.K_1 and len(opts) >= 1:
+                    self.manager._handle_dialogue_action(opts[0]["action"])
+                elif event.key == pygame.K_2 and len(opts) >= 2:
+                    self.manager._handle_dialogue_action(opts[1]["action"])
+                elif event.key == pygame.K_3 and len(opts) >= 3:
+                    self.manager._handle_dialogue_action(opts[2]["action"])
+                elif event.key in (pygame.K_SPACE, pygame.K_ESCAPE):
+                    self.manager.active_dialogue = None
+            
+            elif event.type == pygame.MOUSEWHEEL:
+                self.manager.handle_dialogue_scroll(event.y)
+            
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # Hiiren klikkaus dialogin nappeihin
+                mx, my = event.pos
+                box_w, box_h = 800, 200
+                box_x = (SCREEN_WIDTH - box_w) // 2
+                box_y = (SCREEN_HEIGHT - box_h) // 2
+                
+                opts = self.manager.active_dialogue.get("options", [])
+                if opts:
+                    view_y = box_y + 130
+                    view_h = 70
+                    oy = view_y - self.manager.dialogue_scroll
+                    for opt in opts:
+                        if box_x + 220 <= mx <= box_x + 700 and oy <= my <= oy + 25 and view_y <= my <= view_y + view_h:
+                            self.manager._handle_dialogue_action(opt["action"])
+                            return
+                        oy += 30
+            return # Estä muut toiminnot kun dialogi on auki
+            
+        # 0.5 SMELTERY UI HANDLING
+        if self.active_smeltery:
+            if event.type == pygame.KEYDOWN and (event.key == pygame.K_ESCAPE or event.key == pygame.K_e):
+                self.active_smeltery = None
+                sound_system.play_sound('click')
+                return
+            
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # Tarkista napit
+                for btn in self.smelter_buttons:
+                    if btn.rect.collidepoint(event.pos):
+                        if btn.action == "close":
+                            self.active_smeltery = None
+                        else:
+                            # Kutsu Smelteryn omaa logiikkaa
+                            self.active_smeltery.handle_menu_action(btn.action, self.manager)
+                        sound_system.play_sound('click')
+                        return
+            return # Estä muut toiminnot
+
+        if self.show_pause_menu:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.show_pause_menu = False
+                return
+            
+            # Button handling
+            if self.btn_resume.is_clicked(event):
+                self.show_pause_menu = False
+                sound_system.play_sound('click')
+            elif self.btn_hub.is_clicked(event):
+                self.next_state = "hub"
+                sound_system.play_sound('click')
+            elif self.btn_save.is_clicked(event):
+                print("Save clicked (Not implemented)")
+                sound_system.play_sound('click')
+            elif self.btn_load.is_clicked(event):
+                print("Load clicked (Not implemented)")
+                sound_system.play_sound('click')
+            elif self.btn_exit.is_clicked(event):
+                self.next_state = "exit"
+                sound_system.play_sound('click')
+            return
+            
+        # Mouse Click Interaction
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if not self.show_pause_menu:
+                if self._handle_click(event.pos):
+                    return
+                self._handle_combat_click(event.pos)
+            return
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_p and CHEAT_MODE:
+                self.manager.world_paused = not self.manager.world_paused
+
+            if event.key == pygame.K_e:
+                # Tarkista ollaanko Tavernan ovella
+                if self.tavern_house:
+                    # Ovi on vasemmalla alhaalla
+                    base_x, base_y = self.tavern_house.image_pos
+                    door_off = getattr(self.tavern_house, "door_offset", (self.tavern_house.rect.w//2, self.tavern_house.rect.h))
+                    door_x = base_x + door_off[0]
+                    door_y = base_y + door_off[1]
+                    
+                    # Tarkista etäisyys suoraan (pelaajan jalat vs ovi)
+                    dist = math.hypot(self.player.rect.centerx - door_x, self.player.rect.bottom - door_y)
+                    
+                    if dist < 80:
+                        self.next_state = "tavern_sunk_cask"
+                        sound_system.play_sound('click')
+                        return
+                        
+                # Tarkista ollaanko Blacksmithin ovella
+                if self.blacksmith_house:
+                    base_x, base_y = self.blacksmith_house.image_pos
+                    door_off = getattr(self.blacksmith_house, "door_offset", (self.blacksmith_house.rect.w//2, self.blacksmith_house.rect.h))
+                    door_x = base_x + door_off[0]
+                    door_y = base_y + door_off[1]
+                    
+                    # Tarkista etäisyys
+                    dist = math.hypot(self.player.rect.centerx - door_x, self.player.rect.bottom - door_y)
+                    
+                    if dist < 80:
+                        self.next_state = "blacksmith_interior"
+                        sound_system.play_sound('click')
+                        return
+                
+                # Tarkista NPC interaktio
+                for npc in self.npcs:
+                    # YHDISTETTY TARKISTUS: Osuma JA logiikka
+                    if self.player.rect.colliderect(npc.rect.inflate(60, 60)):
+                        # Farmer Gus interaction
+                        if npc == self.farmer_gus or npc.name == "Farmer Gus":
+                            self.manager.open_patron_dialogue(npc, return_state="muckford_city")
+                            self.next_state = "dialogue_active"
+                            return
+                        
+                        # Normal Patron interaction
+                        self.manager.open_patron_dialogue(npc, return_state="muckford_city")
+                        self.next_state = "dialogue_active"
+                        return
+                
+                # 3. Lehmän lypsäminen
+                for cow in self.animals:
+                    if self.player.rect.colliderect(cow.rect.inflate(40, 40)):
+                        if isinstance(cow, Cow):
+                            self._interact_cow(cow)
+                        return
+
+                # 4. Lannan keräys ja vienti
+                # Keräys
+                for prop in self.arena.props:
+                    if self._try_interact_prop(prop, check_collision=True):
+                        return # Jos interaktio onnistui, lopetetaan tähän
+
+                # 5. Kaupungintalo (Sponsors)
+                for prop in self.arena.props:
+                    if isinstance(prop, TownHall) and self.player.rect.colliderect(prop.rect.inflate(40, 40)):
+                        self.next_state = "sponsors"
+                        sound_system.play_sound('click')
+                        return
+                        
+                # 6. Omenapuu (Ravistus)
+                for prop in self.arena.props:
+                    if isinstance(prop, AppleTree) and self.player.rect.colliderect(prop.rect.inflate(40, 40)):
+                        prop.shake(self.manager)
+                        return
+
+                # 8. Kerättävät (Omenat, Munat)
+                # Nämä ovat propseja, joten ne käsitellään _try_interact_prop -metodissa, 
+                # mutta varmistetaan että ne on lisätty sinne.
+                # (Apple ja Egg lisätään arena.props listaan kun ne spawnataan)
+
+            # --- PLAYER ABILITIES (1-5) ---
+            if event.key == pygame.K_1: self._use_player_ability("spell1")
+            if event.key == pygame.K_2: self._use_player_ability("spell2")
+            if event.key == pygame.K_3: self._use_player_ability("spell3")
+            if event.key == pygame.K_4: self._use_player_ability("spell4")
+            if event.key == pygame.K_5: self._use_player_ability("spell5")
+            if event.key == pygame.K_6: self._use_player_ability("spell6")
+            if event.key == pygame.K_7: self._use_player_ability("usable")
+            if event.key == pygame.K_8: self._use_player_ability("usable2")
+
+            # --- COMBAT CONTROLS ---
+            if event.key == pygame.K_SPACE:
+                mx, my = pygame.mouse.get_pos()
+                wx = mx + self.camera_x
+                wy = my + self.camera_y
+                dx = wx - self.player.rect.centerx
+                dy = wy - self.player.rect.centery
+                self.player.perform_dash(dx, dy)
+
+            if event.key == pygame.K_ESCAPE:
+                self.show_pause_menu = True
+                sound_system.play_sound('click')
+
+    def update(self):
+        super().update() # BaseMenu update (editor)
+        
+        if self.show_pause_menu or self.manager.show_inventory or self.manager.active_dialogue:
+            return
+
+        # 1. Pelaajan logiikka (MANUAALINEN LIIKE)
+        keys = pygame.key.get_pressed()
+        dx, dy = 0, 0
+        speed = 4.0 # Pelaajan nopeus kaupungissa
+        
+        # Block
+        self.player.set_blocking(keys[pygame.K_LSHIFT])
+        
+        # Estä manuaalinen liike jos dash on käynnissä (Commander hoitaa sen itse)
+        if not self.player.is_dashing:
+            if keys[pygame.K_w]: dy = -speed
+            if keys[pygame.K_s]: dy = speed
+            if keys[pygame.K_a]: dx = -speed
+            if keys[pygame.K_d]: dx = speed
+        
+        if dx != 0 or dy != 0:
+            self.player.animation_state = "run"
+            self.player.facing_right = (dx > 0) if dx != 0 else self.player.facing_right
+            
+            # Liiku ja tarkista törmäykset
+            self.player.rect.x += dx
+            for obs in self.arena.obstacles:
+                if self.player.rect.colliderect(obs.rect):
+                    if dx > 0: self.player.rect.right = obs.rect.left
+                    if dx < 0: self.player.rect.left = obs.rect.right
+            
+            self.player.rect.y += dy
+            for obs in self.arena.obstacles:
+                if self.player.rect.colliderect(obs.rect):
+                    if dy > 0: self.player.rect.bottom = obs.rect.top
+                    if dy < 0: self.player.rect.top = obs.rect.bottom
+            
+            # Rajoita kartalle
+            self.player.rect.clamp_ip(pygame.Rect(0, 0, self.arena.width, self.arena.height))
+        else:
+            self.player.animation_state = "idle"
+
+        # Päivitä pelaajan tilat (cooldowns, mana regen) ilman AI:ta
+        self.player.update(self.arena.obstacles, self.manager)
+
+        # Kerätään kaikki yksiköt listaan NPC-logiikkaa varten
+        all_units = [self.player] + self.npcs + self.animals
+        
+        # Päivitä NPC:t (Animaatio ja fysiikka)
+        for npc in self.npcs:
+            if self.manager.world_paused: continue
+            # Kutsutaan run_combat_ai, jotta VillagerAI toimii (maitotilat, lanta, jne.)
+            npc.run_combat_ai(all_units, self.arena.obstacles, self.manager)
+            npc.update(self.arena.obstacles, self.manager)
+            
+        # Päivitä Eläimet
+        for cow in self.animals:
+            if self.manager.world_paused: continue
+            cow.update(self.arena.obstacles, self.manager)
+
+        # Päivitä Propit (Lanta, Ruoho yms.)
+        # Tämä on tärkeää ruohon takaisinkasvulle ja lannan efekteille
+        for p in self.arena.props:
+            if hasattr(p, "update"): p.update(self.manager)
+            
+        for p in self.arena.floor_props:
+            if hasattr(p, "update"): p.update(self.manager)
+            
+        # Päivitä Sulatot (Prosessointi)
+        for p in self.arena.props:
+            if isinstance(p, Smeltery):
+                if p.wood_stored > 0 and p.scrap_stored > 0:
+                    p.process_timer += 1
+                    if p.process_timer >= p.process_time:
+                        p.process_timer = 0
+                        p.wood_stored -= 1
+                        p.scrap_stored -= 1
+                        p.bars_ready += 1
+                        self.manager.vfx.create_smoke(p.rect.centerx, p.rect.top) # Savua piipusta
+            
+            # Päivitä Kanalat (Hautominen)
+            if isinstance(p, ChickenCoop):
+                p.update(self.manager)
+
+        # Päivitä kaupunkisimulaatio (Kävely, juttelu, taloissa vierailu)
+        if not self.manager.world_paused:
+            self._update_simulation()
+
+        # 3. VFX
+        self.vfx.update(self.manager)
+        self.manager.vfx.update()
+        
+        # 4. Kamera
+        self._update_camera()
+
+    def _use_player_ability(self, slot_name):
+        """Käyttää kykyä hiiren osoittamaan kohtaan/kohteeseen."""
+        item = self.player.equipment.get(slot_name)
+        if not item: return
+
+        # Tarkista cooldown
+        if self.player.spell_cooldowns.get(slot_name, 0) > 0:
+            sound_system.play_sound("error")
+            return
+
+        # Etsi kohde hiiren alta
+        mx, my = pygame.mouse.get_pos()
+        wx = mx + self.camera_x
+        wy = my + self.camera_y
+        
+        # Käänny kohti kohdetta
+        if wx > self.player.rect.centerx:
+            self.player.facing_right = True
+        else:
+            self.player.facing_right = False
+            
+        mouse_rect = pygame.Rect(wx - 5, wy - 5, 10, 10)
+        
+        target = None
+        # Priorisoi viholliset/NPC:t
+        all_targets = self.npcs + self.animals
+        for u in all_targets:
+            if u.rect.colliderect(mouse_rect):
+                target = u
+                break
+        
+        # Jos ei kohdetta, käytä "dummy" kohdetta sijainnilla (AOE spelleille)
+        if not target:
+            # Luodaan väliaikainen objekti sijainnilla
+            class DummyTarget:
+                def __init__(self, x, y): self.rect = pygame.Rect(x, y, 1, 1); self.is_dead = False
+            target = DummyTarget(wx, wy)
+
+        # Yritä käyttää
+        if hasattr(item, "cast"):
+            if item.cast(self.player, target, self.manager):
+                # Aseta cooldown
+                cd = getattr(item, "cooldown_max", 60)
+                self.player.spell_cooldowns[slot_name] = cd
+                # Animaatio
+                self.player.animation_state = "attack"
+                self.player.attack_cooldown = 20
+
+    def _update_camera(self):
+        target_x = self.player.rect.centerx - SCREEN_WIDTH // 2
+        target_y = self.player.rect.centery - SCREEN_HEIGHT // 2
+        
+        # Clamp
+        self.camera_x = max(0, min(target_x, self.arena.width - SCREEN_WIDTH))
+        self.camera_y = max(0, min(target_y, self.arena.height - SCREEN_HEIGHT))
+        
+        # Sync to manager (for HUD transparency logic)
+        self.manager.camera_x = self.camera_x
+        self.manager.camera_y = self.camera_y
+
+    def _npc_speak(self, npc, topic):
+        lines = DIALOGUE_TOPICS.get(topic, DIALOGUE_TOPICS["casual"])
+        text = self.rng.choice(lines)
+        self.manager.vfx.create_speech_bubble(npc, text, duration=120)
+        
+        if self.rng.random() < 0.3:
+            s_id = self.rng.randint(1, 4)
+            sound_system.play_sound(f"laugh_loop_{s_id}")
+        else:
+            talk_id = self.rng.randint(1, 8)
+            sound_system.play_sound(f"talking_loop_{talk_id}")
+
+    def _update_simulation(self):
+        """Hoitaa kaupungin elämän: kävelyn, juttelun ja taloissa vierailun."""
+        for npc in self.npcs:
+            # Skipataan NPC:t joilla ei ole simulaatiotilaa (esim. Farmer Gus)
+            if not hasattr(npc, "sim_state"):
+                continue
+
+            if npc.sim_state == "INSIDE":
+                npc.sim_timer -= 1
+                if npc.sim_timer <= 0:
+                    # Tule ulos
+                    npc.sim_state = "IDLE"
+                    npc.sim_timer = 60
+                continue
+
+            # Jos ollaan ulkona, piirretään normaalisti
+            if npc.sim_state == "IDLE":
+                npc.animation_state = "idle"
+                npc.sim_timer -= 1
+                if npc.sim_timer <= 0:
+                    # Valitse uusi toiminto
+                    action = self.rng.choice(["WALK", "WALK", "WALK", "ENTER", "TALK"])
+                    
+                    if action == "WALK":
+                        # Arvo satunnainen kohde
+                        if self.gathering_spots and self.rng.random() < 0.7:
+                            # Mene kokoontumispaikalle (70% todennäköisyys) - Suosii toria ja rakennuksia
+                            spot = self.rng.choice(self.gathering_spots)
+                            tx = spot[0] + self.rng.randint(-30, 30)
+                            ty = spot[1] + self.rng.randint(-30, 30)
+                        else:
+                            tx = self.rng.randint(100, self.arena.width - 100)
+                            ty = self.rng.randint(100, self.arena.height - 100)
+                        npc.sim_target = (tx, ty)
+                        npc.sim_state = "WALK"
+                    
+                    elif action == "ENTER" and self.buildings:
+                        # Mene lähimpään tai satunnaiseen taloon
+                        target_house = self.rng.choice(self.buildings)
+                        npc.sim_target = target_house
+                        npc.sim_state = "ENTERING"
+                        
+                    elif action == "TALK":
+                        # Etsi lähellä oleva kaveri
+                        partner = None
+                        for other in self.npcs:
+                            if other != npc and getattr(other, "sim_state", "") == "IDLE":
+                                dist = math.hypot(other.rect.centerx - npc.rect.centerx, other.rect.centery - npc.rect.centery)
+                                if dist < 150:
+                                    partner = other
+                                    break
+                        
+                        if partner:
+                            # Setup conversation
+                            total_lines = self.rng.randint(2, 5)
+                            duration = total_lines * 100 + 40
+                            topic = self.rng.choice(list(DIALOGUE_TOPICS.keys()))
+                            
+                            npc.sim_state = "TALK"
+                            npc.sim_partner = partner
+                            npc.sim_timer = duration
+                            npc.sim_role = "initiator"
+                            npc.sim_total_lines = total_lines
+                            npc.sim_lines_spoken = 1
+                            npc.sim_topic = topic
+                            
+                            partner.sim_state = "TALK"
+                            partner.sim_partner = npc
+                            partner.sim_timer = duration
+                            partner.sim_role = "listener"
+                            
+                            # Käänny toisiaan kohti
+                            npc.facing_right = partner.rect.centerx > npc.rect.centerx
+                            partner.facing_right = npc.rect.centerx > partner.rect.centerx
+                            
+                            # Aloita keskustelu heti
+                            self._npc_speak(npc, topic)
+                        else:
+                            npc.sim_timer = 30 # Ei löytynyt, odota hetki
+
+            elif npc.sim_state == "WALK" or npc.sim_state == "ENTERING":
+                npc.animation_state = "run"
+                tx, ty = npc.sim_target
+                dx = tx - npc.rect.centerx
+                dy = ty - npc.rect.centery
+                dist = math.hypot(dx, dy)
+                
+                if dist < 10:
+                    # Perillä
+                    if npc.sim_state == "ENTERING":
+                        npc.sim_state = "INSIDE"
+                        npc.sim_timer = self.rng.randint(300, 1200) # 5-20 sekuntia sisällä
+                    else:
+                        npc.sim_state = "IDLE"
+                        npc.sim_timer = self.rng.randint(60, 180)
+                else:
+                    # Liiku
+                    speed = 1.2 # Hidastettu kävelyvauhti
+                    move_x = (dx / dist) * speed
+                    move_y = (dy / dist) * speed
+                    npc.rect.x += move_x
+                    npc.rect.y += move_y
+                    npc.facing_right = move_x > 0
+                    
+                    # Yksinkertainen törmäys seiniin (liukuu)
+                    for obs in self.arena.obstacles:
+                        if npc.rect.colliderect(obs.rect):
+                            # Peruuta liike ja vaihda tilaa
+                            npc.rect.x -= move_x
+                            npc.rect.y -= move_y
+                            npc.sim_state = "IDLE"
+                            npc.sim_timer = 30
+                            break
+
+            elif npc.sim_state == "TALK":
+                npc.animation_state = "idle"
+                npc.sim_timer -= 1
+                
+                # Vain aloittaja ohjaa keskustelun kulkua
+                if getattr(npc, "sim_role", "") == "initiator":
+                    if not npc.sim_partner or npc.sim_partner not in self.npcs or npc.sim_partner.sim_state != "TALK":
+                        npc.sim_timer = 0 # Lopeta jos kaveri lähti
+                    else:
+                        # Puhu vuorotellen (joka 100. frame)
+                        # Ensimmäinen puhui jo alussa.
+                        # Lasketaan aika alusta: duration - sim_timer
+                        time_elapsed = (npc.sim_total_lines * 100 + 40) - npc.sim_timer
+                        
+                        if time_elapsed > 0 and time_elapsed % 100 == 0:
+                             if npc.sim_lines_spoken < npc.sim_total_lines:
+                                 speaker = npc.sim_partner if (npc.sim_lines_spoken % 2 != 0) else npc
+                                 self._npc_speak(speaker, npc.sim_topic)
+                                 npc.sim_lines_spoken += 1
+
+                if npc.sim_timer <= 0:
+                    npc.sim_state = "IDLE"
+                    npc.sim_timer = self.rng.randint(30, 90)
+
+    def _equip_from_bag(self, item):
+        if item in self.manager.equipment_bag:
+            self.manager.equipment_bag.remove(item)
+            
+            # Determine slot
+            slot = getattr(item, "slot_type", "main_hand")
+            
+            # Equip
+            old_item = self.player.equip_item_to_slot(slot, item)
+            
+            # Check if equip failed (returns same item)
+            if old_item is item:
+                # Failed (e.g. requirements)
+                self.manager.equipment_bag.append(item)
+                sound_system.play_sound('error')
+            else:
+                # Success
+                if old_item:
+                    self.manager.equipment_bag.append(old_item)
+                sound_system.play_sound('recruit') # Equip sound
+
+    def _unequip_slot(self, slot):
+        item = self.player.unequip_slot(slot)
+        if item:
+            self.manager.equipment_bag.append(item)
+            sound_system.play_sound('click')
+
+    def _draw_hud(self, screen):
+        """Piirtää pikavalikon (1-5) ruudun alareunaan."""
+        slot_size = 50
+        gap = 10
+        slots = ["spell1", "spell2", "spell3", "usable", "usable2"]
+        total_w = len(slots) * slot_size + (len(slots) - 1) * gap
+        start_x = (SCREEN_WIDTH - total_w) // 2
+        y = SCREEN_HEIGHT - 80
+        
+        mouse_pos = pygame.mouse.get_pos()
+        
+        for i, slot_name in enumerate(slots):
+            x = start_x + i * (slot_size + gap)
+            item = self.player.equipment.get(slot_name)
+            
+            # Tausta
+            is_hover = pygame.Rect(x, y, slot_size, slot_size).collidepoint(mouse_pos)
+            draw_item_slot_background(screen, x, y, slot_size, item, is_hover)
+            
+            # Numero
+            draw_text(str(i + 1), font_small, (150, 150, 150), screen, x + 2, y + 2)
+            
+            # Item icon
+            if item:
+                item.draw_card_icon(screen, x, y, slot_size)
+                # Cooldown overlay
+                cd = self.player.spell_cooldowns.get(slot_name, 0)
+                if cd > 0:
+                    max_cd = getattr(item, "cooldown_max", 60)
+                    pct = cd / max(1, max_cd)
+                    h = int(slot_size * pct)
+                    s = pygame.Surface((slot_size, h), pygame.SRCALPHA)
+                    s.fill((0, 0, 0, 150))
+                    screen.blit(s, (x, y + slot_size - h))
+
+    def draw(self, screen):
+        screen.fill((20, 20, 25))
+        offset = (self.camera_x, self.camera_y)
+        
+        # 1. Tausta
+        self.arena.draw_background(screen, offset)
+        
+        # 2. Objektit ja Hahmot (Y-Sort)
+        renderables = list(self.arena.props) + self.npcs + self.animals + [self.player]
+        renderables.sort(key=lambda x: x.rect.bottom)
+        
+        for obj in renderables:
+            # Älä piirrä jos "sisällä" talossa
+            if hasattr(obj, "sim_state") and obj.sim_state == "INSIDE":
+                continue
+                
+            if hasattr(obj, "draw_on_screen"):
+                obj.draw_on_screen(screen, offset)
+            elif hasattr(obj, "image"):
+                screen.blit(obj.image, (obj.rect.x - offset[0], obj.rect.y - offset[1]))
+
+        # 3. VFX
+        self.vfx.draw_top(screen, offset)
+        self.manager.vfx.draw_top(screen, offset)
+        
+        # Mouse Hover Logic
+        mouse_pos = pygame.mouse.get_pos()
+        self._draw_hover_info(screen, offset, mouse_pos)
+        
+        # --- QUEST HUD (Top Left) ---
+        if quest_manager:
+            q = quest_manager.get_quest("quest_manure_cleanup")
+            if q and q.status == "active":
+                cleaned = q.progress
+                required = q.definition.required_amount
+                
+                # Tausta
+                panel_w, panel_h = 250, 60
+                draw_panel(screen, 20, 20, panel_w, panel_h, color=(30, 30, 40, 200), border_color=GOLD_COLOR)
+                
+                draw_text("QUEST: Clean Manure", font_small, GOLD_COLOR, screen, 35, 30)
+                draw_text(f"Progress: {cleaned}/{required}", font_main, WHITE, screen, 35, 50)
+            elif q and q.status == "completed":
+                panel_w, panel_h = 250, 60
+                draw_panel(screen, 20, 20, panel_w, panel_h, color=(30, 50, 30, 200), border_color=GREEN)
+                
+                draw_text("QUEST COMPLETE!", font_small, GREEN, screen, 35, 30)
+                draw_text("Return to Gus", font_main, WHITE, screen, 35, 50)
+        
+        # 4. UI Prompts
+        # Taverna
+        if self.tavern_house:
+            base_x, base_y = self.tavern_house.image_pos
+            door_off = getattr(self.tavern_house, "door_offset", (self.tavern_house.rect.w//2, self.tavern_house.rect.h))
+            door_x = base_x + door_off[0]
+            door_y = base_y + door_off[1]
+            
+            # Tarkista etäisyys
+            dist = math.hypot(self.player.rect.centerx - door_x, self.player.rect.bottom - door_y)
+            if dist < 100:
+                self.manager._draw_floating_prompt(screen, door_x, door_y - 40, "E", offset, "Enter Tavern")
+                
+        # Blacksmith
+        if self.blacksmith_house:
+            base_x, base_y = self.blacksmith_house.image_pos
+            door_off = getattr(self.blacksmith_house, "door_offset", (self.blacksmith_house.rect.w//2, self.blacksmith_house.rect.h))
+            door_x = base_x + door_off[0]
+            door_y = base_y + door_off[1]
+            
+            dist = math.hypot(self.player.rect.centerx - door_x, self.player.rect.bottom - door_y)
+            if dist < 100:
+                self.manager._draw_floating_prompt(screen, door_x, door_y - 40, "E", offset, "Enter Smithy")
+
+        # NPC Prompts (Chat)
+        for npc in self.npcs:
+            if getattr(npc, "ai_controller", None) and getattr(npc.ai_controller, "state", 0) == "INSIDE":
+                continue
+                
+            if self.player.rect.colliderect(npc.rect.inflate(60, 60)):
+                ux = npc.rect.centerx - offset[0]
+                uy = npc.rect.top - offset[1]
+                self.manager._draw_floating_prompt(screen, npc.rect.centerx, npc.rect.top - 20, "E", offset, "Chat")
+
+        # Farm Prompts
+        for cow in self.animals:
+            if self.player.rect.colliderect(cow.rect.inflate(40, 40)):
+                if isinstance(cow, Cow):
+                    txt = "Milk" if cow.milk_ready else "Pet"
+                else:
+                    txt = "Pet"
+                self.manager._draw_floating_prompt(screen, cow.rect.centerx, cow.rect.top - 20, "E", offset, txt)
+        
+        # Muut propit
+        for prop in self.arena.props:
+            if self.player.rect.colliderect(prop.rect.inflate(40, 40)):
+                if isinstance(prop, ManurePile):
+                    count = self.manager.inventory.get("Manure", 0)
+                    if count > 0:
+                        self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, f"Dump {count}")
+                elif isinstance(prop, FarmStorage):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Storage")
+                elif isinstance(prop, TownHall):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Town Hall")
+                elif isinstance(prop, AppleTree):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Shake")
+                elif isinstance(prop, Smeltery):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Smeltery")
+                elif isinstance(prop, ChickenCoop):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Coop")
+                elif isinstance(prop, Well):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Fetch Water")
+                elif isinstance(prop, (MuckfordTree, ScrapPile, ScrapPileBig)) and not getattr(prop, "is_empty", False):
+                    label = "Chop" if isinstance(prop, MuckfordTree) else "Scavenge"
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, label)
+                elif isinstance(prop, (Apple, Egg, Manure)):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Pick Up")
+
+        # ALT-näppäin: Näytä nimet (kuten GameManagerissa)
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LALT] or keys[pygame.K_RALT]:
+            self._draw_names(screen, offset)
+
+        # Smeltery Overlay
+        if self.active_smeltery:
+            self._draw_smeltery_ui(screen)
+            
+        # Dialogue Overlay (Smeltery yms.)
+        if self.manager.active_dialogue:
+            self.manager._draw_in_game_dialogue(screen)
+
+        # ESC hint
+        if not self.show_pause_menu:
+            draw_text("ESC: Menu", font_small, WHITE, screen, 20, 20)
+            
+        if self.show_pause_menu:
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 200))
+            screen.blit(overlay, (0, 0))
+            
+            draw_text("PAUSED", font_title, GOLD_COLOR, screen, SCREEN_WIDTH//2 - 60, SCREEN_HEIGHT//2 - 180)
+            
+            mouse_pos = pygame.mouse.get_pos()
+            for btn in self.pause_buttons:
+                btn.check_hover(mouse_pos)
+                btn.draw(screen)
+        
+        # Editor
+        self.draw_editor(screen)
+    
+    def _draw_inventory(self, screen):
+        self.inventory_buttons = []
+        
+        # Overlay
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200))
+        screen.blit(overlay, (0, 0))
+        
+        panel_w, panel_h = 1000, 700
+        px = (SCREEN_WIDTH - panel_w) // 2
+        py = (SCREEN_HEIGHT - panel_h) // 2
+        
+        draw_panel(screen, px, py, panel_w, panel_h, title="COMMANDER INVENTORY")
+        
+        # --- TABS ---
+        tabs = ["GEAR", "SPELLS", "MATERIALS"]
+        tab_w = 150
+        tab_h = 40
+        tx = px + 40
+        ty = py + 60
+        
+        for t in tabs:
+            col = GOLD_COLOR if t == self.inventory_tab else GRAY
+            rect = pygame.Rect(tx, ty, tab_w, tab_h)
+            pygame.draw.rect(screen, (50, 50, 60), rect, border_radius=5)
+            if t == self.inventory_tab:
+                pygame.draw.rect(screen, col, rect, 2, border_radius=5)
+            
+            draw_text(t, font_main, col, screen, tx + 40, ty + 8)
+            
+            self.inventory_buttons.append((rect, ("tab", t)))
+            tx += tab_w + 10
+            
+        # --- CONTENT ---
+        content_y = ty + 60
+        
+        if self.inventory_tab == "GEAR":
+            self._draw_inventory_gear(screen, px, content_y, panel_w, panel_h)
+        elif self.inventory_tab == "SPELLS":
+            self._draw_inventory_spells(screen, px, content_y, panel_w, panel_h)
+        elif self.inventory_tab == "MATERIALS":
+            self._draw_inventory_materials(screen, px, content_y, panel_w, panel_h)
+            
+        # Close hint
+        draw_text("Press 'I' or 'ESC' to close", font_small, GRAY, screen, px + panel_w - 200, py + panel_h - 30)
+
+    def _draw_inventory_gear(self, screen, x, y, w, h):
+        # Equipped
+        slots = ["main_hand", "off_hand", "body", "head"]
+        slot_labels = ["Main Hand", "Off Hand", "Body", "Head"]
+        
+        sx = x + 50
+        sy = y
+        
+        draw_text("EQUIPPED", font_main, WHITE, screen, sx, sy)
+        sy += 40
+        
+        for i, slot in enumerate(slots):
+            item = self.player.equipment.get(slot)
+            
+            # Slot Box
+            rect = pygame.Rect(sx, sy, 300, 60)
+            pygame.draw.rect(screen, (40, 40, 50), rect, border_radius=5)
+            pygame.draw.rect(screen, (60, 60, 70), rect, 1, border_radius=5)
+            
+            # Icon
+            icon_rect = pygame.Rect(sx + 5, sy + 5, 50, 50)
+            draw_item_slot_background(screen, icon_rect.x, icon_rect.y, 50, item)
+            if item:
+                item.draw_card_icon(screen, icon_rect.x, icon_rect.y, 50)
+            
+            # Text
+            lbl = slot_labels[i]
+            draw_text(lbl, font_small, GRAY, screen, sx + 70, sy + 5)
+            if item:
+                draw_text(item.name, font_main, WHITE, screen, sx + 70, sy + 25)
+                self.inventory_buttons.append((rect, ("unequip", slot)))
+            else:
+                draw_text("Empty", font_main, (100, 100, 100), screen, sx + 70, sy + 25)
+            
+            sy += 70
+
+        # Bag
+        bx = x + 400
+        by = y
+        draw_text("BACKPACK (Gear)", font_main, WHITE, screen, bx, by)
+        by += 40
+        
+        gear_items = [it for it in self.manager.equipment_bag if it.type in ["weapon", "armor", "shield", "helmet", "tool", "melee", "ranged"]]
+        self._draw_bag_grid(screen, gear_items, bx, by, 500, 400)
+
+    def _draw_inventory_spells(self, screen, x, y, w, h):
+        slots = ["spell1", "spell2", "spell3", "usable", "usable2"]
+        labels = ["Spell 1", "Spell 2", "Spell 3", "Potion 1", "Potion 2"]
+        
+        sx = x + 50
+        sy = y
+        draw_text("EQUIPPED SPELLS & ITEMS", font_main, WHITE, screen, sx, sy)
+        sy += 40
+        
+        for i, slot in enumerate(slots):
+            item = self.player.equipment.get(slot)
+            
+            rect = pygame.Rect(sx, sy, 300, 60)
+            pygame.draw.rect(screen, (40, 40, 50), rect, border_radius=5)
+            
+            icon_rect = pygame.Rect(sx + 5, sy + 5, 50, 50)
+            draw_item_slot_background(screen, icon_rect.x, icon_rect.y, 50, item)
+            if item:
+                item.draw_card_icon(screen, icon_rect.x, icon_rect.y, 50)
+            
+            draw_text(labels[i], font_small, GRAY, screen, sx + 70, sy + 5)
+            if item:
+                draw_text(item.name, font_main, WHITE, screen, sx + 70, sy + 25)
+                self.inventory_buttons.append((rect, ("unequip", slot)))
+            else:
+                draw_text("Empty", font_main, (100, 100, 100), screen, sx + 70, sy + 25)
+            
+            sy += 70
+            
+        bx = x + 400
+        by = y
+        draw_text("BACKPACK (Spells & Potions)", font_main, WHITE, screen, bx, by)
+        by += 40
+        
+        spell_items = [it for it in self.manager.equipment_bag if it.type in ["spell", "usable", "potion", "scroll", "book"]]
+        self._draw_bag_grid(screen, spell_items, bx, by, 500, 400)
+
+    def _draw_inventory_materials(self, screen, x, y, w, h):
+        sx = x + 50
+        sy = y
+        draw_text("CRAFTING MATERIALS", font_main, WHITE, screen, sx, sy)
+        sy += 40
+        
+        inv = self.manager.inventory
+        if not inv:
+            draw_text("No materials.", font_small, GRAY, screen, sx, sy)
+            return
+            
+        for name, count in inv.items():
+            if count > 0:
+                draw_text(f"{name}: {count}", font_main, WHITE, screen, sx, sy)
+                sy += 30
+                if sy > y + 500:
+                    sy = y + 40
+                    sx += 300
+
+    def _draw_bag_grid(self, screen, items, x, y, w, h):
+        cols = 6
+        slot_s = 60
+        gap = 10
+        
+        for i, item in enumerate(items):
+            row = i // cols
+            col = i % cols
+            
+            bx = x + col * (slot_s + gap)
+            by = y + row * (slot_s + gap)
+            
+            if by + slot_s > y + h: break
+            
+            rect = pygame.Rect(bx, by, slot_s, slot_s)
+            mp = pygame.mouse.get_pos()
+            is_hover = rect.collidepoint(mp)
+            
+            draw_item_slot_background(screen, bx, by, slot_s, item, is_hover)
+            item.draw_card_icon(screen, bx, by, slot_s)
+            
+            self.inventory_buttons.append((rect, ("equip", item)))
+            
+            if is_hover:
+                draw_item_tooltip(screen, item, mp[0] + 15, mp[1] + 15, self.player)
+
+    def _handle_inventory_click(self, pos):
+        for rect, action_data in self.inventory_buttons:
+            if rect.collidepoint(pos):
+                action = action_data[0]
+                
+                if action == "tab":
+                    self.inventory_tab = action_data[1]
+                    sound_system.play_sound('click')
+                    
+                elif action == "unequip":
+                    slot = action_data[1]
+                    self._unequip_slot(slot)
+                    
+                elif action == "equip":
+                    item = action_data[1]
+                    self._equip_from_bag(item)
+                return
+
+    def _draw_smeltery_ui(self, screen):
+        smelter = self.active_smeltery
+        if not smelter: return
+
+        # Overlay
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        screen.blit(overlay, (0, 0))
+
+        # Panel
+        w, h = 700, 500
+        x = (SCREEN_WIDTH - w) // 2
+        y = (SCREEN_HEIGHT - h) // 2
+        
+        draw_panel(screen, x, y, w, h, title="SMELTERY")
+        
+        # --- STATUS & PROGRESS ---
+        status_y = y + 60
+        
+        if smelter.current_job:
+            job = smelter.current_job
+            pct = job["timer"] / job["max_time"]
+            
+            draw_text(f"Smelting: {job['output']}", font_main, GOLD_COLOR, screen, x + 40, status_y)
+            
+            # Progress Bar
+            bar_w = 620
+            bar_h = 20
+            pygame.draw.rect(screen, (40, 40, 50), (x + 40, status_y + 30, bar_w, bar_h), border_radius=5)
+            pygame.draw.rect(screen, (200, 100, 50), (x + 40, status_y + 30, int(bar_w * pct), bar_h), border_radius=5)
+            draw_text(f"{int(pct*100)}%", font_small, WHITE, screen, x + w//2 - 15, status_y + 30)
+        else:
+            draw_text("Status: Idle", font_main, (150, 150, 150), screen, x + 40, status_y)
+            draw_text("Select a recipe below to start smelting.", font_small, GRAY, screen, x + 40, status_y + 30)
+
+        # --- STORAGE INFO ---
+        store_y = y + 130
+        # Vasen: Scrap & Wood
+        draw_text("STORAGE (Automation)", font_main, WHITE, screen, x + 40, store_y)
+        draw_text(f"Scrap Iron: {smelter.scrap_stored}", font_small, (200, 200, 200), screen, x + 40, store_y + 25)
+        draw_text(f"Swamp Wood: {smelter.wood_stored}", font_small, (200, 200, 200), screen, x + 40, store_y + 45)
+        
+        # Oikea: Player Inventory (Relevant)
+        inv = self.manager.inventory
+        draw_text("YOUR INVENTORY", font_main, WHITE, screen, x + 380, store_y)
+        draw_text(f"Scrap Iron: {inv.get('Scrap Iron', 0)}", font_small, (200, 200, 200), screen, x + 380, store_y + 25)
+        draw_text(f"Swamp Wood: {inv.get('Swamp Wood', 0)}", font_small, (200, 200, 200), screen, x + 380, store_y + 45)
+        draw_text(f"Iron Ore: {inv.get('Iron Ore', 0)}", font_small, (200, 200, 200), screen, x + 530, store_y + 25)
+        draw_text(f"Coal: {inv.get('Coal', 0)}", font_small, (200, 200, 200), screen, x + 530, store_y + 45)
+
+        # --- BUTTONS ---
+        mouse_pos = pygame.mouse.get_pos()
+        for btn in self.smelter_buttons:
+            # Päivitä napin tila (enabled/disabled)
+            if btn.action == "smelter_scrap":
+                # 2 Scrap + 1 Wood
+                can_afford = inv.get("Scrap Iron", 0) >= 2 and inv.get("Swamp Wood", 0) >= 1
+                btn.enabled = can_afford and not smelter.current_job
+                # Lisää resepti-info napin alle
+                draw_text("2 Scrap + 1 Wood", font_small, GRAY, screen, btn.rect.x + 10, btn.rect.bottom + 5)
+                
+            elif btn.action == "smelter_iron":
+                # 2 Ore + 1 Coal
+                can_afford = inv.get("Iron Ore", 0) >= 2 and inv.get("Coal", 0) >= 1
+                btn.enabled = can_afford and not smelter.current_job
+                draw_text("2 Iron Ore + 1 Coal", font_small, GRAY, screen, btn.rect.x + 10, btn.rect.bottom + 5)
+                
+            elif btn.action == "smelter_deposit":
+                # Onko mitään talletettavaa?
+                has_stuff = inv.get("Scrap Iron", 0) > 0 or inv.get("Swamp Wood", 0) > 0
+                btn.enabled = has_stuff
+                draw_text("Stores Scrap & Wood for villagers", font_small, GRAY, screen, btn.rect.x + 20, btn.rect.bottom + 5)
+
+            btn.check_hover(mouse_pos)
+            btn.draw(screen)
+            
+        # Close hint
+        draw_text("Press 'E' or 'ESC' to close", font_small, GRAY, screen, x + w - 180, y + h - 30)
+
+    def _handle_inventory_click(self, pos):
+        for rect, data in self.inventory_buttons:
+            if rect.collidepoint(pos):
+                action, target = data
+                if action == "equip":
+                    self._equip_from_bag(target)
+                elif action == "unequip":
+                    self._unequip_slot(target)
+                return
+
+    def _handle_click(self, pos):
+        mx, my = pos
+        wx = mx + self.camera_x
+        wy = my + self.camera_y
+        world_pos = (wx, wy)
+        
+        # Check Tavern
+        if self.tavern_house:
+             door_rect = pygame.Rect(self.tavern_house.rect.centerx - 40, self.tavern_house.rect.bottom - 40, 80, 60)
+             if door_rect.collidepoint(world_pos):
+                 if self._check_range(self.player.rect, door_rect):
+                     self.next_state = "tavern_sunk_cask"
+                     sound_system.play_sound('click')
+                 return True
+
+        # Check NPCs
+        for npc in self.npcs:
+            if npc.rect.inflate(40, 40).collidepoint(world_pos):
+                 if self._check_range(self.player.rect, npc.rect):
+                     self.manager.open_patron_dialogue(npc, return_state="muckford_city")
+                     self.next_state = "dialogue_active"
+                 return True
+
+        # Check Animals
+        for cow in self.animals:
+            if cow.rect.inflate(40, 40).collidepoint(world_pos):
+                if self._check_range(self.player.rect, cow.rect):
+                    self._interact_cow(cow)
+                return True
+
+        # Check Quest Givers
+        if self.farmer_gus and self.farmer_gus.rect.inflate(40, 40).collidepoint(world_pos):
+            if self._check_range(self.player.rect, self.farmer_gus.rect):
+                self.manager.open_patron_dialogue(self.farmer_gus, return_state="muckford_city")
+                self.next_state = "dialogue_active"
+            return True
+
+        # Check Props
+        for prop in self.arena.props:
+            if prop.rect.inflate(20, 20).collidepoint(world_pos):
+                if self._check_range(self.player.rect, prop.rect):
+                    return self._try_interact_prop(prop, check_collision=False)
+        return False
+
+    def _check_range(self, r1, r2, max_dist=150):
+        d = math.hypot(r1.centerx - r2.centerx, r1.centery - r2.centery)
+        if d <= max_dist:
+            return True
+        else:
+            self.manager.vfx.show_damage(r1.centerx, r1.top - 20, "Too far!", color=(200, 50, 50))
+            return False
+
+    def _interact_cow(self, cow):
+        if cow.milk_ready:
+            # Tarkista onko tyhjä ämpäri
+            has_bucket = False
+            bucket_idx = -1
+            for i, item in enumerate(self.manager.equipment_bag):
+                if isinstance(item, BucketEmpty):
+                    has_bucket = True
+                    bucket_idx = i
+                    break
+            
+            if has_bucket:
+                # Vaihda ämpäri maitoon
+                self.manager.equipment_bag.pop(bucket_idx)
+                self.manager.equipment_bag.append(BucketMilk())
+                cow.milk_ready = False
+                sound_system.play_sound('recruit') # "Splosh" ääni
+                self.manager.vfx.show_damage(cow.rect.centerx, cow.rect.top, "Milked!", color=(255, 255, 255))
+            else:
+                self.manager.vfx.show_damage(self.player.rect.centerx, self.player.rect.top, "Need Bucket!", color=(200, 50, 50))
+        else:
+            self.manager.vfx.show_damage(cow.rect.centerx, cow.rect.top, "Not ready", color=(200, 200, 200))
+
+    def _try_interact_prop(self, prop, check_collision=False):
+        # Jos check_collision on True, tarkistetaan osuuko pelaaja proppiin (E-näppäin logiikka)
+        if check_collision:
+            if not self.player.rect.colliderect(prop.rect.inflate(20, 20)):
+                return False
+
+        if isinstance(prop, Manure):
+            # Pelaaja kerää kakan reppuunsa
+            # Jos quest on aktiivinen, tämä on vaihe 1/2 (kerää -> vie kasalle)
+            # Mutta yksinkertaistetaan: Pelaaja kerää reppuun, ja kun vie kasalle, quest etenee.
+            
+            if True: # Aina kerätään reppuun
+                self.manager.add_material("Manure", 1)
+                if prop in self.arena.props: self.arena.props.remove(prop)
+                if prop in self.manager.all_units: self.manager.all_units.remove(prop)
+                sound_system.play_sound('click')
+                return True
+            
+        if isinstance(prop, ManurePile):
+            count = self.manager.inventory.get("Manure", 0)
+            if count > 0:
+                self.manager.inventory["Manure"] = 0
+                
+                # QUEST LOGIC: Etenee kun viet kakan kasalle
+                if quest_manager:
+                    q = quest_manager.get_quest("quest_manure_cleanup")
+                    if q and q.status == "active":
+                        needed = q.definition.required_amount - q.progress
+                        added = min(count, needed)
+                        q.progress += added
+                        
+                        if q.progress >= q.definition.required_amount:
+                            q.status = "completed"
+                            self.manager.vfx.show_damage(prop.rect.centerx, prop.rect.top - 20, "Quest Done! Talk to Gus!", color=GOLD_COLOR)
+                            sound_system.play_sound('win')
+                        else:
+                            self.manager.vfx.show_damage(prop.rect.centerx, prop.rect.top - 20, f"Quest: {q.progress}/{q.definition.required_amount}", color=WHITE)
+
+                # Lisätään kaupungin varastoon (Talouskierto)
+                self.manager.city_storage["Manure"] = self.manager.city_storage.get("Manure", 0) + count
+                
+            return True
+            
+        if isinstance(prop, FarmStorage):
+            self.next_state = "city_storage"
+            sound_system.play_sound('click')
+            return True
+            
+        if isinstance(prop, TownHall):
+            self.next_state = "sponsors"
+            sound_system.play_sound('click')
+            return True
+            
+        if isinstance(prop, Well):
+            # Tarkista onko tyhjä ämpäri
+            bucket_idx = -1
+            for i, item in enumerate(self.manager.equipment_bag):
+                if isinstance(item, BucketEmpty):
+                    bucket_idx = i
+                    break
+            
+            if bucket_idx != -1:
+                self.manager.equipment_bag.pop(bucket_idx)
+                self.manager.equipment_bag.append(BucketWater())
+                sound_system.play_sound('recruit') # Splash sound placeholder
+                self.manager.vfx.show_damage(prop.rect.centerx, prop.rect.top - 20, "Water Fetched!", color=(100, 200, 255))
+            else:
+                self.manager.vfx.show_damage(prop.rect.centerx, prop.rect.top - 20, "Need Bucket!", color=(200, 50, 50))
+            return True
+            
+        if isinstance(prop, Smeltery):
+            # Jos valmiita tuotteita, kerää ne heti
+            if prop.output_inventory:
+                prop.interact(self.manager)
+            else:
+                # Avaa uusi hieno UI
+                self._open_smelter_ui(prop)
+            return True
+            
+        if isinstance(prop, (Apple, Egg)):
+            self.manager.add_material(prop.loot_item, 1)
+            if prop in self.arena.props: self.arena.props.remove(prop)
+            if prop in self.manager.all_units: self.manager.all_units.remove(prop)
+            sound_system.play_sound('click')
+            self.manager.vfx.show_damage(prop.rect.centerx, prop.rect.top - 20, f"+1 {prop.loot_item}", color=WHITE)
+            return True
+            
+        if isinstance(prop, (ScrapPile, ScrapPileBig)) and not getattr(prop, "is_empty", False):
+            # Klikkaus logiikka romukasoille (puut hoidetaan combatilla)
+            prop.harvest(self.manager, harvester=self.player)
+            return True
+            
+        return False
+
+    def _handle_combat_click(self, pos):
+        mx, my = pos
+        wx = mx + self.camera_x
+        wy = my + self.camera_y
+        
+        # Käänny kohti kohdetta
+        if wx > self.player.rect.centerx:
+            self.player.facing_right = True
+        else:
+            self.player.facing_right = False
+            
+        mouse_rect = pygame.Rect(wx - 10, wy - 10, 20, 20)
+        
+        target = None
+        for u in self.npcs + self.animals:
+            if u.rect.colliderect(mouse_rect):
+                target = u
+                break
+        
+        # Jos ei yksikköä, tarkista puut
+        if not target:
+            for p in self.arena.props:
+                if isinstance(p, MuckfordTree) and not getattr(p, "is_empty", False):
+                    if p.rect.colliderect(mouse_rect):
+                        target = p
+                        break
+        
+        if target:
+            self.player.perform_attack(target, self.manager)
+        else:
+            self.player.perform_attack(None, self.manager, target_pos=(wx, wy))
+
+    def _draw_names(self, screen, offset):
+        """Piirtää nimet hahmojen päälle (debug/info)."""
+        for npc in self.npcs:
+            if getattr(npc, "ai_controller", None) and getattr(npc.ai_controller, "state", 0) == "INSIDE":
+                continue
+                
+            sx = npc.rect.centerx - offset[0]
+            sy = npc.rect.top - offset[1] - 15
+            if 0 < sx < SCREEN_WIDTH and 0 < sy < SCREEN_HEIGHT:
+                draw_text(npc.name, font_small, (200, 200, 200), screen, sx - 20, sy)
+
+    def _draw_quest_markers(self, screen, offset):
+        if self.farmer_gus:
+            status = "locked"
+            if quest_manager:
+                status = quest_manager.get_quest_status("quest_manure_cleanup")
+                
+            x = self.farmer_gus.rect.centerx - offset[0]
+            
+            # Liikkuva efekti (bobbing)
+            bob = math.sin(pygame.time.get_ticks() * 0.005) * 5
+            y = self.farmer_gus.rect.top - 50 - offset[1] + bob # Nostettu ylemmäs (-30 -> -50)
+            
+            if status == "available":
+                draw_text("!", font_title, GOLD_COLOR, screen, x - 10, y) # Isompi fontti (font_title on iso)
+            elif status == "active":
+                # Ei merkkiä tai harmaa kysymysmerkki kun kesken
+                draw_text("?", font_title, (150, 150, 150), screen, x - 15, y)
+            elif status == "completed":
+                draw_text("?", font_title, (100, 255, 100), screen, x - 15, y)
+
+    def _draw_hover_info(self, screen, offset, mouse_pos):
+        wx = mouse_pos[0] + offset[0]
+        wy = mouse_pos[1] + offset[1]
+        world_pos = (wx, wy)
+        
+        # Check Animals
+        for cow in self.animals:
+            if cow.rect.inflate(20, 20).collidepoint(world_pos):
+                if isinstance(cow, Cow):
+                    txt = "Milk" if cow.milk_ready else "Pet"
+                else:
+                    txt = "Pet" # Kanat yms.
+                draw_text(txt, font_small, WHITE, screen, mouse_pos[0] + 15, mouse_pos[1])
+                return
+
+        # Check Props
+        for prop in self.arena.props:
+            if prop.rect.inflate(10, 10).collidepoint(world_pos):
+                if isinstance(prop, Manure):
+                    draw_text("Pick Up", font_small, (150, 100, 50), screen, mouse_pos[0] + 15, mouse_pos[1])
+                    return
+                if isinstance(prop, ManurePile):
+                    draw_text("Dump Manure", font_small, GOLD_COLOR, screen, mouse_pos[0] + 15, mouse_pos[1])
+                    return
+                elif isinstance(prop, FarmStorage):
+                    draw_text("Open Storage", font_small, GOLD_COLOR, screen, mouse_pos[0] + 15, mouse_pos[1])
+                    return
+                elif isinstance(prop, TownHall):
+                    draw_text("Town Hall", font_small, GOLD_COLOR, screen, mouse_pos[0] + 15, mouse_pos[1])
+                    return
+                elif isinstance(prop, AppleTree):
+                    draw_text("Shake (E)", font_small, WHITE, screen, mouse_pos[0] + 15, mouse_pos[1])
+                    return
+                elif isinstance(prop, Smeltery):
+                    draw_text("Smeltery", font_small, (255, 100, 50), screen, mouse_pos[0] + 15, mouse_pos[1])
+                    return
+                elif isinstance(prop, (MuckfordTree, ScrapPile, ScrapPileBig)) and not getattr(prop, "is_empty", False):
+                    label = "Chop" if isinstance(prop, MuckfordTree) else "Scavenge"
+                    draw_text(label, font_small, WHITE, screen, mouse_pos[0] + 15, mouse_pos[1])
+                    return
+
+
+        # Check NPCs
+        for npc in self.npcs:
+            if npc.rect.inflate(20, 20).collidepoint(world_pos):
+                draw_text("Chat", font_small, (200, 200, 200), screen, mouse_pos[0] + 15, mouse_pos[1])
+                return
+
+        # Quest Giver Hover
+        if self.farmer_gus and self.farmer_gus.rect.inflate(40, 40).collidepoint(world_pos):
+            draw_text("Quest", font_small, GOLD_COLOR, screen, mouse_pos[0] + 15, mouse_pos[1])
+            return
+
+    def _update_simulation(self):
+        """Hoitaa kaupungin elämän: kävelyn, juttelun ja taloissa vierailun."""
+        for npc in self.npcs:
+            if not hasattr(npc, "sim_state"): continue # Skip static NPCs like Gus
+
+            # --- AI INTEGRATION ---
+            # Tarkista tekeekö VillagerAI töitä (State ei ole 0/IDLE)
+            ai = getattr(npc, "ai_controller", None)
+            is_working = False
+            if ai and ai.state != 0: # 0 = STATE_IDLE
+                is_working = True
+            
+            if is_working:
+                npc.sim_state = "BUSY" # AI ohjaa
+                continue
+            elif npc.sim_state == "BUSY":
+                # AI lopetti työt, palataan simulaatioon
+                npc.sim_state = "IDLE"
+            # ----------------------
+
+            if npc.sim_state == "INSIDE":
+                npc.sim_timer -= 1
+                if npc.sim_timer <= 0:
+                    # Tule ulos
+                    npc.sim_state = "IDLE"
+                    npc.sim_timer = 60
+                continue
+
+            # Jos ollaan ulkona, piirretään normaalisti
+            if npc.sim_state == "IDLE":
+                npc.animation_state = "idle"
+                npc.sim_timer -= 1
+                if npc.sim_timer <= 0:
+                    # Valitse uusi toiminto
+                    action = self.rng.choice(["WALK", "WALK", "WALK", "ENTER", "TALK"])
+                    
+                    if action == "WALK":
+                        # Arvo satunnainen kohde
+                        tx = self.rng.randint(100, self.arena.width - 100)
+                        ty = self.rng.randint(100, self.arena.height - 100)
+                        npc.sim_target = (tx, ty)
+                        npc.sim_state = "WALK"
+                    
+                    elif action == "ENTER" and self.buildings:
+                        # Mene lähimpään tai satunnaiseen taloon
+                        target_house = self.rng.choice(self.buildings)
+                        npc.sim_target = target_house
+                        npc.sim_state = "ENTERING"
+                        
+                    elif action == "TALK":
+                        # Etsi lähellä oleva kaveri
+                        partner = None
+                        for other in self.npcs:
+                            if other != npc and getattr(other, "sim_state", "") == "IDLE":
+                                dist = math.hypot(other.rect.centerx - npc.rect.centerx, other.rect.centery - npc.rect.centery)
+                                if dist < 150:
+                                    partner = other
+                                    break
+                        
+                        if partner:
+                            npc.sim_state = "TALK"
+                            npc.sim_partner = partner
+                            npc.sim_timer = 180 # 3 sekuntia juttelua
+                            
+                            partner.sim_state = "TALK"
+                            partner.sim_partner = npc
+                            partner.sim_timer = 180
+                            
+                            # Käänny toisiaan kohti
+                            npc.facing_right = partner.rect.centerx > npc.rect.centerx
+                            partner.facing_right = npc.rect.centerx > partner.rect.centerx
+                            
+                            # Puhekuplat
+                            lines = ["Nice weather.", "Busy day.", "Heard about the rats?", "Need ale.", "Work, work.", "Move it.", "Hello.", "Hmm."]
+                            self.manager.vfx.create_speech_bubble(npc, self.rng.choice(lines), duration=120)
+                        else:
+                            npc.sim_timer = 30 # Ei löytynyt, odota hetki
+
+            elif npc.sim_state == "WALK" or npc.sim_state == "ENTERING":
+                npc.animation_state = "run"
+                tx, ty = npc.sim_target
+                dx = tx - npc.rect.centerx
+                dy = ty - npc.rect.centery
+                dist = math.hypot(dx, dy)
+                
+                if dist < 10:
+                    # Perillä
+                    if npc.sim_state == "ENTERING":
+                        npc.sim_state = "INSIDE"
+                        npc.sim_timer = self.rng.randint(300, 1200) # 5-20 sekuntia sisällä
+                    else:
+                        npc.sim_state = "IDLE"
+                        npc.sim_timer = self.rng.randint(60, 180)
+                else:
+                    # Liiku
+                    speed = 1.2 # Hidastettu kävelyvauhti
+                    move_x = (dx / dist) * speed
+                    move_y = (dy / dist) * speed
+                    npc.facing_right = move_x > 0
+                    
+                    # KORJAUS: Käytetään check_wall_collision sub-pixel liikkeelle
+                    # Tämä estää "warppimisen" ja jumittamisen kun liike on alle 1px/frame
+                    if hasattr(npc, "check_wall_collision"):
+                        npc.check_wall_collision(move_x, move_y, self.arena.obstacles)
+                    else:
+                        npc.rect.x += int(move_x)
+                        npc.rect.y += int(move_y)
+
+            elif npc.sim_state == "TALK":
+                npc.animation_state = "idle"
+                npc.sim_timer -= 1
+                if npc.sim_timer <= 0:
+                    npc.sim_state = "IDLE"
+                    npc.sim_timer = self.rng.randint(30, 90)
+
+    def _equip_from_bag(self, item):
+        if item in self.manager.equipment_bag:
+            self.manager.equipment_bag.remove(item)
+            
+            # Determine slot
+            slot = getattr(item, "slot_type", "main_hand")
+            
+            # Equip
+            old_item = self.player.equip_item_to_slot(slot, item)
+            
+            # Check if equip failed (returns same item)
+            if old_item is item:
+                # Failed (e.g. requirements)
+                self.manager.equipment_bag.append(item)
+                sound_system.play_sound('error')
+            else:
+                # Success
+                if old_item:
+                    self.manager.equipment_bag.append(old_item)
+                sound_system.play_sound('recruit') # Equip sound
+
+    def _unequip_slot(self, slot):
+        item = self.player.unequip_slot(slot)
+        if item:
+            self.manager.equipment_bag.append(item)
+            sound_system.play_sound('click')
