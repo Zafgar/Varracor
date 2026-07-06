@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "id": "hunters_spear",
+      "name": "Hunter's Spear",
+      "category": "weapon",
+      "slot_type": "main_hand",
+      "type": "melee",
+      "cost": 120,
+      "rarity": "common",
+      "stats": { "attack_range": 55, "speed_bonus": 0, "damage_min": 6, "damage_max": 10 }
+    },
+    {
+      "id": "troll_hide",
+      "name": "Troll Hide",
+      "category": "crafting",
+      "stackable": true,
+      "sell_value": 35
+    },
+    {
+      "id": "troll_fang",
+      "name": "Troll Fang",
+      "category": "crafting",
+      "stackable": true,
+      "sell_value": 20
+    }
+  ]
+}
