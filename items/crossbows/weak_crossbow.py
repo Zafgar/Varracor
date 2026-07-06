@@ -1,0 +1,131 @@
+import pygame
+import os
+import math
+import random
+from items.base_item import Weapon
+from sound_manager import sound_system
+from vfx import ArrowProjectile
+
+class WeakCrossbow(Weapon):
+    def __init__(self):
+        super().__init__()
+        self.name = "Light Crossbow"
+        self.rarity = "Common"
+        self.cost = 55
+        self.description = "Slower than a bow, but hits harder."
+        
+        self.type = "ranged"
+        self.slot_type = "main_hand"
+        self.weapon_group = "crossbow"
+        self.level_required = 2
+        
+        self.damage = 9
+        self.attack_range = 320
+        self.speed_bonus = -0.2 # Hitaampi
+        self.scaling = {'DEX': 0.6, 'STR': 0.2}
+        
+        self.is_loaded = False
+        self.load_progress = 0
+        self.load_time = 80 # Nopeampi lataus (1.3s)
+        self.charge_enabled = True
+        self.last_charge_tick = 0
+        self.just_finished_loading = False
+        
+        self.image = None
+        self._load_image()
+
+    def _load_image(self):
+        path = "assets/gear/crossbows/weak_crossbow.png"
+        if os.path.exists(path):
+            try:
+                img = pygame.image.load(path).convert_alpha()
+                self.image = pygame.transform.smoothscale(img, (32, 24))
+                self.big_image = img
+            except: pass
+
+    def draw_card_icon(self, surface, x, y, size):
+        img = getattr(self, "big_image", self.image)
+        if img:
+            ratio = img.get_width() / img.get_height()
+            new_h = size
+            new_w = int(new_h * ratio)
+            scaled = pygame.transform.smoothscale(img, (new_w, new_h))
+            surface.blit(scaled, (x + (size - new_w) // 2, y))
+        else:
+            pygame.draw.line(surface, (100, 80, 60), (x+size*0.2, y+size*0.5), (x+size*0.8, y+size*0.5), 4)
+            pygame.draw.line(surface, (150, 150, 150), (x+size*0.7, y+size*0.2), (x+size*0.7, y+size*0.8), 2)
+
+    def update_charge(self, owner, manager):
+        if not self.is_loaded:
+            now = pygame.time.get_ticks()
+            if now - self.last_charge_tick > 100:
+                self.load_progress = 0
+            self.last_charge_tick = now
+
+            owner.temp_speed_mult = 0.0
+            owner.is_charging = True
+            
+            drain = max(0.2, 0.8 - (owner.strength * 0.02))
+            if owner.current_stamina > drain:
+                owner.current_stamina -= drain
+            else:
+                return
+            
+            self.load_progress += 1
+            
+            if self.load_progress >= self.load_time:
+                self.is_loaded = True
+                self.just_finished_loading = True
+                self.load_progress = 0
+                sound_system.play_sound("click")
+                if manager: manager.vfx.show_damage(owner.rect.centerx, owner.rect.top - 20, "LOADED", color=(255, 255, 0))
+
+    def release_charge(self, owner, manager, target_pos):
+        if self.is_loaded and owner.attack_cooldown <= 0:
+            if self.just_finished_loading:
+                self.just_finished_loading = False
+                return
+
+            dmg = self.calculate_damage({"dex": owner.dexterity, "str": owner.strength})
+            bolt = ArrowProjectile(owner.rect.centerx, owner.rect.centery, target_pos, 28, dmg, owner, manager, is_bolt=True, max_range=self.attack_range)
+            manager.vfx.add_projectile(bolt)
+            
+            sound_system.play_sound("crossbow_1")
+            self.is_loaded = False
+            self.just_finished_loading = False
+            owner.attack_cooldown = 20
+        else:
+            self.load_progress = 0
+
+    def draw_equipped(self, surface, unit_rect, facing_right, attack_cooldown, total_cooldown=60, attack_vector=None):
+        hand_x = unit_rect.centerx + (10 if facing_right else -10)
+        hand_y = unit_rect.centery + 5
+        
+        angle = 0
+        if attack_vector:
+            dx, dy = attack_vector
+            angle = -math.degrees(math.atan2(dy, dx))
+        else:
+            angle = 0 if facing_right else 180
+
+        s_size = 64
+        s = pygame.Surface((s_size, s_size), pygame.SRCALPHA)
+        cx, cy = s_size // 2, s_size // 2
+        
+        color = (120, 120, 130) # Iron
+        pygame.draw.line(s, color, (cx - 10, cy), (cx + 10, cy), 4)
+        pygame.draw.line(s, (180, 180, 190), (cx + 5, cy - 10), (cx + 5, cy + 10), 2)
+        
+        if self.load_progress > 0 and not self.is_loaded:
+            pct = self.load_progress / self.load_time
+            bx = unit_rect.centerx - 15
+            by = unit_rect.top - 15
+            pygame.draw.rect(surface, (50, 50, 50), (bx, by, 30, 4))
+            pygame.draw.rect(surface, (255, 200, 0), (bx, by, int(30 * pct), 4))
+            
+        if self.is_loaded:
+            pygame.draw.line(s, (200, 200, 200), (cx - 5, cy), (cx + 8, cy), 1)
+
+        rotated = pygame.transform.rotate(s, angle)
+        r_rect = rotated.get_rect(center=(unit_rect.centerx, unit_rect.centery))
+        surface.blit(rotated, r_rect)
