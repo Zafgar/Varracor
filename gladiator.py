@@ -1,0 +1,1587 @@
+import pygame
+import math
+import random
+
+# --- SETTINGS & ASSETS ---
+from settings import *
+from races import RACES
+from sound_manager import sound_system
+
+# --- PROGRESSION ---
+from progression.xp_table import MAX_LEVEL, level_from_xp
+
+# Skill effects
+from skills.skills_data import SKILL_TREE
+
+# --- MODULES ---
+from renderer import GladiatorRenderer
+from items.item_registry import create_fists
+from ui_kit import format_money
+
+# --- AI ---
+try:
+    from ai.human_ai import HumanAI
+except ImportError:
+    HumanAI = None
+
+
+class Gladiator(pygame.sprite.Sprite):
+    """
+    Gladiator = unit base class.
+
+    Features:
+      - Spell slots (1..3) unlock via skill tree.
+      - Weapon/Armor require Proficiency (Hard Lock).
+      - Items can have 'on_update' hooks for Auras/AoE.
+      - Passive bonuses (STR/DEX/INT) work on ALL items.
+    """
+
+    def __init__(self, name, race_name, x, y, team_color):
+        super().__init__()
+        self.name = name
+        self.race_name = race_name
+        self.team_color = team_color
+
+        # --- ATTRIBUTES ---
+        self.max_hp = 100
+        self.current_hp = 100
+        self.max_mana = 0
+        self.current_mana = 0
+        self.strength = 5
+        self.dexterity = 5
+        self.intelligence = 5
+        self.speed = 1.0
+        self.walk_speed = 1.0
+        self.defense = 0
+
+        self.base_mana_regen = 0.02
+        self.mana_regen = self.base_mana_regen
+
+        # Global cooldown multiplier (lower = faster)
+        self.cooldown_multiplier = 1.0
+
+        # --- SUB-PIXEL MOVE (speed < 1.0 still moves) ---
+        self._move_rem_x = 0.0
+        self._move_rem_y = 0.0
+
+        # --- STAMINA SYSTEM ---
+        self.max_stamina = 100
+        self.current_stamina = 100
+        self.stamina_regen = 0.25 # Hieman nopeampi palautuminen
+
+        # Combat states
+        self.is_blocking = False
+        self.is_sprinting = False
+        self.is_dashing = False
+        self.is_channeling = False # New state for spells like Sun Ray
+        self.is_charging = False # UUSI: Estää staminan palautumisen ladatessa
+
+        # Dash vectors
+        self.dash_timer = 0
+        self.max_dashes = 1 # Oletus: 1 syöksy
+        self.current_dashes = 1
+        self.dash_recharge_timer = 0
+        self.dash_recharge_time = 180 # 3 sekuntia per lataus
+        self.dash_vector = (0.0, 0.0)
+        self.dash_speed_mult = 3.5 # Oletusnopeuskerroin syöksylle
+        self.dash_damage = 0 # UUSI: Vahinko törmäyksessä
+        self.dash_hit_list = [] # Lista osutuista yksiköistä (ettei osu samaan montaa kertaa)
+        self.jump_height = 0 # Visuaalinen hyppykorkeus (pikseleinä)
+
+        # Attack stats
+        self.attack_range = 35
+        self.weapon_type = "melee"
+        self.weapon_effect = "damage"
+
+        # --- SKILL TREE (derived each recalculation) ---
+        # New for weapon collision
+        self.attack_vector = (0.0, 0.0)
+
+        self.weapon_masteries = set()   # e.g. {"sword","dagger","bow","shield","book",...}
+        self.armor_masteries = set()    # e.g. {"light","medium","heavy","cloth"}
+        self.can_dual_wield = False
+        self.block_stamina_mult = 1.0
+        self.heavy_armor_penalty_mult = 1.0
+        self.double_shot_chance = 0.0
+        self.temp_speed_mult = 1.0 # UUSI: Väliaikainen nopeuskerroin (esim. lataus)
+
+        # Spell unlocks (NOT tied to level)
+        self.spell_slots_unlocked = set()  # {1,2,3}
+        self.max_spell_tier = 0            # 0 => cannot equip/cast spells
+
+        # Combat runtime
+        self.is_dead = False
+        self.attack_cooldown = 0
+        self.spell_cooldowns = {"spell1": 0, "spell2": 0, "spell3": 0}
+        self.attack_speed = 60  # frames between attacks
+        self.cost = 0
+        self.training_count = 0
+
+        self.stats = {"damage": 0, "healing": 0, "kills": 0, "assists": 0}
+        self.attackers = set()
+        self.status_effects = []
+        self.traits = []
+
+        # --- SKILL FLAGS ---
+        self.has_executioner = False
+        self.has_second_wind = False
+        self.second_wind_triggered = False
+
+        # --- PROGRESSION ---
+        self.max_level = MAX_LEVEL
+        self.level = 1
+        self.xp = 0
+        self.skill_points = 0
+        self.unlocked_skills = set()
+
+        self.just_leveled_up = False
+        self._level_up_timer = 0
+        
+        # --- ANIMATION STATE ---
+        self.animation_state = "idle"
+        self.animation_timer = 0
+        self.stun_timer = 0 # UUSI: Osuman aiheuttama lamaannus
+        self.stun_immunity = 0 # Estää stunlockin (ei voi stunnata heti uudestaan)
+
+        self._death_timer = 0
+        # Equip error message for UI/menus
+        self.last_equip_error = ""
+
+        # --- BASE STATS FROM RACE ---
+        base_stat = 5
+        if race_name in RACES:
+            data = RACES[race_name]
+            self.base_attributes = {
+                "str": int(base_stat * data.get("str_mult", 1.0)),
+                "dex": int(base_stat * data.get("spd_mult", 1.0)),
+                "int": base_stat,
+                "hp": int(100 * data.get("hp_mult", 1.0)),
+                "mana": 20,
+                "def_flat": int(data.get("defense", 0)),
+            }
+            if "hp_flat" in data:
+                self.base_attributes["hp"] = int(data["hp_flat"])
+        else:
+            self.base_attributes = {"str": base_stat, "dex": base_stat, "int": base_stat, "hp": 100, "mana": 20, "def_flat": 0}
+
+        # Normalize key
+        self.base_attributes.setdefault("max_hp", self.base_attributes.get("hp", 100))
+
+        # --- EQUIPMENT ---
+        self.equipment = {
+            "head": None,
+            "body": None,
+            "main_hand": create_fists(),
+            "off_hand": None,
+            "spell1": None,
+            "spell2": None,
+            "spell3": None,
+            "usable": None,
+            "usable2": None,
+        }
+
+        self.primary_weapon = self.equipment["main_hand"]
+        self.current_weapon = self.primary_weapon
+        self.armor = None
+        self.armor_name = "No Armor"
+
+        # --- VISUALS & RENDERER ---
+        # Physics Rect (Jalat) - Pienempi korkeus parempaa syvyysvaikutelmaa varten
+        self.rect = pygame.Rect(x, y, 32, 24)
+        self.image = pygame.Surface((32, 48), pygame.SRCALPHA).convert_alpha()
+        self.rect.topleft = (x, y)
+        self.sprites = {}
+
+        self.renderer = GladiatorRenderer(self)
+        self.use_sprites = self.load_assets()
+
+        # --- INITIALIZATION ---
+        self.calculate_final_stats()
+        self.current_hp = self.max_hp
+        self.current_mana = self.max_mana
+        self.current_stamina = self.max_stamina
+
+        self.ai_controller = None
+        if HumanAI:
+            self.ai_controller = HumanAI(self)
+
+        if not self.use_sprites:
+            self.draw_procedural()
+
+    @property
+    def hurt_rect(self):
+        """
+        Returns the 'body' rectangle for combat hit detection.
+        Extends upwards from the physics rect (feet).
+        """
+        height = self.image.get_height() if self.image else 60
+        return pygame.Rect(self.rect.centerx - self.rect.width//2, self.rect.bottom - height, self.rect.width, height)
+
+    # --- DELEGATED DRAWING METHODS ---
+    def draw_on_screen(self, surface, offset=(0, 0)):
+        self.renderer.draw_on_screen(surface, offset)
+
+    def draw_health_bar(self, surface, offset=(0, 0)):
+        self.renderer.draw_health_bar(surface, offset)
+
+    def draw_info_card(self, surface, x, y, w=200, h=260, bg_color=(30, 30, 35), border_color=(60, 60, 70), show_cost=False, hover=False, can_afford=True):
+        """
+        Piirtää informatiivisen kortin yksiköstä (esim. Tavern/Roster -valikoihin).
+        Näyttää: Nimi, Rotu, Level, HP/Mana, Statsit, Traitit.
+        """
+        # Yritetään hakea fontit, tai käytetään oletusta
+        try:
+            from ui_kit import font_main, font_small
+        except ImportError:
+            font_main = pygame.font.SysFont("Arial", 18, bold=True)
+            font_small = pygame.font.SysFont("Arial", 14)
+
+        rect = pygame.Rect(x, y, w, h)
+        
+        # Tausta
+        draw_bg = (40, 40, 50) if hover else bg_color
+        pygame.draw.rect(surface, draw_bg, rect, border_radius=8)
+        
+        # Reuna
+        b_col = (150, 150, 180) if hover else border_color
+        pygame.draw.rect(surface, b_col, rect, 2, border_radius=8)
+        
+        # 1. Otsikko (Nimi + Lvl)
+        name_surf = font_main.render(self.name, True, (255, 255, 255))
+        race_surf = font_small.render(f"Lvl {self.level} {self.race_name}", True, (180, 180, 180))
+        
+        surface.blit(name_surf, (x + 10, y + 8))
+        surface.blit(race_surf, (x + 10, y + 30))
+        
+        # 2. Portrait (Oikea yläkulma)
+        face = getattr(self, "big_image", self.image)
+        if face:
+            s = int(w * 0.35) # Pienennetään kuvaa hieman (35%), jotta teksti mahtuu paremmin
+            # Varmistetaan että kuva on olemassa (procedural fallback)
+            if not getattr(self, "use_sprites", False):
+                self.draw_procedural()
+                face = self.image
+                
+            scaled = pygame.transform.smoothscale(face, (s, s))
+            p_rect = pygame.Rect(x + w - s - 10, y + 10, s, s)
+            pygame.draw.rect(surface, (20, 20, 20), p_rect)
+            pygame.draw.rect(surface, (60, 60, 60), p_rect, 1)
+            surface.blit(scaled, p_rect)
+            
+        # 3. Palkit (HP / Mana)
+        bar_w = 100
+        bar_h = 6
+        bx = x + 10
+        by = y + 55
+        
+        # HP
+        pct_hp = self.current_hp / max(1, self.max_hp)
+        pygame.draw.rect(surface, (60, 0, 0), (bx, by, bar_w, bar_h))
+        pygame.draw.rect(surface, (200, 50, 50), (bx, by, int(bar_w * pct_hp), bar_h))
+        
+        # Mana (jos on)
+        if self.max_mana > 0:
+            by += 10
+            pct_mana = self.current_mana / max(1, self.max_mana)
+            pygame.draw.rect(surface, (0, 0, 60), (bx, by, bar_w, bar_h))
+            pygame.draw.rect(surface, (50, 100, 255), (bx, by, int(bar_w * pct_mana), bar_h))
+            
+        # 4. Stats Grid
+        start_y = y + 85
+        col1 = x + 10
+        col2 = x + w // 2 + 5
+        row_h = 22 # Kasvatetaan riviväliä luettavuuden parantamiseksi
+        
+        surface.blit(font_small.render(f"STR: {self.strength}", True, (255, 100, 100)), (col1, start_y))
+        surface.blit(font_small.render(f"DEX: {self.dexterity}", True, (100, 255, 100)), (col2, start_y))
+        surface.blit(font_small.render(f"INT: {self.intelligence}", True, (100, 150, 255)), (col1, start_y + row_h))
+        surface.blit(font_small.render(f"DEF: {self.defense}", True, (200, 200, 200)), (col2, start_y + row_h))
+        surface.blit(font_small.render(f"SPD: {self.speed:.1f}", True, (220, 220, 220)), (col1, start_y + row_h*2))
+        surface.blit(font_small.render(f"CRI: {int(self.crit_chance*100)}%", True, (220, 220, 0)), (col2, start_y + row_h*2))
+        
+        # 5. Traits
+        if self.traits:
+            t_y = start_y + row_h * 3 + 5
+            t_str = ", ".join(self.traits[:3])
+            surface.blit(font_small.render(f"Traits: {t_str}", True, (255, 215, 0)), (col1, t_y))
+            
+        # 6. Hinta
+        if show_cost:
+            cost_y = h - 25
+            c_col = (50, 200, 50) if can_afford else (200, 50, 50)
+            c_txt = font_main.render(format_money(self.cost), True, c_col)
+            surface.blit(c_txt, (x + 10, y + cost_y))
+
+    # =========================================================
+    # EQUIP REQUIREMENT HELPERS (used by GuildMenu)
+    # =========================================================
+    def _normalize_weapon_group(self, g: str) -> str:
+        """
+        Normalize weapon group names to canonical values.
+        For example, polearm/halberd/glaive/pike all map to "spear", and
+        "xbow" maps to "crossbow". If no mapping exists the input is returned.
+        """
+        if not g:
+            return ""
+        s = str(g).lower().replace(" ", "")
+        mapping = {
+            "polearm": "spear",
+            "halberd": "spear",
+            "glaive": "spear",
+            "pike": "spear",
+            "xbow": "crossbow",
+            "crossbow": "crossbow",
+        }
+        return mapping.get(s, s)
+
+    def _weapon_group_from_item(self, item) -> str:
+        g = getattr(item, "weapon_group", None)
+        if g:
+            return self._normalize_weapon_group(g)
+        n = str(getattr(item, "name", "")).lower()
+        if "crossbow" in n or "xbow" in n:
+            return "crossbow"
+        if "bow" in n:
+            return "bow"
+        if "dagger" in n or "shiv" in n:
+            return "dagger"
+        if "spear" in n or "pike" in n or "halberd" in n or "glaive" in n:
+            return "spear"
+        if "staff" in n:
+            return "staff"
+        if "mace" in n or "hammer" in n or "club" in n:
+            return "mace"
+        if "axe" in n:
+            return "axe"
+        if "sword" in n:
+            return "sword"
+        if "book" in n or "tome" in n:
+            return "book"
+        if "shield" in n:
+            return "shield"
+        if "relic" in n or "orb" in n or "talisman" in n or "idol" in n:
+            return "relic"
+        return ""
+
+    def _armor_group_from_item(self, item) -> str:
+        """
+        Normalize armor group names. Treat "light" and "cloth" synonyms as cloth.
+        """
+        g = getattr(item, "armor_group", None)
+        if g:
+            s = str(g).lower()
+            if s in ("light", "cloth", "robe", "leather"):
+                return "cloth"
+            return s
+        n = str(getattr(item, "name", "")).lower()
+        if "heavy" in n:
+            return "heavy"
+        if "medium" in n:
+            return "medium"
+        if "light" in n or "leather" in n or "cloth" in n or "robe" in n:
+            return "cloth"
+        return ""
+
+    def _spell_tier_from_item(self, spell) -> int:
+        for key in ("tier", "spell_tier", "spell_level", "level"):
+            if hasattr(spell, key):
+                try:
+                    v = int(getattr(spell, key) or 1)
+                    return max(1, v)
+                except Exception:
+                    pass
+        return 1
+
+    def _slot_index_from_name(self, slot_name: str) -> int:
+        return {"spell1": 1, "spell2": 2, "spell3": 3}.get(slot_name, 0)
+
+    def _has_spell_slot(self, idx: int) -> bool:
+        """
+        Backward-compatible:
+          - if spell_slots_unlocked is set/list/tuple => membership check
+          - if spell_slots_unlocked is int => treat as "max unlocked slot number" (e.g. 2 => slot1+2)
+        """
+        s = self.spell_slots_unlocked
+        if isinstance(s, int):
+            return idx > 0 and s >= idx
+        try:
+            return idx in s
+        except TypeError:
+            return False
+
+    def can_equip_item_to_slot(self, slot_name: str, item):
+        """
+        Returns (ok: bool, reason: str)
+
+        Rules:
+          - Level requirement must be met (min 1, max 30).
+          - Spell slots are locked unless unlocked in tree.
+          - Spell tier is locked unless unlocked in tree.
+          - Shield is locked unless proficient.
+          - Off-hand weapon requires dual wield unlock.
+          - Main-hand weapon requires Proficiency (HARD LOCK).
+          - Armor requires Proficiency (HARD LOCK).
+        """
+        if item is None:
+            return True, ""
+
+        # Normalize slot name aliases
+        sname = str(slot_name or "").lower().replace(" ", "").replace("-", "_")
+        slot_map = {
+            "mainhand": "main_hand",
+            "offhand": "off_hand",
+            "spellslot1": "spell1",
+            "spell_slot1": "spell1",
+            "spell1": "spell1",
+            "spellslot2": "spell2",
+            "spell_slot2": "spell2",
+            "spell2": "spell2",
+            "spellslot3": "spell3",
+            "spell_slot3": "spell3",
+            "spell3": "spell3",
+            "head": "head",
+            "body": "body",
+            "usable": "usable",
+            "usable2": "usable2",
+        }
+        slot_name = slot_map.get(sname, slot_name)
+
+        # 1. Spell slots – spells are NOT level-locked, handle before level check
+        if slot_name in ("spell1", "spell2", "spell3"):
+            idx = self._slot_index_from_name(slot_name)
+            if not self._has_spell_slot(idx):
+                return False, f"Spell Slot {idx} is locked (unlock in skill tree)."
+            req_tier = self._spell_tier_from_item(item)
+            if self.max_spell_tier <= 0:
+                return False, "You cannot use spells yet (unlock Spell Tier 1)."
+            if req_tier > self.max_spell_tier:
+                return False, f"Requires Spell Tier {req_tier} (you have Tier {self.max_spell_tier})."
+            return True, ""
+
+        # 0. Level Requirement (UNIVERSAL – applies only to non-spells)
+        req_lvl = int(getattr(item, "level_required", 1) or 1)
+        if self.level < req_lvl:
+            return False, f"Requires Level {req_lvl}."
+
+        # 2. Off-hand
+        if slot_name == "off_hand":
+            t = str(getattr(item, "type", "")).lower()
+            if t == "shield":
+                if "shield" not in self.weapon_masteries:
+                    return False, "Shield proficiency required."
+                return True, ""
+            # Off-hand weapon needs dual wield unlock
+            if getattr(item, "slot_type", "") == "main_hand" or hasattr(item, "calculate_damage"):
+                if not self.can_dual_wield:
+                    return False, "Dual Wield is locked (unlock in skill tree)."
+                # Off-hand weapon still requires proficiency
+                w_group = self._weapon_group_from_item(item)
+                if w_group and w_group != "fists" and w_group not in self.weapon_masteries:
+                    return False, f"Requires {w_group.capitalize()} Training."
+            return True, ""
+
+        # 3. Main hand Weapon (HARD LOCK)
+        if slot_name == "main_hand":
+            w_group = self._weapon_group_from_item(item)
+            # Fists/None always allowed
+            if w_group and w_group != "fists":
+                if w_group not in self.weapon_masteries:
+                    return False, f"Requires {w_group.capitalize()} Training."
+
+        # 4. Armor (HARD LOCK)
+        if slot_name in ("body", "head"):
+            a_group = self._armor_group_from_item(item)
+            if a_group and a_group not in self.armor_masteries:
+                return False, f"Requires {a_group.capitalize()} Armor skill."
+
+        return True, ""
+
+    def can_equip_to_slot(self, slot_name: str, item) -> bool:
+        """
+        Backwards-compatible wrapper for older menu code.
+        IMPORTANT: GuildMenu expects a boolean return here.
+        """
+        ok, reason = self.can_equip_item_to_slot(slot_name, item)
+        self.last_equip_error = str(reason or "") if not ok else ""
+        return bool(ok)
+
+    # =========================================================
+    # STATS CALCULATION
+    # =========================================================
+    def calculate_final_stats(self):
+        # Reset derived systems
+        self.weapon_masteries = set()
+        # Baseline armor mastery: cloth (light armor is mapped to cloth)
+        self.armor_masteries = {"cloth"}
+        self.can_dual_wield = False
+        self.block_stamina_mult = 1.0
+        self.heavy_armor_penalty_mult = 1.0
+        self.double_shot_chance = 0.0
+        self.speed_multiplier = 1.0
+        self.has_executioner = False
+        self.has_second_wind = False
+
+        self.crit_chance = 0.05
+        self.range_bonus = 0
+        self.cooldown_multiplier = 1.0
+        self.mana_regen = self.base_mana_regen
+
+        self.spell_slots_unlocked = set()
+        self.max_spell_tier = 0
+
+        # Base Stats
+        base_hp_val = int(self.base_attributes.get("max_hp", self.base_attributes.get("hp", 100)))
+        self.max_hp = base_hp_val
+        self.max_mana = int(self.base_attributes.get("mana", 20))
+        self.strength = int(self.base_attributes.get("str", 5))
+        self.dexterity = int(self.base_attributes.get("dex", 5))
+        self.intelligence = int(self.base_attributes.get("int", 5))
+        self.defense = int(self.base_attributes.get("def_flat", 0))
+
+        # Skill Tree effects
+        for skill_id in list(self.unlocked_skills):
+            skill_data = SKILL_TREE.get(skill_id, {})
+            effects = skill_data.get("effects", {}) or {}
+
+            if "str" in effects:
+                self.strength += int(effects["str"])
+            if "dex" in effects:
+                self.dexterity += int(effects["dex"])
+            if "int" in effects:
+                self.intelligence += int(effects["int"])
+            if "max_hp" in effects:
+                self.max_hp += int(effects["max_hp"])
+            if "max_mana" in effects:
+                self.max_mana += int(effects["max_mana"])
+            if "defense" in effects:
+                self.defense += int(effects["defense"])
+            if "mana_regen" in effects:
+                self.mana_regen += float(effects["mana_regen"])
+            if "cooldown_mult" in effects:
+                self.cooldown_multiplier *= float(effects["cooldown_mult"])
+            if "speed_mult" in effects:
+                self.speed_multiplier *= float(effects["speed_mult"])
+            if "crit_chance" in effects:
+                self.crit_chance += float(effects["crit_chance"])
+            if "range_bonus" in effects:
+                self.range_bonus += int(effects["range_bonus"])
+
+            # Proficiencies
+            if "weapon_prof" in effects:
+                p = effects["weapon_prof"]
+                if isinstance(p, (list, tuple, set)):
+                    self.weapon_masteries.update([str(x).lower() for x in p])
+                else:
+                    self.weapon_masteries.add(str(p).lower())
+
+            if "armor_prof" in effects:
+                p = effects["armor_prof"]
+                if isinstance(p, (list, tuple, set)):
+                    self.armor_masteries.update([str(x).lower() for x in p])
+                else:
+                    self.armor_masteries.add(str(p).lower())
+
+            # Spell unlocks
+            if "unlock_spell_slot" in effects:
+                p = effects["unlock_spell_slot"]
+                if isinstance(p, (list, tuple, set)):
+                    for x in p:
+                        try:
+                            self.spell_slots_unlocked.add(int(x))
+                        except Exception:
+                            pass
+                else:
+                    try:
+                        self.spell_slots_unlocked.add(int(p))
+                    except Exception:
+                        pass
+
+            if "spell_tier" in effects:
+                self.max_spell_tier = max(self.max_spell_tier, int(effects["spell_tier"]))
+            if "max_spell_tier" in effects:
+                self.max_spell_tier = max(self.max_spell_tier, int(effects["max_spell_tier"]))
+
+            # Specials
+            if "heavy_armor_mult" in effects:
+                self.heavy_armor_penalty_mult *= float(effects["heavy_armor_mult"])
+            if "ignore_armor_penalty" in effects:
+                self.heavy_armor_penalty_mult = 0.0
+            if "can_dual_wield" in effects:
+                self.can_dual_wield = True
+            if "shield_efficiency" in effects:
+                self.block_stamina_mult = max(0.1, 1.0 - float(effects["shield_efficiency"]))
+            if "block_stamina_mult" in effects:
+                self.block_stamina_mult *= float(effects["block_stamina_mult"])
+            if "dual_shot_chance" in effects:
+                self.double_shot_chance += float(effects["dual_shot_chance"])
+            if "executioner" in effects:
+                self.has_executioner = True
+            if "second_wind" in effects:
+                self.has_second_wind = True
+
+        # No implicit spell tier: spell tier must be unlocked via skill tree.
+
+        # Equipment stats & penalties
+        gear_spd_penalty = 0.0
+        self.armor = None
+        self.armor_name = "No Armor"
+
+        for slot, item in self.equipment.items():
+            if not item:
+                continue
+
+            # Standard stats
+            if hasattr(item, "defense"):
+                self.defense += int(item.defense)
+            if hasattr(item, "health_bonus"):
+                self.max_hp += int(item.health_bonus)
+            if hasattr(item, "mana_bonus"):
+                self.max_mana += int(item.mana_bonus)
+            if hasattr(item, "crit_bonus"):
+                self.crit_chance += float(item.crit_bonus)
+
+            # --- UNIVERSAL PASSIVE BONUS (Aseet, Armor, Helmet, Off-hand) ---
+            if hasattr(item, "passive_bonuses"):
+                bonuses = getattr(item, "passive_bonuses", {}) or {}
+                for k, v in bonuses.items():
+                    if k == "hp":
+                        self.max_hp += v
+                    elif k == "mana":
+                        self.max_mana += v
+                    elif k == "stamina":
+                        self.max_stamina += v
+                    elif k == "str":
+                        self.strength += v
+                    elif k == "dex":
+                        self.dexterity += v
+                    elif k == "int":
+                        self.intelligence += v
+                    elif k == "mana_regen":
+                        self.mana_regen += v
+
+            item_speed_mod = float(getattr(item, "speed_bonus", 0))
+            armor_group = self._armor_group_from_item(item)
+
+            # Proficiency penalty for medium/heavy if not known
+            if armor_group in ("medium", "heavy") and armor_group not in self.armor_masteries:
+                gear_spd_penalty -= 0.20
+
+            # Heavy armor weight management
+            if armor_group == "heavy":
+                item_speed_mod *= self.heavy_armor_penalty_mult
+
+            gear_spd_penalty += item_speed_mod
+
+            if slot == "body":
+                self.armor = item
+                self.armor_name = getattr(item, "name", "No Armor")
+
+        # Final calculations
+        self.max_stamina = 50 + (self.strength * 1.5) + (self.dexterity * 1.5)
+
+        dex_compensation = self.dexterity * 0.005
+        final_speed_mod = float(gear_spd_penalty) + float(dex_compensation)
+
+        self.walk_speed = max(0.3, (1.0 + (self.dexterity * 0.02) + final_speed_mod) * self.speed_multiplier)
+        self.speed = self.walk_speed
+
+        dex_cdr = min(0.5, self.dexterity * 0.015)
+        self.cooldown_multiplier *= (1.0 - dex_cdr)
+
+        # Weapon stats
+        w = self.equipment.get("main_hand")
+        if not w:
+            w = create_fists()
+            self.equipment["main_hand"] = w
+
+        # --- FIX: Update current_weapon reference ---
+        self.current_weapon = w
+
+        self.attack_range = int(getattr(w, "attack_range", 35)) + int(self.range_bonus)
+        self.weapon_type = str(getattr(w, "type", "melee")).lower()
+        self.weapon_effect = str(getattr(w, "effect", "damage")).lower()
+
+        base_atk_spd = 60.0
+        if hasattr(w, "speed_bonus"):
+            base_atk_spd -= (float(w.speed_bonus) * 10.0)
+
+        # Weapon proficiency penalty: slower if not proficient (except fists)
+        w_group = self._weapon_group_from_item(w)
+        if w_group and (w_group not in self.weapon_masteries) and (getattr(w, "name", "") != "Fists"):
+            base_atk_spd *= 2.0
+
+        self.attack_speed = int(max(20, base_atk_spd * float(self.cooldown_multiplier)))
+
+        # Clamp
+        self.current_hp = min(self.current_hp, self.max_hp)
+        self.current_stamina = min(self.current_stamina, self.max_stamina)
+        self.current_mana = min(self.current_mana, self.max_mana)
+
+        if not self.equipment.get("body"):
+            self.armor_name = "No Armor"
+
+    # =========================================================
+    # EQUIPMENT MANAGEMENT
+    # =========================================================
+    def equip_item_to_slot(self, slot, item):
+        """
+        Equip an item into the given slot. Before equipping, validate the
+        requirement rules via can_equip_item_to_slot(). On success the
+        existing item in the slot is returned; on failure the attempted
+        item is returned unchanged and the equipment remains the same.
+        """
+        # Perform lock checks. Spells are handled inside can_equip_item_to_slot()
+        ok, reason = self.can_equip_item_to_slot(slot, item)
+        if not ok:
+            # record reason for UI consumption and do not change equipment
+            self.last_equip_error = str(reason or "")
+            # return the attempted item back so that caller can restore it
+            return item
+
+        # equipping None (unequip) is always allowed
+        old_item = self.equipment.get(slot)
+        self.equipment[slot] = item
+        self.calculate_final_stats()
+        return old_item
+
+    def unequip_slot(self, slot):
+        if slot == "main_hand":
+            old = self.equipment.get("main_hand")
+            if old and getattr(old, "name", "") == "Fists":
+                return None
+            self.equipment["main_hand"] = create_fists()
+            self.calculate_final_stats()
+            return old
+
+        old = self.equipment.get(slot)
+        if old:
+            self.equipment[slot] = None
+            self.calculate_final_stats()
+        return old
+
+    def equip_primary(self, item):
+        self.equip_item_to_slot("main_hand", item)
+
+    def equip_item(self, item):
+        self.equip_item_to_slot(getattr(item, "slot_type", "main_hand"), item)
+
+    # =========================================================
+    # DRAWING
+    # =========================================================
+    def load_assets(self):
+        return False
+
+    def draw_procedural(self):
+        if getattr(self, "use_sprites", False):
+            return
+        self.image.fill((100, 100, 100, 255))
+
+    # =========================================================
+    # ACTIONS
+    # =========================================================
+    def set_sprinting(self, active: bool):
+        if self.stun_timer > 0: return
+        
+        if active:
+            if not self.is_sprinting and self.current_stamina > 25 and not self.is_blocking:
+                self.is_sprinting = True
+        else:
+            self.is_sprinting = False
+
+    def set_blocking(self, active: bool):
+        if self.stun_timer > 0: return
+        
+        if self.is_dashing:
+            self.is_blocking = False
+            return
+
+        # UUSI: Estä blockaus jos ladataan asetta tai hyökätään
+        if self.is_charging or self.animation_state == "attack":
+            self.is_blocking = False
+            return
+
+        offhand = self.equipment.get("off_hand")
+        mainhand = self.equipment.get("main_hand")
+        
+        is_shield = offhand and str(getattr(offhand, "type", "")).lower() == "shield"
+        has_shield_prof = "shield" in self.weapon_masteries
+
+        # Weapon blocking (Parry) - Sallitaan jos on melee-ase (ei nyrkit)
+        is_weapon = mainhand and getattr(mainhand, "type", "") == "melee" and getattr(mainhand, "name", "") != "Fists"
+
+        can_block = (is_shield and has_shield_prof) or is_weapon
+
+        if active and can_block and self.current_stamina > 0:
+            self.is_blocking = True
+            self.is_sprinting = False
+        else:
+            self.is_blocking = False
+
+    def perform_dash(self, dx, dy):
+        if self.is_dashing or self.is_dead or self.stun_timer > 0:
+            return False
+        
+        # Tarkista onko varauksia
+        if self.current_dashes > 0:
+            self.current_dashes -= 1
+            # Resetoi latausajastin jos se oli nollassa (tai pidä se käynnissä jos lataa toista)
+            # Yksinkertainen: Lataa aina yhtä kerrallaan
+            self.is_dashing = True
+            self.is_blocking = False
+            self.dash_timer = 15
+            self.dash_damage = 0 # Nollataan oletuksena (ase asettaa tämän jos on hyökkäys)
+            self.dash_hit_list = [] # Tyhjennetään osumalista
+            
+            l = math.hypot(dx, dy) or 1.0
+            self.dash_vector = (dx / l, dy / l)
+            sound_system.play_sound("swish")
+            return True
+        return False
+
+    def perform_dodge(self):
+        if self.ai_controller and hasattr(self.ai_controller, "current_target"):
+            target = self.ai_controller.current_target
+            if target:
+                dx = self.rect.centerx - target.rect.centerx
+                dy = self.rect.centery - target.rect.centery
+                return self.perform_dash(dx, dy)
+        ang = random.random() * math.tau
+        return self.perform_dash(math.cos(ang), math.sin(ang))
+
+    def is_ally(self, other):
+        """Tarkistaa onko kohde liittolainen (Vihreä ja Sininen ovat kavereita)."""
+        if other is self: return True
+        t1 = getattr(self, "team_color", "Neutral")
+        t2 = getattr(other, "team_color", "Neutral")
+        
+        if t1 == t2: return True
+        
+        # Green (Player) ja Blue (Ally) ovat liittolaisia
+        is_t1_good = (t1 == GREEN or t1 == BLUE)
+        is_t2_good = (t2 == GREEN or t2 == BLUE)
+        
+        if is_t1_good and is_t2_good: return True
+        return False
+
+    # =========================================================
+    # COMBAT
+    # =========================================================
+    def perform_attack(self, target=None, manager=None, damage_mult=1.0, range_override=None, target_pos=None):
+        if self.is_dead:
+            return False
+        if self.stun_timer > 0:
+            return False
+        # Jos target on annettu, tarkistetaan onko se validi
+        if target and (target is self or getattr(target, "is_dead", False)):
+            return False
+            
+        if self.attack_cooldown > 0:
+            return False
+        if self.current_stamina < 5:
+            return False
+
+        # --- UUSI: Hyökkäys peruuttaa blockauksen ---
+        self.is_blocking = False
+
+        # Asetetaan hyökkäysanimaatio
+        self.animation_state = "attack"
+        self.animation_timer = 15 # Animaation kesto frameina
+
+        w = self.equipment.get("main_hand") or create_fists()
+
+        # Jos target on määritelty (esim. AI), tehdään etäisyystarkistukset
+        if target:
+            max_range = range_override if range_override is not None else getattr(self, "attack_range", 0)
+            
+            dx = target.rect.centerx - self.rect.centerx
+            dy = target.rect.centery - self.rect.centery
+            ground_dist = math.hypot(dx, dy)
+            
+            my_h = getattr(self, "jump_height", 0)
+            target_h = getattr(target, "jump_height", 0)
+            h_diff = abs(target_h - my_h)
+            
+            total_dist = math.hypot(ground_dist, h_diff)
+            
+            if total_dist > max_range:
+                return False
+            
+            self.attack_vector = (dx,dy)
+
+            # --- LOS CHECK ---
+            if manager and getattr(manager, "current_arena", None):
+                obstacles = getattr(manager.current_arena, "obstacles", [])
+                if not self.has_line_of_sight(target, obstacles):
+                    return False
+        elif target_pos:
+            # Lyödään kohti annettua pistettä (kursori)
+            dx = target_pos[0] - self.rect.centerx
+            dy = target_pos[1] - self.rect.centery
+            self.attack_vector = (dx, dy)
+        else:
+            # Ei kohdetta -> Lyödään katsesuuntaan
+            self.attack_vector = (10 if self.facing_right else -10, 0)
+
+        # --- STAMINA COST CALCULATION ---
+        base_cost = 18 # Hieman korkeampi perushinta, jotta statsit tuntuvat
+        w_group = getattr(w, "weapon_group", "")
+        reduction = 0
+        
+        # Raskaat aseet (STR)
+        if w_group in ["axe", "mace", "spear", "shield", "fists", "sword"]:
+            reduction = self.strength * 0.3
+        # Kevyet / Ranged aseet (DEX)
+        elif w_group in ["dagger", "bow", "crossbow"]:
+            reduction = self.dexterity * 0.3
+        # Taika-aseet (INT - henkinen keskittyminen vähentää rasitusta)
+        elif w_group in ["staff", "book"]:
+            reduction = self.intelligence * 0.3
+            
+        final_cost = max(6, int(base_cost - reduction))
+
+        self.attack_cooldown = self.attack_speed
+        self.current_stamina -= final_cost
+
+        # --- HITBOX CHECK (UUSI) ---
+        hit_targets = []
+        
+        if hasattr(w, "get_swing_rect"):
+            swing_rect = w.get_swing_rect(self.rect, self.facing_right, 0, self.attack_speed, self.attack_vector)
+            
+            # UNIFIED HIT DETECTION (AI & PLAYER)
+            # Etsitään aina kaikki osumat alueelta. Tämä mahdollistaa "Cleave"-vahingon myös AI:lle.
+            if manager:
+                for u in manager.all_units:
+                    if u is self or self.is_ally(u) or u.is_dead: continue
+                    # Käytä hurt_rect jos on, muuten rect
+                    hr = getattr(u, "hurt_rect", u.rect)
+                    if swing_rect.colliderect(hr):
+                        hit_targets.append(u)
+            
+            # AI-spesifi palaute: Jos meillä oli tietty kohde, mutta se EI ole osumalistassa -> MISS
+            if target and target not in hit_targets:
+                 if manager:
+                     manager.vfx.show_damage(target.rect.centerx, target.rect.top - 20, "MISS", color=(200, 200, 200))
+        else:
+            # Fallback aseille ilman hitboxia (esim. vanhat tai ranged)
+            if target:
+                hit_targets.append(target)
+
+        # 1. ASEEN ÄÄNI (Aina ensin)
+        if hasattr(w, "on_attack_start") and manager:
+            # Soita ääni (käytä ensimmäistä kohdetta tai None)
+            t = hit_targets[0] if hit_targets else None
+            
+            # FIX: Jos hitbox ei osunut (t is None), mutta meillä oli alkuperäinen kohde (AI)
+            # tai tähtäyspiste (Pelaaja), luodaan nukkekohde.
+            if t is None:
+                dummy_pos = None
+                if target: # AI:n alkuperäinen kohde
+                    dummy_pos = target.rect.center
+                elif target_pos: # Pelaajan kursori
+                    dummy_pos = target_pos
+                
+                if dummy_pos:
+                    class DummyTarget:
+                        def __init__(self, x, y): self.rect = pygame.Rect(x, y, 1, 1); self.is_dead = False
+                    t = DummyTarget(dummy_pos[0], dummy_pos[1])
+
+            w.on_attack_start(self, t, manager)
+        else:
+            sound_system.play_sound("attack_melee")
+
+        # 2. RODUN ÄÄNI (Satunnainen lisämauste, ei korvaa aseen ääntä)
+        if self.race_name in ["Undead", "Skeleton", "Zombie"]:
+            if random.random() < 0.4:
+                sound_system.play_sound(random.choice(['undead_attack_1', 'undead_attack_2', 'undead_attack_3', 'undead_attack_4']))
+        elif self.race_name == "Bog Leech":
+            if random.random() < 0.4:
+                sound_system.play_sound(random.choice([f'leech_attack_{i}' for i in range(1, 5)]))
+        elif self.race_name == "Giant Frog":
+            if random.random() < 0.4:
+                sound_system.play_sound(random.choice([f'frog_attack_{i}' for i in range(1, 5)]))
+
+        stats = {"str": self.strength, "dex": self.dexterity, "int": self.intelligence, "spd": self.speed}
+
+        # Käsitellään kaikki osumat
+        for t in hit_targets:
+            dmg = 5
+            if hasattr(w, "calculate_damage"):
+                dmg = w.calculate_damage(stats)
+
+            is_crit = False
+            if random.random() < self.crit_chance:
+                dmg *= 1.5
+                is_crit = True
+
+            if self.has_executioner and t.current_hp < t.max_hp * 0.30:
+                dmg *= 1.15
+
+            dmg = int(dmg * float(damage_mult))
+
+            if self.weapon_effect == "heal":
+                t.heal(abs(dmg), manager)
+            else:
+                real_dmg = t.take_damage(dmg, "Physical", attacker=self, manager=manager)
+                self.stats["damage"] += int(real_dmg)
+                if getattr(t, "is_dead", False):
+                    self.stats["kills"] += 1
+                if hasattr(w, "on_hit"):
+                    w.on_hit(self, t, real_dmg, manager)
+            
+            # --- GAME FEEL: HIT STOP & SHAKE (Vain pelaajalle) ---
+            if manager and self == getattr(manager, "player_character", None):
+                manager.trigger_hit_stop(4) # Pysäytä peli 4 frameksi (n. 60ms)
+                manager.trigger_screen_shake(3) # Täräytä ruutua
+            
+            if is_crit and manager:
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 10, "CRIT!", is_crit=True)
+
+        # Ranged dual shot chance
+        # (Tämä toimii vain jos target on määritelty, koska ranged ei käytä swing_rectiä samalla tavalla)
+        if target and self.weapon_type == "ranged" and self.double_shot_chance > 0:
+            if random.random() < self.double_shot_chance:
+                if manager:
+                    manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30, "DUAL!")
+                dmg2 = 5
+                if hasattr(w, "calculate_damage"):
+                    dmg2 = w.calculate_damage(stats)
+                if random.random() < self.crit_chance:
+                    dmg2 *= 1.5
+                real_dmg2 = target.take_damage(int(dmg2), "Physical", attacker=self, manager=manager)
+                self.stats["damage"] += int(real_dmg2)
+
+        return True
+
+    def has_line_of_sight(self, target, obstacles):
+        if not obstacles: return True
+        x1, y1 = self.rect.center
+        x2, y2 = target.rect.center
+        
+        for obs in obstacles:
+            if obs is target or obs is self: continue
+            
+            r = getattr(obs, "rect", obs)
+            # Default to blocking
+            blocks = getattr(obs, "blocks_projectiles", True)
+            
+            # Check type for map tiles (don't block sight over water/mud)
+            t = getattr(obs, "type", None)
+            if t in ["water", "mud", "lava"]: blocks = False
+            
+            if not blocks: continue
+            
+            if r.clipline(x1, y1, x2, y2):
+                return False
+        return True
+
+    def heal(self, amount, manager=None):
+        if self.is_dead:
+            return
+        old = self.current_hp
+        self.current_hp = min(self.max_hp, self.current_hp + int(amount))
+        diff = int(self.current_hp - old)
+        if diff > 0 and manager:
+            manager.vfx.show_damage(self.rect.centerx, self.rect.top, diff, type="heal")
+
+    def take_damage(self, amount, damage_type="Physical", attacker=None, manager=None):
+        if self.is_dead:
+            return 0
+
+        if self.is_dashing:
+            if manager:
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20, "DODGE")
+            return 0
+
+        offhand = self.equipment.get("off_hand")
+        mainhand = self.equipment.get("main_hand") # Haetaan pääase torjuntatehon laskemiseen
+
+        # Blocking (Shield or Weapon)
+        if self.is_blocking and damage_type == "Physical":
+            is_shield = offhand and str(getattr(offhand, "type", "")).lower() == "shield"
+            
+            # --- BLOCK EFFICIENCY (Damage Reduction) ---
+            block_pct = 0.1 # Oletus (Nyrkit)
+            
+            if is_shield:
+                block_pct = 1.0 # Kilpi torjuu kaiken
+            elif mainhand:
+                w_group = self._weapon_group_from_item(mainhand)
+                if w_group == "sword": block_pct = 0.5
+                elif w_group == "dagger": block_pct = 0.3
+                elif w_group in ["axe", "mace"]: block_pct = 0.4
+                elif w_group == "spear": block_pct = 0.45
+                elif w_group == "staff": block_pct = 0.4
+                elif w_group in ["bow", "crossbow", "book"]: block_pct = 0.2
+            
+            base_cost = max(2, float(amount) - (self.strength * 0.4))
+            
+            # Aseella torjuminen vie enemmän staminaa (2.5x)
+            cost_mult = float(self.block_stamina_mult)
+            if not is_shield:
+                cost_mult *= 2.5
+                
+            actual_cost = base_cost * cost_mult
+            
+            if self.current_stamina >= actual_cost:
+                self.current_stamina -= actual_cost
+                
+                # Vähennä vahinkoa
+                blocked_amount = int(amount * block_pct)
+                amount -= blocked_amount
+                
+                if manager:
+                    txt = "BLOCKED" if is_shield else "PARRY"
+                    if amount <= 0:
+                        manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20, txt)
+                        return 0
+                    else:
+                        # Osittainen torjunta (näytetään harmaalla tekstillä)
+                        manager.vfx.show_damage(self.rect.centerx, self.rect.top - 35, txt, color=(180, 180, 180))
+            else:
+                self.current_stamina = 0
+                self.is_blocking = False
+                if manager:
+                    manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30, "BREAK!")
+                amount = int(amount * 0.5)
+
+        # Passive shield block chance
+        if offhand and str(getattr(offhand, "type", "")).lower() == "shield" and damage_type == "Physical":
+            chance = float(getattr(offhand, "block_chance", 0.15))
+            if attacker and getattr(attacker, "weapon_type", "") == "ranged":
+                chance *= 2.0
+            if random.random() < chance:
+                if manager:
+                    manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20, "Block")
+                return 0
+
+        final = max(1, int(amount) - int(self.defense))
+        self.current_hp -= final
+        
+        # --- HIT STUN & ANIMATION (Vasta kun vahinko on varma) ---
+        # Vain jos ei immuniteettia
+        if self.stun_immunity <= 0:
+            stun_frames = 8 + int(final * 0.5) # Käytetään lopullista vahinkoa
+            self.stun_timer = min(30, stun_frames) # Max 0.5s stun
+            self.stun_immunity = 60 # 1 sekunnin suoja seuraavalta stunilta
+
+        # Asetetaan osumaanimaatio
+        self.animation_state = "hurt"
+        self.animation_timer = 12
+        
+        played_custom = False
+        if self.race_name == "Bog Leech":
+            if random.random() < 0.5:
+                played_custom = sound_system.play_sound(random.choice([f'leech_hurt_{i}' for i in range(1, 5)]))
+        elif self.race_name == "Giant Frog":
+            if random.random() < 0.5:
+                played_custom = sound_system.play_sound(random.choice([f'frog_hurt_{i}' for i in range(1, 5)]))
+        
+        if not played_custom:
+            sound_system.play_sound("hit")
+
+        if manager:
+            manager.vfx.show_damage(self.rect.centerx, self.rect.top, int(final), is_crit=False)
+
+        if attacker and attacker != self:
+            self.attackers.add(attacker)
+
+        if self.current_hp <= 0:
+            self.current_hp = 0
+            self.is_dead = True
+            if attacker:
+                for helper in self.attackers:
+                    if helper != attacker and not helper.is_dead:
+                        helper.stats["assists"] += 1
+        
+        # Second Wind: Heal once when low
+        if self.has_second_wind and not self.second_wind_triggered and not self.is_dead:
+            if self.current_hp < self.max_hp * 0.30:
+                self.second_wind_triggered = True
+                self.heal(20, manager)
+                if manager: manager.vfx.show_damage(self.rect.centerx, self.rect.top - 40, "Second Wind!", color=(50, 255, 50))
+
+        return final
+
+    # =========================================================
+    # UPDATE & AOE
+    # =========================================================
+    def run_combat_ai(self, all_units, obstacles=None, manager=None):
+        if self.is_dead or self.stun_timer > 0:
+            return
+
+        # --- CHANNELING CHECK ---
+        if self.is_channeling:
+            return # Stop AI (movement & attacks) completely
+
+        # --- AOE / UPDATE HOOK FOR ITEMS ---
+        # This allows Aura Helms, Regenerating Armor, etc. to work properly per-frame.
+        if manager:
+            for slot, item in self.equipment.items():
+                if item and hasattr(item, "on_update"):
+                    item.on_update(self, all_units, manager)
+        # -----------------------------------
+
+        if self.ai_controller:
+            try:
+                self.ai_controller.execute_ai(all_units, obstacles, manager)
+            except TypeError:
+                # print(f"Warning: {self.name}'s AI outdated. Calling old execute_ai.")
+                self.ai_controller.execute_ai(all_units, obstacles)
+        self.prevent_overlap(all_units)
+
+    def update(self, obstacles=None, manager=None):
+        if self.is_dead:
+            if manager:
+                self._death_timer += 1
+                # Poistetaan kentältä 5 sekunnin kuluttua (300 framea)
+                if self._death_timer > 300:
+                    if self in manager.all_units:
+                        manager.all_units.remove(self)
+            return
+        
+        self._death_timer = 0 # Nollataan jos herää henkiin
+
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= 1
+        for k in self.spell_cooldowns:
+            if self.spell_cooldowns[k] > 0:
+                self.spell_cooldowns[k] -= 1
+        
+        # --- DASH RECHARGE ---
+        if self.current_dashes < self.max_dashes:
+            self.dash_recharge_timer += 1
+            if self.dash_recharge_timer >= self.dash_recharge_time:
+                self.dash_recharge_timer = 0
+                self.current_dashes += 1
+                if manager: manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20, "Dash Ready", color=(100, 255, 255))
+        
+        # --- STUN UPDATE ---
+        if self.stun_timer > 0:
+            self.stun_timer -= 1
+            self.is_blocking = False # Ei voi torjua stunnattuna
+            self.is_sprinting = False
+            # Dashia ei tarvitse nollata, koska dashin aikana ei voi ottaa vahinkoa (stun)
+        elif self.stun_immunity > 0:
+            self.stun_immunity -= 1
+
+        # --- ANIMATION STATE UPDATE ---
+        if self.animation_timer > 0:
+            self.animation_timer -= 1
+        else:
+            # Oletustila: idle
+            self.animation_state = "idle"
+            # Jos liikutaan (AI chase tai dash), tila on run
+            if self.is_dashing or self.is_sprinting:
+                self.animation_state = "run"
+            elif self.ai_controller and getattr(self.ai_controller, "state", "idle") == "chase":
+                self.animation_state = "run"
+
+        # Reset channeling flag (VFX will set it again next frame if active)
+        self.is_channeling = False
+        # is_charging nollataan loopin lopussa, jotta regen-tarkistus ehtii nähdä sen
+
+        if self.current_stamina <= 0:
+            self.is_blocking = False
+            self.is_sprinting = False
+
+        can_regen = not (self.is_blocking or self.is_sprinting or self.is_dashing or self.is_charging) and self.stun_timer <= 0
+        if can_regen:
+            self.current_stamina += self.stamina_regen
+        if self.current_mana < self.max_mana:
+            self.current_mana += self.mana_regen
+
+        current_speed = self.walk_speed
+        if self.is_dashing:
+            current_speed = self.walk_speed * self.dash_speed_mult
+            move_x = self.dash_vector[0] * current_speed
+            move_y = self.dash_vector[1] * current_speed
+            self.check_wall_collision(move_x, move_y, obstacles)
+            self.dash_timer -= 1
+            
+            # --- DASH DAMAGE CHECK ---
+            if self.dash_damage > 0 and manager:
+                for u in manager.all_units:
+                    if u != self and u.team_color != self.team_color and not u.is_dead:
+                        # Tarkistetaan ettei ole jo osuttu tällä syöksyllä
+                        # Käytetään hurt_rect jos on, muuten rect (Props)
+                        hr = getattr(u, "hurt_rect", u.rect)
+                        if u not in self.dash_hit_list and self.rect.colliderect(hr):
+                            u.take_damage(self.dash_damage, "Physical", self, manager)
+                            manager.vfx.create_impact_sparks(u.rect.centerx, u.rect.centery, color=(200, 200, 200))
+                            self.dash_hit_list.append(u) # Merkitään osutuksi
+            
+            if self.dash_timer <= 0:
+                self.is_dashing = False
+                self.dash_damage = 0 # Varmistetaan nollaus
+            self.current_stamina = min(self.current_stamina, self.max_stamina)
+            return
+        
+        elif self.stun_timer > 0:
+            current_speed = 0 # Ei liiku stunnattuna
+            
+        elif self.is_sprinting:
+            if self.current_stamina > 0.5:
+                current_speed *= 1.5
+                self.current_stamina -= 0.3
+            else:
+                self.is_sprinting = False
+        elif self.is_blocking:
+            current_speed *= 0.5
+
+        # Apply temporary modifier (Weapon charge etc.)
+        current_speed *= self.temp_speed_mult
+        self.temp_speed_mult = 1.0 # Reset for next frame
+
+        # Salli täysi pysähdys (esim. lataus tai stun), muuten pidä miniminopeus
+        if current_speed < 0.05:
+            self.speed = 0.0
+        else:
+            self.speed = max(0.3, current_speed)
+            
+        self.current_stamina = min(self.current_stamina, self.max_stamina)
+
+        self.is_charging = False # Reset for next frame
+
+        # Status effects
+        for effect in self.status_effects[:]:
+            effect["timer"] -= 1
+            if effect["type"] == "Burn" and effect["timer"] % 60 == 0:
+                self.take_damage(effect["dmg"], "Fire", manager=manager)
+            elif effect["type"] == "Poison" and effect["timer"] % 60 == 0:
+                self.take_damage(effect["dmg"], "Poison", manager=manager)
+            if effect["timer"] <= 0:
+                self.status_effects.remove(effect)
+
+        if obstacles:
+            self._handle_obstacles_passive(obstacles)
+            self._resolve_stuck_state(obstacles, manager)
+
+        if self._level_up_timer > 0:
+            self._level_up_timer -= 1
+            if self._level_up_timer <= 0:
+                self.just_leveled_up = False
+
+        # --- FAILSAFE: MAP BOUNDARIES ---
+        # Varmistetaan, ettei hahmo ole ajautunut seinien läpi kartan ulkopuolelle.
+        if manager and getattr(manager, "current_arena", None):
+            arena = manager.current_arena
+            # Käytetään pientä marginaalia (esim. 5px) seinän sisäpuolella
+            margin = 5
+            
+            # Haetaan mitat turvallisesti (fallback SCREEN_WIDTH/HEIGHT)
+            aw = getattr(arena, "width", SCREEN_WIDTH)
+            ah = getattr(arena, "height", SCREEN_HEIGHT)
+            
+            if self.rect.left < margin: self.rect.left = margin
+            if self.rect.right > aw - margin: self.rect.right = aw - margin
+            if self.rect.top < margin: self.rect.top = margin
+            if self.rect.bottom > ah - margin: self.rect.bottom = ah - margin
+
+    # --- SUB-PIXEL STEP HELPERS ---
+    def _step_from_float(self, v: float):
+        if v > 0:
+            step = math.floor(v)
+        elif v < 0:
+            step = math.ceil(v)
+        else:
+            step = 0
+        return int(step), (v - step)
+
+    def check_wall_collision(self, dx, dy, obstacles):
+        dx_total = dx + self._move_rem_x
+        dy_total = dy + self._move_rem_y
+
+        step_x, self._move_rem_x = self._step_from_float(dx_total)
+        step_y, self._move_rem_y = self._step_from_float(dy_total)
+
+        if not obstacles:
+            self.rect.x += step_x
+            self.rect.y += step_y
+            return
+
+        # X axis
+        self.rect.x += step_x
+        for r, t in self._iter_obstacles(obstacles):
+            if (t is None or t in ["wall", "water"]) and self.rect.colliderect(r):
+                if step_x > 0:
+                    self.rect.right = r.left
+                elif step_x < 0:
+                    self.rect.left = r.right
+
+        # Y axis
+        self.rect.y += step_y
+        for r, t in self._iter_obstacles(obstacles):
+            if (t is None or t in ["wall", "water"]) and self.rect.colliderect(r):
+                if step_y > 0:
+                    self.rect.bottom = r.top
+                elif step_y < 0:
+                    self.rect.top = r.bottom
+
+    def _handle_obstacles_passive(self, obstacles):
+        for r, t in self._iter_obstacles(obstacles):
+            if t and self.rect.colliderect(r):
+                if t == "mud":
+                    if not getattr(self, "mud_immune", False):
+                        self.speed = self.walk_speed * 0.5
+                elif t == "lava":
+                    self.take_damage(1, "Fire")
+
+    def _resolve_stuck_state(self, obstacles, manager):
+        """Työntää hahmon pois seinien sisältä tai kartan ulkopuolelta."""
+        # 1. Map Boundaries (Työnnä kartalle jos ulkona)
+        if manager and getattr(manager, "current_arena", None):
+            arena = manager.current_arena
+            aw = getattr(arena, "width", 2000)
+            ah = getattr(arena, "height", 2000)
+            force = 4.0
+            if self.rect.left < 0: self.rect.x += force
+            if self.rect.right > aw: self.rect.x -= force
+            if self.rect.top < 0: self.rect.y += force
+            if self.rect.bottom > ah: self.rect.y -= force
+
+        # 2. Obstacle Collision (Työnnä ulos seinistä)
+        if not obstacles: return
+        
+        for r, t in self._iter_obstacles(obstacles):
+            if (t is None or t == "wall") and self.rect.colliderect(r):
+                # Oletus: Työnnä poispäin esteen keskipisteestä
+                dx = self.rect.centerx - r.centerx
+                dy = self.rect.centery - r.centery
+                
+                # Jos ollaan ihan keskellä, arvotaan suunta
+                if abs(dx) < 1 and abs(dy) < 1: dx, dy = 1, 0
+                
+                dist = math.hypot(dx, dy) or 1
+                push = 3.0
+                self.rect.x += (dx / dist) * push
+                self.rect.y += (dy / dist) * push
+
+    def _iter_obstacles(self, obs):
+        if isinstance(obs, pygame.sprite.AbstractGroup):
+            for s in obs.sprites():
+                r = getattr(s, "rect", None)
+                if r:
+                    yield r, getattr(s, "type", None)
+            return
+        if hasattr(obs, "rect"):
+            yield obs.rect, getattr(obs, "type", None)
+            return
+        if isinstance(obs, (list, tuple)):
+            for o in obs:
+                if isinstance(o, pygame.Rect):
+                    yield o, None
+                else:
+                    r = getattr(o, "rect", None)
+                    if r:
+                        yield r, getattr(o, "type", None)
+
+    # --- AI HELPERS ---
+    def try_cast_spells(self, t, all_units, manager=None):
+        if not manager:
+            return False
+
+        if self.has_status("Silence"):
+            return False
+
+        for slot in ["spell1", "spell2", "spell3"]:
+            idx = self._slot_index_from_name(slot)
+            if not self._has_spell_slot(idx):
+                continue
+
+            spell = self.equipment.get(slot)
+            if not spell:
+                continue
+
+            req_tier = self._spell_tier_from_item(spell)
+            if self.max_spell_tier <= 0 or req_tier > self.max_spell_tier:
+                continue
+
+            # Tarkistetaan resurssit ensin
+            if self.current_mana < getattr(spell, "mana_cost", 0) or self.spell_cooldowns.get(slot, 0) > 0:
+                continue
+
+            rng = float(getattr(spell, "range", 0))
+            real_target = t
+            target_pos = t.rect.center
+            spell_name = str(getattr(spell, "name", "")).lower()
+
+            # --- HEALING LOGIC ---
+            # Jos loitsu on parannus, etsitään haavoittunut kaveri
+            if "heal" in spell_name:
+                best_ally = None
+                lowest_pct = 1.0
+                
+                for u in all_units:
+                    if u.team_color == self.team_color and not u.is_dead:
+                        d = math.hypot(u.rect.centerx - self.rect.centerx, u.rect.centery - self.rect.centery)
+                        if d <= rng:
+                            pct = u.current_hp / u.max_hp
+                            if pct < 1.0 and pct < lowest_pct:
+                                lowest_pct = pct
+                                best_ally = u
+                                target_pos = u.rect.center
+                
+                if not best_ally: continue # Ei ketään parannettavaa
+                real_target = best_ally
+            
+            # --- OFFENSIVE LOGIC ---
+            elif math.hypot(t.rect.centerx - self.rect.centerx, t.rect.centery - self.rect.centery) > rng:
+                continue # Vihollinen liian kaukana
+
+            # Try casting with target_pos (New System) or fallback (Old System)
+            try:
+                success = spell.cast(self, real_target, manager, target_pos=target_pos)
+            except TypeError:
+                success = spell.cast(self, real_target, manager)
+
+            if success:
+                self.spell_cooldowns[slot] = int(getattr(spell, "cooldown_max", 60))
+                return True
+        return False
+
+    def prevent_overlap(self, all_units):
+        hits = pygame.sprite.spritecollide(self, all_units, False)
+        for other in hits:
+            if other != self and not other.is_dead:
+                dx = self.rect.centerx - other.rect.centerx
+                dy = self.rect.centery - other.rect.centery
+                dist = math.hypot(dx, dy)
+                if 0 < dist < 20:
+                    self.rect.x += (dx / dist) * 2
+                    self.rect.y += (dy / dist) * 2
+
+    # --- PROGRESSION ---
+    def add_xp(self, amount: int) -> bool:
+        if self.level >= MAX_LEVEL:
+            return False
+        gained = max(0, int(amount))
+        if gained <= 0:
+            return False
+        self.xp += gained
+        old_level = int(self.level)
+        new_level = min(MAX_LEVEL, int(level_from_xp(self.xp)))
+        if new_level > old_level:
+            for _ in range(old_level, new_level):
+                self._on_level_up()
+            self.level = new_level
+            return True
+        return False
+
+    def _on_level_up(self):
+        self.skill_points += 1
+        self.just_leveled_up = True
+        self._level_up_timer = 30
+
+    def clear_level_up_flag(self):
+        self.just_leveled_up = False
+        self._level_up_timer = 0
+
+    def apply_status(self, type, duration, damage=0):
+        self.status_effects.append({"type": type, "timer": duration, "dmg": damage})
+
+    def has_status(self, type_name):
+        for eff in self.status_effects:
+            if eff["type"] == type_name:
+                return True
+        return False
