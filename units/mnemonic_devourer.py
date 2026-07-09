@@ -56,7 +56,7 @@ class MnemonicDevourer(Gladiator):
                     img = pygame.image.load(path).convert_alpha()
                     # Skaalaa tarvittaessa (oletus n. 64x64 tai isompi bossille)
                     return pygame.transform.smoothscale(img, (80, 80))
-                except: pass
+                except Exception: pass
             return None
 
         # Load animations

@@ -39,7 +39,7 @@ class ForestRoadArena:
                     for x in range(0, self.width, tile.get_width()):
                         self.floor_image.blit(tile, (x, y))
                 return
-            except: pass
+            except Exception: pass
             
         # Fallback
         self.floor_image.fill((20, 30, 20))
@@ -59,7 +59,7 @@ class ForestRoadArena:
                 road_img = pygame.image.load(road_path).convert_alpha()
                 # Skaalataan sopivaksi
                 road_img = pygame.transform.scale(road_img, (256, road_h))
-            except: pass
+            except Exception: pass
             
         # Piirretään tie suoraan lattiaan (tai luodaan propseja)
         # Koska MuckfordFloor on jo luotu, piirretään sen päälle

@@ -42,7 +42,7 @@ class Arena:
                         img = pygame.image.load(fpath).convert()
                         img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
                         self.floor_tiles.append(img)
-                    except: pass
+                    except Exception: pass
             if self.floor_tiles: break # Jos löydettiin laatat, lopetetaan etsintä
 
         # Fallback floor
@@ -85,7 +85,7 @@ class Arena:
                     try:
                         img = pygame.image.load(os.path.join(obj_path, fname)).convert_alpha()
                         self.object_tiles.append(img)
-                    except: pass
+                    except Exception: pass
 
     def generate_map(self):
         cols = (self.width // self.tile_size) + 1

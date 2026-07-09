@@ -59,7 +59,7 @@ class UndeadSkeleton(Gladiator):
                     # Käytetään smoothscalea paremman laadun saamiseksi
                     scaled = pygame.transform.smoothscale(img, (target_w, target_h))
                     self.sprites[act] = scaled
-                except: pass
+                except Exception: pass
         
         # Fallback: jos ei kuvia, luodaan placeholderit
         if not self.sprites:

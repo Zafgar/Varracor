@@ -234,7 +234,7 @@ class SoundManager:
                 # Säädetään äänenvoimakkuutta hieman, etteivät ole liian kovia
                 self.sounds[name].set_volume(volume)
                 return True
-            except: 
+            except Exception: 
                 print(f"Failed to load sound file: {filepath}")
         return False
 
@@ -254,7 +254,7 @@ class SoundManager:
                     pygame.mixer.music.set_volume(0.3) # Taustamusiikki hiljaisemmalle
                     pygame.mixer.music.play(loops)
                     self.music_playing = filepath
-                except:
+                except Exception:
                     print(f"Failed to load music: {filepath}")
 
     def stop_music(self):

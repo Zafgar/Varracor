@@ -57,7 +57,7 @@ def main():
     # Musiikki
     try:
         sound_system.play_music('assets/sounds/battle_theme.mp3')
-    except:
+    except Exception:
         pass
 
     # --- ALUSTETAAN VALIKOT ---

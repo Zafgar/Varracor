@@ -23,7 +23,7 @@ class Lute:
                 img = pygame.image.load(path).convert_alpha()
                 # Skaalataan sopivaksi käteen
                 self.image = pygame.transform.smoothscale(img, (24, 24))
-            except: pass
+            except Exception: pass
             
         if not self.image:
             self.image = pygame.Surface((10, 20))

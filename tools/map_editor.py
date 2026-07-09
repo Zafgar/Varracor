@@ -348,7 +348,7 @@ class MapEditor:
                     try:
                         idx = shapes.index(self.shadow_shape)
                         self.shadow_shape = shapes[(idx + 1) % len(shapes)]
-                    except: self.shadow_shape = "ellipse"
+                    except Exception: self.shadow_shape = "ellipse"
                 else:
                     self.shadow_active = not self.shadow_active
                 
@@ -525,7 +525,7 @@ class MapEditor:
                     elif cls == GiantFrog: obj = GiantFrog("Frog", x, y, col or RED)
                     elif cls == MnemonicDevourer: obj = MnemonicDevourer(); obj.rect.topleft = (x, y)
                     else: obj = cls(x, y, variant=variant)
-                except:
+                except Exception:
                     obj = cls(x, y)
 
                 if "angle" in obj_data and hasattr(obj, "rotate"):
@@ -732,7 +732,7 @@ class MapEditor:
                             self.ghost_instance.rect.topleft = (wx, wy)
                         else:
                             self.ghost_instance = self.selected_prop_class(wx, wy, variant=self.variant_index)
-                    except:
+                    except Exception:
                         self.ghost_instance = self.selected_prop_class(wx, wy)
                         
                     self.ghost_class = self.selected_prop_class
@@ -751,7 +751,7 @@ class MapEditor:
                     if hasattr(self.ghost_instance, "facing_right"):
                         self.ghost_instance.facing_right = self.ghost_facing_right
                         
-                except: pass
+                except Exception: pass
             
             if self.ghost_instance:
                 # Update pos
@@ -1041,11 +1041,11 @@ class MapEditor:
             else:
                 # Standard Props
                 obj = self.selected_prop_class(x, y, variant=self.variant_index)
-        except:
+        except Exception:
             # Fallback to default constructor
             try:
                 obj = self.selected_prop_class(x, y)
-            except:
+            except Exception:
                 print(f"Could not instantiate {self.selected_prop_class.__name__}")
                 return
 
@@ -1173,7 +1173,7 @@ class MapEditor:
                 curr_name = current.name if current else "None"
                 
                 try: idx = lst.index(curr_name)
-                except: idx = -1
+                except Exception: idx = -1
                 
                 new_name = lst[(idx + 1) % len(lst)]
                 
@@ -1399,10 +1399,10 @@ class MapEditor:
                     new_obj.rect.topleft = (x, y)
                 else:
                     new_obj = cls(x, y, variant=variant)
-            except:
+            except Exception:
                 try:
                     new_obj = cls(x, y)
-                except:
+                except Exception:
                     print("Cannot duplicate complex object")
                     return
             

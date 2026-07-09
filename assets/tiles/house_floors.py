@@ -16,7 +16,7 @@ class HouseFloor:
                 # Skaalaus: Jos seinä on n. 60px leveä ja 4 seinää mahtuu yhdelle lattialle,
                 # lattian pitäisi olla n. 240px leveä.
                 tile_surf = pygame.transform.scale(raw, (240, 240))
-            except: pass
+            except Exception: pass
             
         if not tile_surf:
             tile_surf = pygame.Surface((240, 240))
@@ -48,7 +48,7 @@ class BlacksmithFloor:
                 tile_surf = pygame.image.load(tile_path).convert()
                 # Scale down to ensure ~8x8 grid (Arena is 1000x800, so 100x100 tiles)
                 tile_surf = pygame.transform.scale(tile_surf, (100, 100))
-            except: pass
+            except Exception: pass
             
         if not tile_surf:
             tile_surf = pygame.Surface((64, 64))

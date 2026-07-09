@@ -175,7 +175,7 @@ class GameManager:
                     t = str(getattr(item, "type", "")).lower()
                     if "weapon" in t or "melee" in t or "ranged" in t or "shield" in t:
                         self.equipment_bag.append(item)
-                except:
+                except Exception:
                     pass
 
         # Alusta Hubin tiedot
@@ -200,7 +200,7 @@ class GameManager:
             path = "assets/ui/esc.png"
             if os.path.exists(path):
                 self.ui_esc_bg = pygame.image.load(path).convert_alpha()
-        except: pass
+        except Exception: pass
 
         cx = SCREEN_WIDTH // 2
         cy = SCREEN_HEIGHT // 2
@@ -475,7 +475,7 @@ class GameManager:
                 f.second_wind_triggered = False
                 
                 try: f.attackers.clear()
-                except: pass
+                except Exception: pass
 
         if self.mode == "League":
             if self.current_enemy_team:
@@ -486,7 +486,7 @@ class GameManager:
                     e.current_mana = e.max_mana
                     e.is_dead = False
                     try: e.kill()
-                    except: pass
+                    except Exception: pass
                     self.enemy_team.add(e)
                 self.current_arena = get_random_arena(self._get_league_tier())
 
@@ -1444,7 +1444,7 @@ class GameManager:
         try:
             for bp in BLUEPRINTS.values():
                 for m in bp.get("mats", {}).keys(): mats.add(m)
-        except: pass
+        except Exception: pass
         return mats
 
     def _looks_like_material(self, name):

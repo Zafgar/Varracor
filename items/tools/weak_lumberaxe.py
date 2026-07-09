@@ -37,7 +37,7 @@ class WeakLumberAxe(Weapon):
                 img = pygame.image.load(path).convert_alpha()
                 # Original 460x1200 -> Skaalataan hahmoon sopivaksi (n. 18x45)
                 self.image = pygame.transform.smoothscale(img, (18, 45))
-            except: 
+            except Exception: 
                 pass
 
     def draw_card_icon(self, surface, x, y, size):

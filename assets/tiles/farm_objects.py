@@ -31,7 +31,7 @@ class GrassPatch(Prop):
         if os.path.exists(path):
             try:
                 return pygame.transform.smoothscale(pygame.image.load(path).convert_alpha(), (32, 32))
-            except: pass
+            except Exception: pass
         return None
 
     def _update_image(self):
@@ -149,7 +149,7 @@ class PastureFloor(Prop):
             for r in range(0, h, th):
                 for c in range(0, w, tw):
                     self.image.blit(tile, (c, r))
-        except: pass
+        except Exception: pass
 
 class FarmFenceHorizontal(Prop):
     def __init__(self, x, y):

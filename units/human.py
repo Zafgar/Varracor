@@ -95,7 +95,7 @@ class Human(Gladiator):
 
                     scaled = pygame.transform.smoothscale(img, (target_w, target_h))
                     self.sprites[act] = scaled
-                except: pass
+                except Exception: pass
         
         if not self.sprites:
             s = pygame.Surface((target_w, target_h))

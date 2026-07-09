@@ -25,7 +25,7 @@ class MissionLogic:
         self.manager = manager
         # Musiikki (Käytetään Bog/Swamp teemaa toistaiseksi)
         try: sound_system.play_music('assets/music/swamp_theme.mp3')
-        except: sound_system.play_music('assets/music/battle_theme.mp3')
+        except Exception: sound_system.play_music('assets/music/battle_theme.mp3')
 
         # Pelaaja keskelle pääkatua
         cx, cy = manager.current_arena.width // 2, manager.current_arena.height // 2

@@ -6,7 +6,7 @@ from sound_manager import sound_system
 
 def _dt(screen, text, x, y, font, color):
     try: draw_text(text, font, color, screen, x, y)
-    except: draw_text(screen, text, x, y, font, color)
+    except Exception: draw_text(screen, text, x, y, font, color)
 
 class LeagueMenu(BaseMenu):
     def __init__(self, manager):
@@ -90,11 +90,11 @@ class LeagueMenu(BaseMenu):
         # --- Season End Logic ---
         eligible, reason, opp_team = False, "", None
         try: eligible, reason, opp_team = le.check_promotion_eligibility()
-        except: pass
+        except Exception: pass
         
         season_complete = False
         try: season_complete = le.is_season_complete()
-        except: pass
+        except Exception: pass
 
         if eligible and opp_team:
             if self.btn_promote.is_clicked(event):
@@ -136,7 +136,7 @@ class LeagueMenu(BaseMenu):
         try:
             if hasattr(self.manager, "league_engine") and self.manager.league_engine:
                 self.manager.league_engine.tick_simulation(budget_ms=4.0, max_matches=1)
-        except: pass
+        except Exception: pass
 
     def _draw_tab(self, screen, mode: str, rect: pygame.Rect, hovered: bool):
         le = self.manager.league_engine
@@ -284,11 +284,11 @@ class LeagueMenu(BaseMenu):
         # --- Promotion / Season End Buttons ---
         eligible, reason, _ = False, "", None
         try: eligible, reason, _ = le.check_promotion_eligibility()
-        except: pass
+        except Exception: pass
         
         season_complete = False
         try: season_complete = le.is_season_complete()
-        except: pass
+        except Exception: pass
 
         if eligible:
             self.btn_promote.check_hover(mouse_pos)

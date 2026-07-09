@@ -34,7 +34,7 @@ class VoidIronNode(Prop):
                 try:
                     img = pygame.image.load(path).convert_alpha()
                     self.sprites[state] = pygame.transform.scale(img, (80, 80))
-                except: pass
+                except Exception: pass
 
     def take_damage(self, amount, damage_type="Physical", attacker=None, manager=None):
         return 0

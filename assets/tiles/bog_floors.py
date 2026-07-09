@@ -27,7 +27,7 @@ class BogFloor:
                     for x in range(0, w, tile.get_width()):
                         self.image.blit(tile, (x, y))
                 return # Lopetetaan, jos kuva löytyi ja latautui
-            except: pass
+            except Exception: pass
 
         # 2. Fallback: Procedural generation (jos kuvaa ei ole)
         # Pohjaväri: Tumma oliivinvihreä / muta

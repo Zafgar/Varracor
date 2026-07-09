@@ -64,7 +64,7 @@ class Pyroblast(Spell):
         if hasattr(manager, "vfx") and hasattr(manager.vfx, "create_fireball"):
             try:
                 sound_system.play_sound("attack_ranged") # Tai joku raskaampi ääni
-            except: pass
+            except Exception: pass
             
             # Käytetään samaa fireball-projektiilia mutta ehkä eri värillä/koolla jos mahdollista,
             # tässä käytetään perusversiota logiikan testaamiseksi.

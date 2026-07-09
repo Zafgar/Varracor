@@ -39,7 +39,7 @@ class ScrapBow(Weapon):
                 img = pygame.image.load(path).convert_alpha()
                 self.image = pygame.transform.smoothscale(img, (20, 48))
                 self.big_image = img
-            except: pass
+            except Exception: pass
 
     def draw_card_icon(self, surface, x, y, size):
         img = getattr(self, "big_image", self.image)

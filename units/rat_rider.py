@@ -59,7 +59,7 @@ class RatRider(Gladiator):
                 try:
                     img = pygame.image.load(path).convert_alpha()
                     self.sprites[key] = pygame.transform.smoothscale(img, (128, 128))
-                except: pass
+                except Exception: pass
         
         if "idle" not in self.sprites:
             s = pygame.Surface((96, 96))

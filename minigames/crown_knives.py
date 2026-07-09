@@ -162,7 +162,7 @@ class CrownKnivesMenu(BaseMenu):
                     else:
                         self.images[key] = pygame.transform.smoothscale(img, (CARD_W, CARD_H))
                     continue
-                except: pass
+                except Exception: pass
             
             # Fallback surface (jos kuvaa ei löydy)
             if key == "TABLE":

@@ -37,7 +37,7 @@ class WeakPickaxe(Weapon):
                 img = pygame.image.load(path).convert_alpha()
                 # Original 700x1100 -> Skaalataan hahmoon sopivaksi (n. 25x40)
                 self.image = pygame.transform.smoothscale(img, (25, 40))
-            except: 
+            except Exception: 
                 print(f"Failed to load {path}")
                 self.image = None
 

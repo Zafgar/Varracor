@@ -128,7 +128,7 @@ class BasicArena(BaseArena):
                     try:
                         u.pos.x = float(u.rect.x)
                         u.pos.y = float(u.rect.y)
-                    except: pass
+                    except Exception: pass
                 
                 # AI Reset jos juuttuu
                 ai = getattr(u, "ai_controller", None)

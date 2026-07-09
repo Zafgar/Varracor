@@ -34,7 +34,7 @@ class Item:
                 try:
                     raw = pygame.image.load(self.image_path).convert_alpha()
                     self.image = pygame.transform.smoothscale(raw, (size, size))
-                except: pass
+                except Exception: pass
         
         if self.image:
             # Skaalaa tarvittaessa

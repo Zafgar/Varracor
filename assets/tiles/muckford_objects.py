@@ -290,7 +290,7 @@ class ForestFloor(Prop):
             for r in range(0, h, th):
                 for c in range(0, w, tw):
                     self.image.blit(tile, (c, r))
-        except: pass
+        except Exception: pass
 
 class ScrapPileBig(HarvestableProp):
     """

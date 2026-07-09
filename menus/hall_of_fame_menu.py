@@ -10,7 +10,7 @@ except Exception:
 
 def _dt(surface, text, x, y, font, color):
     try: return draw_text(text, font, color, surface, x, y)
-    except: return draw_text(surface, text, x, y, font, color)
+    except Exception: return draw_text(surface, text, x, y, font, color)
 
 class HallOfFameMenu(BaseMenu):
     def __init__(self, manager):
@@ -29,7 +29,7 @@ class HallOfFameMenu(BaseMenu):
             if hasattr(self.manager, "league_engine") and self.manager.league_engine:
                 # Ajetaan simulaatiota pienellä budjetilla (esim. 4ms)
                 self.manager.league_engine.tick_simulation(budget_ms=4.0, max_matches=5)
-        except: pass
+        except Exception: pass
     # -----------------------------
 
     def draw(self, screen):
@@ -46,7 +46,7 @@ class HallOfFameMenu(BaseMenu):
         try:
             if hasattr(self.manager, "league_engine"):
                 top_list = self.manager.league_engine.get_top_10_gladiators(player_roster=self.manager.my_team)
-        except: pass
+        except Exception: pass
 
         # Piirrä lista
         start_y = 140

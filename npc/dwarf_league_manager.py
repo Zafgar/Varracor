@@ -49,7 +49,7 @@ class DwarfLeagueManager(BaseNPC):
                 return mvp, f"I see {mvp.name} on the kill list again. {kills} confirmed? Good. That brings in the crowd."
             elif kills > 5:
                 return mvp, f"{mvp.name} is surviving. That's rare around here."
-        except:
+        except Exception:
             pass # Jos statsit puuttuu tai lista tyhjä
             
         return None, ""
