@@ -195,7 +195,13 @@ class MainMenu(BaseMenu):
             self.next_state = "intro"
 
         if self.btn_load.update():
-            print("Load clicked")
+            import save_manager
+            if save_manager.load_game(self.manager):
+                pygame.mixer.music.fadeout(1000)
+                self.next_state = "hub"
+            else:
+                try: sound_system.play_sound("error")
+                except Exception: pass
 
         if self.btn_options.update():
             print("Options clicked")
