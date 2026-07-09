@@ -17,6 +17,11 @@ GOLD_COLOR = (255, 215, 0)
 ORANGE = (255, 165, 0)
 PURPLE = (150, 50, 200) # Quest / Boss väri
 
+# Tiimivärit. Käytä AINA näitä vakioita team_color-vertailuissa,
+# älä koskaan kovakoodattua väriarvoa.
+PLAYER_TEAM = GREEN
+ENEMY_TEAM = (255, 50, 50)
+
 # --- GAME CONSTANTS ---
 STARTING_GOLD = 100000
 BASE_RECRUIT_COST = 80

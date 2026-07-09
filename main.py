@@ -46,7 +46,8 @@ from minigames.crown_knives import CrownKnivesMenu
 from menus.test_menu import TestMenu
 
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+# SCALED skaalaa 1920x1080-pelin automaattisesti näytön kokoon (pienemmätkin näytöt toimivat)
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
 pygame.display.set_caption("AutoArena: Gladiator Tycoon")
 clock = pygame.time.Clock()
 
@@ -60,6 +61,7 @@ def main():
         pass
 
     # --- ALUSTETAAN VALIKOT ---
+    battle_screen = BattleScreen(manager)  # Yksi jaettu instanssi ("game" ja "battle" ovat sama tila)
     menus = {
         "menu": MainMenu(manager),
         "intro": IntroScreen(manager),
@@ -69,8 +71,8 @@ def main():
         "magic_shop": MagicMenu(manager),
         "mission_select": MissionMenu(manager),
         "prepare": PrepareMenu(manager),
-        "game": BattleScreen(manager), 
-        "battle": BattleScreen(manager), 
+        "game": battle_screen,
+        "battle": battle_screen,
         "guild": GuildMenu(manager),
         "hospital": HospitalMenu(manager),
         "workshop": WorkshopMenu(manager),

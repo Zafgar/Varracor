@@ -266,8 +266,7 @@ class GameManager:
         # Varmistetaan että globaali reputaatio on ajan tasalla
         self.npc_state["global"]["reputation"] = self.reputation
 
-        GREEN = (0, 255, 0) 
-        my_roster = [u for u in self.all_units if getattr(u, "team_color", None) == GREEN]
+        my_roster = [u for u in self.all_units if getattr(u, "team_color", None) == PLAYER_TEAM]
 
         # Kerätään suoritetut tehtävät kontekstiin
         completed_ids = []
@@ -596,7 +595,7 @@ class GameManager:
             boss.assign_manager(self)
             return boss
             
-        RED = (255, 50, 50)
+        RED = ENEMY_TEAM
         if name == 'Giant Rat': return GiantRat(name, 0, 0)
         if name == 'Rat Rider': return RatRider(name, 0, 0, RED)
         if name == 'Bandit': return Human("Bandit", 0, 0, RED, "Common")
@@ -1511,8 +1510,8 @@ class GameManager:
 
                 team = getattr(sprite, "team_color", None)
                 
-                if team == (0, 255, 0): color = (100, 255, 100) # Pelaaja (Vihreä)
-                elif team == (255, 50, 50): color = (255, 100, 100) # Vihollinen (Punainen)
+                if team == PLAYER_TEAM: color = (100, 255, 100) # Pelaaja (Vihreä)
+                elif team == ENEMY_TEAM: color = (255, 100, 100) # Vihollinen (Punainen)
                 else: color = (220, 220, 220)
 
             if name:
