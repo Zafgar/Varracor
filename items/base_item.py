@@ -1,4 +1,5 @@
 import pygame
+import math
 
 class Item:
     def __init__(self):
@@ -25,9 +26,22 @@ class Item:
         pygame.draw.rect(surface, (200, 200, 200), (x, y, size, size), 2)
 
     def get_swing_rect(self, unit_rect, facing_right, attack_timer, total_cooldown, attack_vector=None):
-        # define dmg box during attack animation
-        swing_rect = pygame.Rect(unit_rect.x,unit_rect.y,50,50)
-        return swing_rect
+        # Oletusosumalaatikko: yksikön eteen lyöntisuuntaan.
+        # (BUGIKORJAUS: aiempi versio palautti laatikon yksikön omasta
+        #  vasemmasta yläkulmasta suuntaa huomioimatta, jolloin esim.
+        #  nyrkeillä ei koskaan osunut vasemmalla olevaan kohteeseen.)
+        swing_w = 50
+        swing_h = 50
+        if attack_vector and (attack_vector[0] or attack_vector[1]):
+            dx, dy = attack_vector
+            dist = math.hypot(dx, dy) or 1
+            offset = 30
+            swing_x = unit_rect.centerx + (dx / dist) * offset - swing_w // 2
+            swing_y = unit_rect.centery + (dy / dist) * offset - swing_h // 2
+        else:
+            swing_x = unit_rect.centerx if facing_right else unit_rect.centerx - swing_w
+            swing_y = unit_rect.centery - swing_h // 2
+        return pygame.Rect(int(swing_x), int(swing_y), swing_w, swing_h)
 
     def on_update(self, owner, all_units, manager):
         # Kutsutaan joka frame (esim. aurat)

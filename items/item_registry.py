@@ -222,9 +222,9 @@ def create_fists():
     Palauttaa Fists-weaponin instanssin.
     Gladiator importtaa tätä.
     """
-    # Yritetään suoraa importtia (oikea tiedostonimi 'fist.py')
+    # Suora importti (luokka asuu tiedostossa 'fists.py')
     try:
-        from items.misc.fist import Fists
+        from items.misc.fists import Fists
         return Fists()
     except Exception:
         pass

@@ -25,7 +25,7 @@ class LifeDrainBeam(pygame.sprite.Sprite):
         # Partikkelit (visuaalinen virtaus kohteesta taikojaan)
         self.particles = []
 
-    def update(self):
+    def update(self, obstacles=None):
         self.timer += 1
         
         # 1. Tarkistukset: Onko caster/target hengissä?

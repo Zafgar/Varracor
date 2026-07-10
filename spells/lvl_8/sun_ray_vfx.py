@@ -36,7 +36,7 @@ class SunRayBeam(pygame.sprite.Sprite):
         # Magma spawn ajastin
         self.magma_timer = 0
 
-    def update(self):
+    def update(self, obstacles=None):
         self.timer += 1
         
         # 1. LUKITSE MAAGI (Channeling)
@@ -170,7 +170,7 @@ class MagmaPuddle(pygame.sprite.Sprite):
         
         self._draw_puddle()
 
-    def update(self):
+    def update(self, obstacles=None):
         self.timer += 1
         
         # Vahinko (joka 20. frame)
