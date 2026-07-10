@@ -20,6 +20,7 @@ from items.tools.weak_lumberaxe import WeakLumberAxe
 from items.swords.weak_sword import WeakSword
 from items.shields.weak_shield import WeakShield
 from assets.tiles.farm_objects import Manure, ManurePile, FarmStorage, Apple, Egg, GrassPatch
+from settings import ENEMY_TEAM
 from assets.tiles.muckford_objects import MuckfordTree, ScrapPileBig, TavernBuilding, TownHall, AppleTree, Smeltery, Well, ChickenCoop, ScrapIronBuilding, MuckfordStage, MuckfordStall
 from crafting.swamp.scrap_pile import ScrapPile
 from quest_system import quest_manager
@@ -88,6 +89,14 @@ class MuckfordCityMenu(BaseMenu):
         
         # 5. Eläimet (Lehmät)
         self.animals = []
+
+        # --- RAT RAID -JÄRJESTELMÄ ---
+        # Rat King lähettää parvia kylään kunnes hänet kukistetaan (quest hunt_01)
+        self.raid_rats = []
+        self.raid_state = "idle"   # idle / warning / active
+        self.raid_banner_timer = 0
+        self.raid_result_timer = 0
+        self._raid_player_kills_start = 0
         self._spawn_animals()
 
         # 6. Tehtävät & Tehtävänantajat
@@ -189,6 +198,7 @@ class MuckfordCityMenu(BaseMenu):
         self._update_camera()
 
     def _spawn_population(self):
+        self._spawn_guards()
         for _ in range(50):
             # Arvo sijainti kadulta (vältä talojen sisustaa)
             # Yksinkertainen tapa: Arvo kunnes ei törmää esteeseen
@@ -618,6 +628,19 @@ class MuckfordCityMenu(BaseMenu):
 
         # Munien kuoriutuminen poikasiksi
         self._update_eggs()
+
+        # Maailmankello ja sää etenevät kaupungissa
+        if not self.manager.world_paused:
+            self.manager.world_clock.update()
+            self._update_raids()
+
+        # Pelaajan kaatuminen kaupungissa (esim. raidissa): raahataan turvaan
+        if self.player.is_dead:
+            self.player.is_dead = False
+            self.player.current_hp = max(1, int(self.player.max_hp * 0.3))
+            self.player.rect.center = (self.arena.width // 2, self.arena.height // 2)
+            self.manager.vfx.show_damage(self.player.rect.centerx, self.player.rect.top - 30,
+                                         "You were dragged to safety...", color=(255, 120, 120))
             
         for p in self.arena.floor_props:
             if hasattr(p, "update"): p.update(self.manager)
@@ -929,7 +952,7 @@ class MuckfordCityMenu(BaseMenu):
         self.arena.draw_background(screen, offset)
         
         # 2. Objektit ja Hahmot (Y-Sort)
-        renderables = list(self.arena.props) + self.npcs + self.animals + [self.player]
+        renderables = list(self.arena.props) + self.npcs + self.animals + self.raid_rats + [self.player]
         renderables.sort(key=lambda x: x.rect.bottom)
         
         for obj in renderables:
@@ -945,7 +968,10 @@ class MuckfordCityMenu(BaseMenu):
         # 3. VFX
         self.vfx.draw_top(screen, offset)
         self.manager.vfx.draw_top(screen, offset)
-        
+
+        # 3.5 SÄÄ JA VUOROKAUDENAIKA (maailman päälle, HUDin alle)
+        self.manager.world_clock.draw_overlays(screen)
+
         # Mouse Hover Logic
         mouse_pos = pygame.mouse.get_pos()
         self._draw_hover_info(screen, offset, mouse_pos)
@@ -1024,6 +1050,8 @@ class MuckfordCityMenu(BaseMenu):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Storage")
                 elif isinstance(prop, TownHall):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Town Hall")
+                elif isinstance(prop, MuckfordStall):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Trade")
                 elif isinstance(prop, AppleTree):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Shake")
                 elif isinstance(prop, Smeltery):
@@ -1037,6 +1065,24 @@ class MuckfordCityMenu(BaseMenu):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, label)
                 elif isinstance(prop, (Apple, Egg, Manure)):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Pick Up")
+
+        # Kello, kalenteri ja sää (oikea yläkulma)
+        self.manager.world_clock.draw_hud(screen, font_small)
+
+        # --- RAID-BANNERIT ---
+        if self.raid_state == "warning":
+            if (self.raid_banner_timer // 15) % 2 == 0:  # Vilkkuu
+                draw_text("!!! RAT RAID INCOMING !!!", font_title, (255, 80, 80),
+                          screen, SCREEN_WIDTH // 2 - 220, 100)
+        elif self.raid_state == "active":
+            alive = sum(1 for r in self.raid_rats if not r.is_dead)
+            draw_text(f"RAT RAID! Defend the village! ({alive} left)", font_main,
+                      (255, 100, 100), screen, SCREEN_WIDTH // 2 - 200, 100)
+            draw_text("Defeat the Rat King to end these raids for good.", font_small,
+                      (220, 180, 180), screen, SCREEN_WIDTH // 2 - 180, 135)
+        elif self.raid_result_timer > 0:
+            draw_text(getattr(self, "raid_result", ""), font_main, GOLD_COLOR,
+                      screen, SCREEN_WIDTH // 2 - 250, 100)
 
         # ALT-näppäin: Näytä nimet (kuten GameManagerissa)
         keys = pygame.key.get_pressed()
@@ -1402,6 +1448,133 @@ class MuckfordCityMenu(BaseMenu):
             self.manager.vfx.show_damage(r1.centerx, r1.top - 20, "Too far!", color=(200, 50, 50))
             return False
 
+    def _spawn_guards(self):
+        """Kylän omat vartijat: taistelevat raideja vastaan (HumanAI)."""
+        # Älä spawnaa tuplia (populaatio voidaan luoda uudelleen on_enterissä)
+        if getattr(self, "guards", None):
+            return
+        from units.human import Human
+        from items.spears.weak_spear import WeakSpear
+        self.guards = []
+        cx, cy = self.arena.width // 2, self.arena.height // 2
+        posts = [(cx - 250, cy - 100), (cx + 250, cy - 100), (cx, cy + 250)]
+        for i, (gx, gy) in enumerate(posts):
+            g = Human(f"Muckford Guard", gx, gy, GREEN, "Common")
+            g.weapon_masteries.add("spear")
+            g.equipment["main_hand"] = WeakSpear()
+            g.calculate_final_stats()
+            g.current_hp = g.max_hp
+            self.npcs.append(g)
+            self.manager.all_units.add(g)
+            self.guards.append(g)
+
+    def _rat_king_defeated(self):
+        try:
+            from quest_system import quest_manager
+            if quest_manager:
+                q = quest_manager.quests.get("hunt_01")
+                return bool(q and q.completed)
+        except Exception:
+            pass
+        return False
+
+    def _update_raids(self):
+        m = self.manager
+        clock = m.world_clock
+
+        if self.raid_result_timer > 0:
+            self.raid_result_timer -= 1
+
+        # Rat King kukistettu -> rauha (iso saavutus!)
+        if self._rat_king_defeated():
+            return
+
+        if not hasattr(m, "next_raid_day"):
+            m.next_raid_day = clock.day + 1  # Ensimmäinen raidi 2. päivänä
+
+        if self.raid_state == "idle":
+            if clock.day >= m.next_raid_day and 9 <= clock.hour <= 20:
+                self.raid_state = "warning"
+                self.raid_banner_timer = 300  # 5 s varoitus
+                sound_system.play_sound("boss_roar")
+
+        elif self.raid_state == "warning":
+            self.raid_banner_timer -= 1
+            if self.raid_banner_timer <= 0:
+                self._spawn_raid()
+
+        elif self.raid_state == "active":
+            self.raid_timer -= 1
+            for r in self.raid_rats:
+                if not r.is_dead:
+                    r.run_combat_ai(m.all_units, self.arena.obstacles, m)
+                    r.update(self.arena.obstacles, m)
+            if all(r.is_dead for r in self.raid_rats):
+                self._end_raid()
+            elif self.raid_timer <= 0:
+                self._end_raid(retreated=True)
+
+    def _spawn_raid(self):
+        from units.rat import GiantRat
+        m = self.manager
+        self.raid_state = "active"
+        self._raid_player_kills_start = m.player_character.stats.get("kills", 0)
+
+        count = min(8, 4 + m.world_clock.day // 3)
+        edges = ["top", "bottom", "left", "right"]
+        for i in range(count):
+            edge = random.choice(edges)
+            if edge == "top":
+                rx, ry = random.randint(100, self.arena.width - 100), 60
+            elif edge == "bottom":
+                rx, ry = random.randint(100, self.arena.width - 100), self.arena.height - 60
+            elif edge == "left":
+                rx, ry = 60, random.randint(100, self.arena.height - 100)
+            else:
+                rx, ry = self.arena.width - 60, random.randint(100, self.arena.height - 100)
+            rat = GiantRat("Sewer Rat", rx, ry, team_color=ENEMY_TEAM)
+            # Viemärirotat ovat heikompia kuin areenarotat - vartijat
+            # pärjäävät niille, mutta pelaajan apu nopeuttaa selvästi
+            rat.max_hp = 25
+            rat.current_hp = 25
+            rat.strength = 10
+            self.raid_rats.append(rat)
+            m.all_units.add(rat)
+            m.vfx.create_spawn_fog(rx, ry)
+        # Raidilla on aikaraja: rotat perääntyvät saaliineen 60 s jälkeen
+        self.raid_timer = 3600
+
+    def _end_raid(self, retreated=False):
+        m = self.manager
+        player_kills = m.player_character.stats.get("kills", 0) - self._raid_player_kills_start
+
+        # Palkinnot: maine jos pelaaja osallistui
+        if player_kills > 0:
+            try:
+                from quest_system import quest_manager
+                if quest_manager:
+                    quest_manager.add_reputation(5)
+                    m.reputation = quest_manager.reputation
+            except Exception:
+                pass
+            gold = 10 + player_kills * 3
+            m.gold += gold
+            self.raid_result = f"RAID REPELLED! +5 Reputation, +{gold} gold"
+            m.grant_hero_xp(5 * player_kills)
+        elif retreated:
+            self.raid_result = "The rats retreat to the sewers with their loot..."
+        else:
+            self.raid_result = "The guards repelled the raid without you."
+        self.raid_result_timer = 360
+
+        # Siivoa raadot
+        for r in self.raid_rats:
+            if r in m.all_units:
+                m.all_units.remove(r)
+        self.raid_rats = []
+        self.raid_state = "idle"
+        m.next_raid_day = m.world_clock.day + random.randint(2, 3)
+
     def _update_eggs(self):
         """Keräämättömät munat voivat kuoriutua poikasiksi (tai pilaantua)."""
         for prop in list(self.arena.props):
@@ -1502,6 +1675,11 @@ class MuckfordCityMenu(BaseMenu):
             
         if isinstance(prop, TownHall):
             self.next_state = "sponsors"
+            sound_system.play_sound('click')
+            return True
+
+        if isinstance(prop, MuckfordStall):
+            self.next_state = "market"
             sound_system.play_sound('click')
             return True
             

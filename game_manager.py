@@ -122,6 +122,13 @@ class GameManager:
         # --- VFX SYSTEM ---
         self.vfx = VFXManager()
 
+        # --- WORLD CLOCK & WEATHER ---
+        from world_clock import WorldClock
+        self.world_clock = WorldClock()
+
+        # --- INNKEEPER DEBT (alkutarina: yöt tajuttomana Sunk Caskissa) ---
+        self.innkeeper_debt = 0
+
         # --- GAME STATE ---
         self.mode = "Arena" 
         self.selected_mission = None
@@ -328,7 +335,8 @@ class GameManager:
             "league_tier": self._get_league_tier(),
             "league_rank": rank,
             "reputation": self.reputation,
-            "completed_quests": completed_ids
+            "completed_quests": completed_ids,
+            "innkeeper_debt": int(getattr(self, "innkeeper_debt", 0)),
         }
 
         NPC_Class = get_npc_class(npc_id)

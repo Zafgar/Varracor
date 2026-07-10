@@ -540,6 +540,32 @@ class TavernMenu(BaseMenu):
                     
                     # Check Exit
                     if self.player.rect.colliderect(self.exit_rect):
+                        # --- MARDA PYSÄYTTÄÄ OVELLA ---
+                        # Jos pelaaja yrittää livahtaa ulos puhumatta
+                        # emännälle, tämä rientää väliin ja avaa keskustelun.
+                        marda_flags = self.manager.npc_state.get("marda_shant", {}).get("flags", {})
+                        if not marda_flags.get("met"):
+                            self.keeper.rect.centerx = self.player.rect.centerx
+                            self.keeper.rect.bottom = self.player.rect.top - 20
+                            self.manager.vfx.create_speech_bubble(
+                                self.keeper,
+                                "Hold it right there! Nobody sleeps two nights on my floor and just WALKS OUT.",
+                                duration=200)
+                            self.chat_overlay = self.manager.open_dialogue("marda_shant")
+                            if self.chat_overlay:
+                                self.chat_overlay.return_state = "tavern_sunk_cask"
+                            sound_system.play_sound('error')
+                            return
+
+                        # Velka maksamatta: päästää ulos mutta muistuttaa
+                        debt = int(getattr(self.manager, "innkeeper_debt", 0))
+                        if debt > 0 and not getattr(self, "_debt_warned", False):
+                            self._debt_warned = True
+                            self.manager.vfx.create_speech_bubble(
+                                self.keeper,
+                                f"Don't forget my {debt} gold, stranger!",
+                                duration=180)
+
                         self._stop_sounds()
                         self.manager.city_spawn_point = "tavern"
                         self.next_state = "muckford_city" # Mene kaupunkiin

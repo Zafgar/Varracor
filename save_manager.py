@@ -255,6 +255,10 @@ def save_game(manager):
             # --- Liiga (perustiedot) ---
             "league_tier": manager.league_engine.tier,
             "league_season_number": manager.league_engine.season_number,
+            # --- Maailmankello & velka ---
+            "world_clock": manager.world_clock.to_dict(),
+            "innkeeper_debt": int(getattr(manager, "innkeeper_debt", 0)),
+            "next_raid_day": int(getattr(manager, "next_raid_day", 0)),
         }
 
         os.makedirs(SAVE_DIR, exist_ok=True)
@@ -335,6 +339,13 @@ def load_game(manager):
         # --- NPC-muisti ---
         if data.get("npc_state"):
             manager.npc_state = data["npc_state"]
+
+        # --- Maailmankello & velka ---
+        if data.get("world_clock"):
+            manager.world_clock.from_dict(data["world_clock"])
+        manager.innkeeper_debt = int(data.get("innkeeper_debt", 0))
+        if data.get("next_raid_day"):
+            manager.next_raid_day = int(data["next_raid_day"])
 
         # --- Liiga ---
         manager.league_engine.tier = data.get("league_tier", 1)

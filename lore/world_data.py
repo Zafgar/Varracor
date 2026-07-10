@@ -413,3 +413,22 @@ def get_tier_keeper(lore_tier):
 def game_tier_to_lore(game_tier):
     """LeagueEnginen tier alkaa 1:stä; loren tier 0:sta."""
     return max(0, min(5, int(game_tier) - 1))
+
+
+# =========================================================
+# MUCKFORDIN MARKKINAHINNAT (Tier 0, hopeatalous)
+# =========================================================
+MARKET_PRICES = {
+    # Mitä kauppias maksaa pelaajan tavaroista
+    "sell": {
+        "Milk": 4, "Egg": 2, "Apple": 2, "Manure": 1,
+        "Swamp Wood": 3, "Scrap Iron": 3, "Scrap": 2,
+        "Rat Tail": 2, "Spirit Essence": 8, "Iron Ore": 3,
+    },
+    # Mitä pelaaja voi ostaa kojulta
+    "buy": {
+        "Empty Bucket": {"price": 5, "kind": "item", "class": "BucketEmpty"},
+        "Apple": {"price": 4, "kind": "material"},
+        "Egg": {"price": 4, "kind": "material"},
+    },
+}

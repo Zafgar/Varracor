@@ -189,6 +189,30 @@ class ChatMenu(BaseMenu):
                             pass
             except ImportError: pass
             
+        # --- INNKEEPER DEBT (alkutarina) ---
+        elif command == "set_innkeeper_debt" and value:
+            try:
+                self.manager.innkeeper_debt = int(value)
+                print(f"[Debt] Innkeeper debt set: {value} gold")
+            except Exception: pass
+
+        elif command == "pay_innkeeper_debt":
+            debt = int(getattr(self.manager, "innkeeper_debt", 0))
+            if debt > 0 and self.manager.gold >= debt:
+                self.manager.gold -= debt
+                self.manager.innkeeper_debt = 0
+                try:
+                    from quest_system import quest_manager as qm
+                    if qm:
+                        qm.add_reputation(3)
+                        self.manager.reputation = qm.reputation
+                except Exception: pass
+                try:
+                    from sound_manager import sound_system
+                    sound_system.play_sound("coin")
+                except Exception: pass
+                print(f"[Debt] Paid {debt} gold to Marda (+3 reputation)")
+
         # "clear_reaction" -> Nollaa NPC:n reaktion (esim. taistelun jälkeen)
         elif command == "clear_reaction":
             try:
