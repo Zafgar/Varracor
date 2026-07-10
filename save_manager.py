@@ -259,6 +259,7 @@ def save_game(manager):
             "world_clock": manager.world_clock.to_dict(),
             "innkeeper_debt": int(getattr(manager, "innkeeper_debt", 0)),
             "next_raid_day": int(getattr(manager, "next_raid_day", 0)),
+            "mine_key_owned": bool(getattr(manager, "mine_key_owned", False)),
         }
 
         os.makedirs(SAVE_DIR, exist_ok=True)
@@ -346,6 +347,7 @@ def load_game(manager):
         manager.innkeeper_debt = int(data.get("innkeeper_debt", 0))
         if data.get("next_raid_day"):
             manager.next_raid_day = int(data["next_raid_day"])
+        manager.mine_key_owned = bool(data.get("mine_key_owned", False))
 
         # --- Liiga ---
         manager.league_engine.tier = data.get("league_tier", 1)

@@ -143,9 +143,10 @@ class MardaShantNPC(BaseNPC):
                 )
                 nodes["debt_paid"] = DialogueNode(
                     id="debt_paid",
-                    text="Hmph. Didn't think you had it in you. You're welcome under my roof, stranger. First mug's still full price, though.",
+                    text="Hmph. Didn't think you had it in you. Here - take this old key. My late husband's mining claim, east of the village. Undead crawl that road nowadays, but if you can clear them, the iron is yours. Consider us square.",
                     speaker=self.name,
                     emotion="laughing",
+                    on_enter_effects=["give_mine_key"],
                     choices=[DialogueChoice("Pleasure doing business.", None, effects=["close_chat"])]
                 )
             else:

@@ -172,3 +172,63 @@ Valuutat: **SP** (hopea) → **GP** (kulta) → **PL** (platina) →
 - **Reputation** avaa uusia mahdollisuuksia, tehtäviä, rekrytoitavia
   taistelijoita, questeja ja missioneita.
 - **Uusia rotuja** avautuu pelaajalle areenatiereissä edetessä.
+
+## Talous
+
+Varrakorin talous pyörii sotatilan, selviytymisen ja areenajärjestelmän
+ympärillä. Ei yhtenäistä rauhan taloutta — resurssien hallinta ja kauppa
+kytkeytyvät siihen, kuka turvaa reitit ja kerää arvokkaimmat materiaalit
+hengenvaarallisilta alueilta.
+
+### Valuutat (100x kertoimet)
+
+| Valuutta | Arvo | Käyttö |
+|---|---|---|
+| **SP** (Silver Piece) | perusyksikkö | Arjen selviytyminen: ruoka, majoitus, halvat korjaukset (Tier 0–1) |
+| **GP** (Gold Piece) | 100 SP | Ammattilaistaso: teräsvarusteet, taikajuomat, ammattisepät |
+| **PL** (Platinum Piece) | 100 GP | Eliitti: erittäin harvinaiset materiaalit, kalliit temppelioperaatiot |
+| **HC** (Highstone Crown) | 100 PL | Endgame: maailmanluokan artefaktit, poliittinen valta |
+
+### Hinnat ja elinkustannukset
+
+- **Majoitus/ruoka:** Muckford: yö 8–15 SP, muhennos 2–8 SP. Giltgate: yö 1–3 GP, hieno ateria 1–2 GP.
+- **Taikajuomat:** perusparannus 25–60 SP; manajuoma/vastamyrkky 1–4 GP.
+- **Seppä:** Crude-aseen teroitus 5–15 SP; teräshaarniskan korjaus 3–10 GP; Stormsilver-työstö 20–60 GP.
+- **Temppelihoidot:** perusparannus ilmainen gladiaattoreille (Mercy Charter); raajojen kiinnitys / kirousten poisto 0.2–1.5 PL + materiaalit.
+
+### Alueellinen talous (vientituotteet)
+
+- **Crown Dominion:** rauta ja teräs (Rivet Row, Rattlebridge); pergamentti,
+  arkistomuste ja sopimuspaperit (Ledgerford); tullit ja jokireitit.
+- **The Wyrdwood:** Ironbark, Moonwillow, elävä kuitu, yrtit
+  (mm. manaa palauttava **Moondew**-kukka). Elävän magian ja alkemian sydän.
+- **Horned Throne:** Direhide-nahat, Trollbone Plating, Drake Scale.
+  Saffron Oasis myy karavaaneille **vettä**.
+- **Highstone Sanctum:** monopoli virallisiin sinetteihin ja
+  protokolla-asiakirjoihin; Stormsilver ja **Focus Crystal** -taikakristallit.
+- **Abyssal Vortex:** Void-Iron, Abyssal Chitin, Vortex Residue —
+  tuhoisa mutta taloudellisesti äärimmäisen houkutteleva.
+
+### Talouden kolme koneistoa
+
+**A. Sponsorit ja areenabisnes.** Tier 0: Bram rahoittaa halvoilla
+rekisteröintimaksuilla ja ruokakojuilla. Tier 1–3: vedonlyönti, lipputulot,
+sponsorisopimukset. Sponsorit (kauppakillat, karavaaniyhtiöt, temppelit,
+hovit) maksavat stipendiä, voittobonuksia ja tavoitebonuksia (hirviöpesän
+tuhoaminen, kauppareitin turvaaminen). Vastineeksi: mainos, suoja,
+poliittinen vaikutusvalta.
+
+**B. Palkkionmetsästys ("Monster Economy").** Hamo välittää tietoa ja
+maksaa palkkioita: rottaparven siivous 1–4 GP, iso bossi 0.1–0.4 PL,
+merkittävä Vortex-kohde HC-tasoa. Jäänteet (**Echo Shards**, **Echo
+Hearts**) ovat korvaamattomia ase- ja artefaktimateriaaleja.
+
+**C. Velkatalous ("Oath of Debt").** Epävirallinen valuutta on velka ja
+palvelukset. Aloittelijat velkaantuvat majatalonpitäjille (Marda Shant),
+jotka myyvät velkakirjoja eteenpäin. Temppelit pelastavat henkiä mutta
+sitovat **Oath of Debt** -velkakirjoihin: hengenvaarallisia palveluksia
+tai iso osuus tulevista areenavoitoista.
+
+> Pelissä: pelaajan alkuvelka Mardalle (25 kultaa) on Oath of Debt
+> -talouden ensimmäinen kosketus. Velan maksu avaa kaivoksen avaimen —
+> resurssit ovat aina jonkun hallussa.

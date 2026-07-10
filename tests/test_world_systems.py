@@ -105,3 +105,52 @@ def test_raid_starts_and_retreats(manager):
         city.update(); frames += 1
     assert city.raid_state == "idle", "raidi ei paattynyt aikarajaankaan"
     assert manager.next_raid_day > 1, "seuraavaa raidia ei ajastettu"
+
+
+def test_mine_road_chain(manager):
+    """Velka -> avain -> kaivostie -> epäkuolleet -> louhinta -> respawn."""
+    from citys.mucford.mine_road_menu import MineRoadMenu
+    from items.tools.weak_pickaxe import WeakPickaxe
+
+    # Avain saadaan velan maksun dialogista
+    manager.innkeeper_debt = 25
+    manager.npc_state.setdefault("marda_shant",
+                                 {"relationship": 0, "flags": {}, "history": []})
+    manager.npc_state["marda_shant"]["flags"]["met"] = True
+    manager.gold = 50
+    menu = manager.open_dialogue("marda_shant")
+    menu.apply_effect("pay_innkeeper_debt")
+    menu.apply_effect("give_mine_key")
+    assert manager.mine_key_owned
+
+    # Reitillä on saarto ja malmit
+    road = MineRoadMenu(manager)
+    road.on_enter()
+    assert sum(1 for u in road.undead if not u.is_dead) == 5
+    assert len(road.arena.ore_nodes) == 6
+
+    # Louhinta hakulla tuottaa rautaa reppuun asti
+    pick = WeakPickaxe()
+    manager.player_character.equipment["main_hand"] = pick
+    manager.player_character.current_weapon = pick
+    node = road.arena.ore_nodes[0]
+    for _ in range(10):
+        if node.is_empty:
+            break
+        node.take_hit(manager.player_character, pick, manager)
+    road.update()
+    assert manager.inventory.get("Iron Ore", 0) >= 1
+
+    # Päivän vaihtuessa kaikki palautuu
+    manager.world_clock.day += 1
+    road.on_enter()
+    assert all(not n.is_empty for n in road.arena.ore_nodes)
+    assert sum(1 for u in road.undead if not u.is_dead) == 5
+    road.on_exit()
+
+
+def test_economy_lore_data():
+    from lore.world_data import ECONOMY
+    assert ECONOMY["currencies"]["GP"]["value_in_sp"] == 100
+    assert ECONOMY["currencies"]["HC"]["value_in_sp"] == 100 ** 3
+    assert "oath_of_debt" in ECONOMY["engines"]

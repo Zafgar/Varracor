@@ -186,6 +186,8 @@ class IronOre(pygame.sprite.Sprite):
             if dropped_ore > 0:
                 sound_system.play_sound("mining_success")
                 manager.add_material(self.resource_name, dropped_ore)
+                if attacker is manager.player_character and hasattr(manager, "grant_hero_xp"):
+                    manager.grant_hero_xp(3 * dropped_ore, self.rect.centerx, self.rect.top)
                 color = (200, 200, 220) # Ironin harmaa väri
                 manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20, f"+{dropped_ore} Iron", color=color)
             

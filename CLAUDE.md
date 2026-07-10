@@ -82,6 +82,15 @@ tiedostot kuuluu pudottaa.
   jälkeen elleivät kuole. Pelaajan tapot → +5 rep, kultaa, XP:tä. Ilman
   pelaajaa rotat usein ehtivät paeta saaliineen (motivoi auttamaan).
 
+- **Kaivostie** (citys/mucford/mine_road_*.py) — velan maksu Mardalle antaa
+  avaimen (manager.mine_key_owned); portti kaupungin itäreunalla. Epäkuolleet
+  saartavat tien ja malmit (IronOre-nodet) respawnaavat päivittäin. Louhinta
+  vaatii hakun (myydään markkinoilla). HUOM: GameplayScreen-pohjaisilla
+  kartoilla add_material menee round_rewardsiin - kaivostie tyhjentää sen
+  reppuun joka frame.
+- **Talouslore**: lore/world_data.py ECONOMY (valuutat SP/GP/PL/HC 100x-
+  kertoimin, elinkustannukset, alueviennit, sponsorit/palkkiot/Oath of Debt).
+
 ## Pelin visio (tiivistetysti — koko kuva docs/LORE.md)
 
 Hero menetti muistinsa Mnemonic Devourerille matkalla Vortexiin; alkaa

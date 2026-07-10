@@ -257,6 +257,10 @@ class MuckfordCityMenu(BaseMenu):
                     self.npcs.append(v)
                     break
 
+    def _mine_gate_rect(self):
+        """Kaivostien portti kaupungin itäreunalla."""
+        return pygame.Rect(self.arena.width - 70, self.arena.height // 2 - 120, 70, 240)
+
     def _spawn_guards(self):
         """Lisää vartijat (Human) jotka käyttävät Combat AI:ta (eivät pelkää)."""
         for i in range(6):
@@ -489,6 +493,24 @@ class MuckfordCityMenu(BaseMenu):
                         sound_system.play_sound('click')
                         return
                 
+                # --- KAIVOSTIEN PORTTI (itäreuna, polun korkeudella) ---
+                gate = self._mine_gate_rect()
+                if self.player.rect.colliderect(gate):
+                    if getattr(self.manager, "mine_key_owned", False):
+                        self.next_state = "mine_road"
+                        sound_system.play_sound('click')
+                    else:
+                        debt = int(getattr(self.manager, "innkeeper_debt", 0))
+                        if debt > 0:
+                            msg = f"Locked. Marda holds the key - pay your {debt}g debt first."
+                        else:
+                            msg = "Locked. Ask Marda at the Sunk Cask about the key."
+                        self.manager.vfx.show_damage(self.player.rect.centerx,
+                                                     self.player.rect.top - 30,
+                                                     msg, color=(255, 120, 120))
+                        sound_system.play_sound('error')
+                    return
+
                 # Tarkista NPC interaktio
                 for npc in self.npcs:
                     # YHDISTETTY TARKISTUS: Osuma JA logiikka
@@ -1065,6 +1087,12 @@ class MuckfordCityMenu(BaseMenu):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, label)
                 elif isinstance(prop, (Apple, Egg, Manure)):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Pick Up")
+
+        # Kaivostien portin prompt
+        gate = self._mine_gate_rect()
+        if self.player.rect.colliderect(gate.inflate(60, 60)):
+            label = "Mine Road" if getattr(self.manager, "mine_key_owned", False) else "Mine Road (Locked)"
+            self.manager._draw_floating_prompt(screen, gate.centerx, gate.top - 20, "E", offset, label)
 
         # Kello, kalenteri ja sää (oikea yläkulma)
         self.manager.world_clock.draw_hud(screen, font_small)
