@@ -165,6 +165,12 @@ def main():
 
     def enter_state(new_key, old_key):
         """Alustaa tilan siirtymäsääntöjen mukaan."""
+        # Nollaa valikon rekisteröimä dialogikäsittelijä kun poistutaan sen
+        # piiristä. (Dialogisiirtymät eivät kulje tämän funktion kautta,
+        # ja crown_knives/tavern säilyttävät tavernan käsittelijän.)
+        if new_key not in ("crown_knives", "tavern_sunk_cask"):
+            manager.dialogue_action_handler = None
+
         if old_key in SKIP_INIT_FROM.get(new_key, ()):
             pass  # Säilytä vanha tila sellaisenaan
         else:

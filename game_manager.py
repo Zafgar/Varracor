@@ -146,6 +146,10 @@ class GameManager:
         self.active_escort = None # { "unit": unit, "target": prop }
         self.dialogue_scroll = 0
         self.pending_dialogue_menu = None
+        # Valikko voi rekisteröidä oman action-käsittelijän (esim. Tavernan
+        # give_scrap_dagger). Tuntemattomat actionit valuvat aina
+        # _handle_dialogue_actionille.
+        self.dialogue_action_handler = None
         self.is_in_dialogue = False # Estää HUDin piirtämisen overlay-dialogin aikana
         
         # --- NPC MEMORY ---
@@ -656,42 +660,10 @@ class GameManager:
 
         # --- DIALOGUE PAUSE ---
         if self.active_dialogue:
-            # Peli on pausella. Tarkistetaan input dialogin sulkemiseksi.
-            keys = pygame.key.get_pressed()
-            # Estetään välitön sulkeutuminen jos E jäi pohjaan
+            # Peli on pausella. Input käsitellään eventtipohjaisesti
+            # handle_dialogue_event:issä (main loopin kautta).
             if self.dialogue_cooldown > 0:
                 self.dialogue_cooldown -= 1
-            else:
-                # --- MOUSE HANDLING ---
-                if pygame.mouse.get_pressed()[0]:
-                    mx, my = pygame.mouse.get_pos()
-                    # Laske dialogin sijainti (sama kuin draw-metodissa)
-                    box_w, box_h = 800, 200
-                    box_x = (SCREEN_WIDTH - box_w) // 2
-                    box_y = (SCREEN_HEIGHT - box_h) // 2
-                    
-                    opts = self.active_dialogue.get("options")
-                    if opts:
-                        # Viewport check
-                        view_y = box_y + 130
-                        view_h = 70
-                        oy = view_y - self.dialogue_scroll
-                        for opt in opts:
-                            # Tarkista osuma (tekstialue)
-                            if box_x + 220 <= mx <= box_x + 700 and oy <= my <= oy + 25 and view_y <= my <= view_y + view_h:
-                                self._handle_dialogue_action(opt["action"])
-                                return
-                            oy += 30
-
-                # Options handling
-                opts = self.active_dialogue.get("options")
-                if opts:
-                    if keys[pygame.K_1] and len(opts) >= 1: self._handle_dialogue_action(opts[0]["action"])
-                    elif keys[pygame.K_2] and len(opts) >= 2: self._handle_dialogue_action(opts[1]["action"])
-                
-                if keys[pygame.K_SPACE] or keys[pygame.K_RETURN] or keys[pygame.K_ESCAPE] or keys[pygame.K_e]:
-                    self.active_dialogue = None
-                    self.dialogue_cooldown = 20
             return
 
         if not self.match_in_progress:
@@ -810,6 +782,62 @@ class GameManager:
 
     def trigger_hit_stop(self, frames):
         self.hit_stop_timer = frames
+
+    def _dialogue_option_at(self, mx, my):
+        """Palauttaa dialogivaihtoehdon annetuissa ruutukoordinaateissa tai None.
+        Geometrian on vastattava _draw_dialogue_overlayn piirtoa."""
+        if not self.active_dialogue:
+            return None
+        opts = self.active_dialogue.get("options")
+        if not opts:
+            return None
+        box_w, box_h = 800, 200
+        box_x = (SCREEN_WIDTH - box_w) // 2
+        box_y = (SCREEN_HEIGHT - box_h) // 2
+        view_y = box_y + 130
+        view_h = 70
+        oy = view_y - self.dialogue_scroll
+        for opt in opts:
+            if box_x + 220 <= mx <= box_x + 700 and oy <= my <= oy + 25 and view_y <= my <= view_y + view_h:
+                return opt
+            oy += 30
+        return None
+
+    def handle_dialogue_event(self, event):
+        """Eventtipohjainen in-game dialogin ohjaus. Palauttaa True jos event käsiteltiin."""
+        if not self.active_dialogue:
+            return False
+
+        if event.type == pygame.MOUSEWHEEL:
+            self.handle_dialogue_scroll(event.y)
+            return True
+
+        # Aktiivinen valikko voi tarjota oman action-käsittelijän
+        action_handler = self.dialogue_action_handler or self._handle_dialogue_action
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            opt = self._dialogue_option_at(*event.pos)
+            if opt:
+                action_handler(opt["action"])
+            return True
+
+        if event.type == pygame.KEYDOWN:
+            opts = self.active_dialogue.get("options") or []
+            number_keys = [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4,
+                           pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9]
+            if event.key in number_keys:
+                idx = number_keys.index(event.key)
+                if idx < len(opts):
+                    action_handler(opts[idx]["action"])
+                return True
+            if event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_ESCAPE, pygame.K_e):
+                self.active_dialogue = None
+                self.dialogue_cooldown = 20
+                return True
+            return True  # Muut näppäimet eivät tee mitään dialogin aikana
+
+        # Kuluta muutkin hiiritapahtumat, ettei alla oleva valikko reagoi
+        return event.type in (pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION) and False
 
     def handle_dialogue_scroll(self, amount):
         if not self.active_dialogue: return
@@ -1868,7 +1896,12 @@ class GameManager:
     # =========================================================
     def handle_ui_event(self, event, current_state_key):
         """Käsittelee globaalit UI-tapahtumat (ESC, Pause-valikko)."""
-        
+
+        # --- IN-GAME DIALOGUE (ennen kaikkea muuta, myös ESC:iä) ---
+        if self.active_dialogue:
+            if self.handle_dialogue_event(event):
+                return True
+
         # Inventory Toggle
         if event.type == pygame.KEYDOWN and event.key == pygame.K_i:
             # Estä inventoryn avaus Forest Roadilla (tarina-syyt)
