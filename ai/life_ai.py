@@ -62,13 +62,30 @@ DIALOGUE_TOPICS = {
     ],
     "weather": [
         "Rain, rain, rain. Muckford never dries.",
-        "Fog's thick enough to chew on."
+        "Fog's thick enough to chew on.",  # BUGIKORJAUS: pilkku puuttui
         "Acid rain coming. I can smell the sulfur."
     ],
     "work": [
         "Scrap prices are down again. Thanks to the Consortium.",
         "Mining in the dark. Always in the dark.",
         "Found a vein of iron, but the goblins took it."
+    ],
+    # --- MAAILMAN LORE (ks. docs/LORE.md) ---
+    "kingdoms": [
+        "King Alaric taxes everything. Even the mud, soon.",
+        "The minotaurs of Kharak-Tor guard their water like gold.",
+        "Fenric Greyfang closed the Wyrdwood roads again. Wolves don't share.",
+        "Three years since the Vortex opened. Three years of this truce.",
+        "They say Arkon himself watches the Golden League. A living mountain.",
+        "The Mercy Charter saved my cousin's leg. Bless the Titan for that."
+    ],
+    "tiers": [
+        "Sera Quench makes stars out of Scrapring fighters. Stars burn out fast.",
+        "Coincroak Lurrow would bet on two rats fighting over a crumb.",
+        "I saw a Steel Arena duel once. Like dancers with swords.",
+        "Hessa Ironhorn broke a champion's shield with one hand. One!",
+        "Nobody comes back from the Golden League the same.",
+        "Hamo pays good coin for Vortex samples. Too good, if you ask me."
     ]
 }
 
