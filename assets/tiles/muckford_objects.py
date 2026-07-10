@@ -170,6 +170,8 @@ class MuckfordTree(HarvestableProp):
             if manager:
                 manager.add_material(self.resource_name, 1)
                 manager.vfx.show_damage(self.rect.centerx, self.rect.top - 40, f"+1 {self.resource_name}", color=(150, 255, 100))
+                if attacker is manager.player_character:
+                    manager.grant_hero_xp(3, self.rect.centerx, self.rect.top)
 
         # 4. Kaatuu
         if self.current_hits <= 0:
@@ -352,6 +354,7 @@ class ScrapPileBig(HarvestableProp):
                     
                     manager.add_material(item, qty)
                     manager.vfx.show_damage(self.rect.centerx, self.rect.top - 40, f"+{qty} {item}", color=(200, 200, 200))
+                    manager.grant_hero_xp(3, self.rect.centerx, self.rect.top)
                     sound_system.play_sound("recruit") # "Chime" sound
                     
                     if self.current_searches <= 0:

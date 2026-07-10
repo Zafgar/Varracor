@@ -11,6 +11,7 @@ class FarmAnimalAI(BaseAI):
         self.state = "idle" # idle, wander, find_food, eating
         self.timer = 0
         self.target_grass = None
+        self.target_pos = None # BUGIKORJAUS: luettiin ennen ensimmäistä asetusta
         self.digest_timer = 0
         self.is_chicken = False
         self.egg_timer = random.randint(1000, 3000)

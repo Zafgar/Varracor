@@ -99,9 +99,45 @@ class Chicken(Gladiator):
         
         self.ai_controller = FarmAnimalAI(self)
         self.ai_controller.is_chicken = True # Flag AI:lle
-        
+
+        # Poikanen: pienempi, nopeampi, kasvaa aikuiseksi ajan kanssa
+        self.is_baby = False
+        self.grow_timer = 0
+
         self.sprites = {}
         self._load_sprites()
+        self.image = self.sprites.get("idle", pygame.Surface((24, 24)))
+        if not self.sprites:
+            self.image.fill((200, 200, 200))
+
+    def make_baby(self):
+        """Muuttaa kanan vastakuoriutuneeksi poikaseksi."""
+        self.is_baby = True
+        self.grow_timer = 60 * 90  # ~1.5 min aikuiseksi
+        c = self.rect.center
+        self.rect = pygame.Rect(0, 0, 12, 12)
+        self.rect.center = c
+        self.max_hp = 5
+        self.current_hp = 5
+        self.speed = 1.0
+        # Poikanen ei muni ennen aikuistumista
+        self.ai_controller.egg_timer = 999999
+        # Pieni keltainen untuvikko (procedural)
+        s = pygame.Surface((12, 12), pygame.SRCALPHA)
+        pygame.draw.circle(s, (255, 230, 120), (6, 7), 5)
+        pygame.draw.circle(s, (255, 200, 80), (9, 5), 2)
+        self.image = s
+        self._baby_image = s
+
+    def _grow_up(self):
+        self.is_baby = False
+        c = self.rect.center
+        self.rect = pygame.Rect(0, 0, 24, 24)
+        self.rect.center = c
+        self.max_hp = 10
+        self.current_hp = 10
+        self.speed = 0.8
+        self.ai_controller.egg_timer = 3000 + int(3000 * (0.5 + 0.5 * (id(self) % 100) / 100))
         self.image = self.sprites.get("idle", pygame.Surface((24, 24)))
         if not self.sprites:
             self.image.fill((200, 200, 200))
@@ -114,7 +150,16 @@ class Chicken(Gladiator):
     def update(self, obstacles=None, manager=None):
         if self.ai_controller:
             self.ai_controller.execute_ai(None, obstacles, manager)
-        
+
+        # Poikanen kasvaa aikuiseksi
+        if self.is_baby:
+            self.grow_timer -= 1
+            if self.grow_timer <= 0:
+                self._grow_up()
+                if manager:
+                    manager.vfx.show_damage(self.rect.centerx, self.rect.top - 10,
+                                            "*cluck!*", color=(255, 240, 150))
+
         # Yksinkertainen kääntö
         if not self.facing_right:
             pass # Käännä kuva jos on sprite

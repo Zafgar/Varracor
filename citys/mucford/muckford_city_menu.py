@@ -611,8 +611,13 @@ class MuckfordCityMenu(BaseMenu):
 
         # Päivitä Propit (Lanta, Ruoho yms.)
         # Tämä on tärkeää ruohon takaisinkasvulle ja lannan efekteille
+        # (BUGIKORJAUS: manager meni aiemmin obstacles-parametriin, jolloin
+        #  esim. romukasojen E-keräys ja ruohoäänet eivät toimineet)
         for p in self.arena.props:
-            if hasattr(p, "update"): p.update(self.manager)
+            if hasattr(p, "update"): p.update(None, self.manager)
+
+        # Munien kuoriutuminen poikasiksi
+        self._update_eggs()
             
         for p in self.arena.floor_props:
             if hasattr(p, "update"): p.update(self.manager)
@@ -1397,6 +1402,30 @@ class MuckfordCityMenu(BaseMenu):
             self.manager.vfx.show_damage(r1.centerx, r1.top - 20, "Too far!", color=(200, 50, 50))
             return False
 
+    def _update_eggs(self):
+        """Keräämättömät munat voivat kuoriutua poikasiksi (tai pilaantua)."""
+        for prop in list(self.arena.props):
+            if not isinstance(prop, Egg):
+                continue
+            if not hasattr(prop, "hatch_timer"):
+                prop.hatch_timer = random.randint(3600, 9000)  # 1 - 2.5 min
+            prop.hatch_timer -= 1
+            if prop.hatch_timer <= 0:
+                self.arena.props.remove(prop)
+                if prop in self.manager.all_units:
+                    self.manager.all_units.remove(prop)
+                # Populaatiokatto: ilman tätä kanamäärä kasvaa rajatta
+                chicken_count = sum(1 for a in self.animals if isinstance(a, Chicken))
+                if chicken_count < 12 and random.random() < 0.35:
+                    # Kuoriutuu poikaseksi, joka kasvaa kanaksi
+                    chick = Chicken(prop.rect.x, prop.rect.y, team_color=GREEN)
+                    chick.make_baby()
+                    self.animals.append(chick)
+                    self.manager.all_units.add(chick)
+                    self.manager.vfx.show_damage(prop.rect.centerx, prop.rect.top - 10,
+                                                 "*peep!*", color=(255, 240, 150))
+                # Muuten muna vain pilaantui hiljaisuudessa
+
     def _interact_cow(self, cow):
         if cow.milk_ready:
             # Tarkista onko tyhjä ämpäri
@@ -1415,6 +1444,7 @@ class MuckfordCityMenu(BaseMenu):
                 cow.milk_ready = False
                 sound_system.play_sound('recruit') # "Splosh" ääni
                 self.manager.vfx.show_damage(cow.rect.centerx, cow.rect.top, "Milked!", color=(255, 255, 255))
+                self.manager.grant_hero_xp(5, cow.rect.centerx, cow.rect.top)
             else:
                 self.manager.vfx.show_damage(self.player.rect.centerx, self.player.rect.top, "Need Bucket!", color=(200, 50, 50))
         else:
@@ -1436,6 +1466,7 @@ class MuckfordCityMenu(BaseMenu):
                 if prop in self.arena.props: self.arena.props.remove(prop)
                 if prop in self.manager.all_units: self.manager.all_units.remove(prop)
                 sound_system.play_sound('click')
+                self.manager.grant_hero_xp(1, prop.rect.centerx, prop.rect.top)
                 return True
             
         if isinstance(prop, ManurePile):
@@ -1460,6 +1491,7 @@ class MuckfordCityMenu(BaseMenu):
 
                 # Lisätään kaupungin varastoon (Talouskierto)
                 self.manager.city_storage["Manure"] = self.manager.city_storage.get("Manure", 0) + count
+                self.manager.grant_hero_xp(count, prop.rect.centerx, prop.rect.top)
                 
             return True
             
@@ -1486,6 +1518,7 @@ class MuckfordCityMenu(BaseMenu):
                 self.manager.equipment_bag.append(BucketWater())
                 sound_system.play_sound('recruit') # Splash sound placeholder
                 self.manager.vfx.show_damage(prop.rect.centerx, prop.rect.top - 20, "Water Fetched!", color=(100, 200, 255))
+                self.manager.grant_hero_xp(2, prop.rect.centerx, prop.rect.top)
             else:
                 self.manager.vfx.show_damage(prop.rect.centerx, prop.rect.top - 20, "Need Bucket!", color=(200, 50, 50))
             return True
@@ -1505,6 +1538,7 @@ class MuckfordCityMenu(BaseMenu):
             if prop in self.manager.all_units: self.manager.all_units.remove(prop)
             sound_system.play_sound('click')
             self.manager.vfx.show_damage(prop.rect.centerx, prop.rect.top - 20, f"+1 {prop.loot_item}", color=WHITE)
+            self.manager.grant_hero_xp(2, prop.rect.centerx, prop.rect.top)
             return True
             
         if isinstance(prop, (ScrapPile, ScrapPileBig)) and not getattr(prop, "is_empty", False):
