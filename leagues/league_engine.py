@@ -288,10 +288,18 @@ class LeagueEngine:
     def __init__(self):
         self.tier = 1
         self.season_number = 1
-        self.tier_names = {
-            1: "Copper Pit", 2: "Iron Gauntlet", 3: "Steel Colosseum",
-            4: "Mithril League", 5: "Adamantite Champions", 6: "Legends"
-        }
+        # Tier-nimet tulevat maailman loresta (lore/world_data.py).
+        # LeagueEnginen tier 1 = loren Tier 0 (Muckford/Rookie Dust).
+        try:
+            from lore.world_data import ARENA_TIERS
+            self.tier_names = {gt: ARENA_TIERS[gt - 1]["name"]
+                               for gt in range(1, 7) if (gt - 1) in ARENA_TIERS}
+        except Exception:
+            self.tier_names = {
+                1: "The Rookie Dust Circuit", 2: "The Scrapring Circuit",
+                3: "The Iron Circle Circuit", 4: "The Steel Arena Circuit",
+                5: "The Silver League Circuit", 6: "The Golden League"
+            }
         self.TIER_NAMES = self.tier_names
         self.seasons: Dict[str, LeagueSeason] = {}
         self.simulation_progress: float = 1.0

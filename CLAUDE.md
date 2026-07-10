@@ -1,0 +1,75 @@
+# Varracor — projektin opas
+
+Pygame-ce-pohjainen gladiaattori-tycoon/action-RPG. Pelaaja (Commander/Hero)
+etenee areenatiereissä 0→5 kohti Abyssal Vortexia. Yksinpeli, 1920×1080
+(pygame.SCALED skaalaa).
+
+## Käynnistys ja testit
+
+```bash
+pip install -r requirements.txt   # pygame-ce
+python main.py                    # normaali peli (aloituskulta 500)
+python main.py --cheat            # cheat-tila: 100k kultaa, karttaeditori (F8), debug-näppäimet
+python -m pytest tests/ -q        # 21+ testiä, ~2 min (kaupunkisimulaatio mukana)
+python tools/asset_scan.py        # päivittää MISSING_ASSETS.md
+```
+
+Headless-ajo (testit/simulaatiot): `SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy`.
+Kuvat/äänet/musiikki EIVÄT ole repossa (tekijän koneella) — peli toimii ilman
+niitä procedural-fallbackeilla. `MISSING_ASSETS.md` listaa polut joihin
+tiedostot kuuluu pudottaa.
+
+## Tärkeät dokumentit
+
+- **docs/LORE.md** — maailmanraamattu (valtakunnat, tierit, kaupungit,
+  resurssit, magiakoulut). Kanoninen lore-lähde.
+- **lore/world_data.py** — sama koneluettavana; pelikoodi käyttää tätä
+  (esim. LeagueEnginen tier-nimet). Pidä synkassa LORE.md:n kanssa.
+- **BALANCE_NOTES.md** — asebalanssin menetelmä, muutokset ja säännöt
+  (korkeampi tier voittaa saman luokan ~2/2; tierin sisällä 30–70 %).
+- **MISSING_ASSETS.md** — generoitu lista puuttuvista asseteista.
+
+## Arkkitehtuuri
+
+- **main.py** — pelisilmukka + datavetoinen tilakone: uusi valikko lisätään
+  MENU_FACTORIES/RECREATE_ALWAYS/CALL_ON_ENTER-tauluihin, EI if-ketjuun.
+- **game_manager.py** — keskusolio: talous, joukkue, taistelu (update_match),
+  dialogit (handle_dialogue_event, eventtipohjainen), pause-menu, HUD,
+  grant_hero_xp (kaupunkityöt → Commander XP).
+- **gladiator.py** — yksiköiden pohjaluokka (statsit, varusteet, combat,
+  stamina, dash, charge-aseet). _nearby_obstacles = välimuistitettu
+  törmäysesisuodatus (ÄLÄ iteroi kaikkia esteitä suoraan — perf).
+- **ai/** — BaseAI (combat), VillagerAI (oikea työ + kynnysarvot jotka
+  jättävät pelaajalle tekemistä; parikeskustelut), FarmAnimalAI (lehmät,
+  kanat, munat, poikaset — populaatiokatto 12), BirdAI ym.
+- **items/** — aseet tiereittäin: scrap (lvl 1) → weak (lvl 2) → rat/erikois
+  → epic/vortex. Rekisteri: items/item_registry.py (create_item nimellä).
+- **spells/**, **arenas/**, **maps/**, **npc/**, **quests/** — rekisterivetoisia.
+- **save_manager.py** — JSON-tallennus: F5/F9, pause-menun SAVE, päävalikon
+  LOAD, autosave taistelun jälkeen. Tallennukset saves/ (gitignored).
+- **sound_manager.py** — master-volyymit (music/sfx), options tallentuu
+  saves/options.json. Options-valikko: menus/options_menu.py.
+- **citys/mucford/** — aloituskaupunki (villagerit, maatila, taverna, paja).
+- **settings.py** — PLAYER_TEAM/ENEMY_TEAM-vakiot: käytä AINA näitä
+  team_color-vertailuissa, ei kovakoodattuja värejä.
+
+## Konventiot ja sudenkuopat
+
+- Kommentit suomeksi, UI-tekstit englanniksi.
+- Ei paljaita `except:` — vähintään `except Exception:`.
+- Elämää simuloivat propit (lanta, munat) lisätään SEKÄ
+  arena.props ETTÄ manager.all_units -ryhmään; poistettaessa molemmista.
+- Props-update kutsutaan `p.update(None, manager)` — manager on TOINEN
+  parametri (obstacles ensin).
+- Uudet valikot perivät BaseMenu; tilasiirtymä = next_state-attribuutti.
+- Balanssimuutokset: aja duel-matriisi (tests/conftest.py run_duel-apuri),
+  katso BALANCE_NOTES.md.
+- Kaupunkisimulaation voi ajaa headless: ks. tests/test_city.py.
+
+## Pelin visio (tiivistetysti — koko kuva docs/LORE.md)
+
+Hero menetti muistinsa Mnemonic Devourerille matkalla Vortexiin; alkaa
+Muckfordista (Tier 0) tyhjästä. Areenaprogessio + wave-taistelu-eventit +
+boss-eventit + yksilötehtävät (kaivos, keräily) + kaupunkielämä (NPC:t,
+maatila, questit) → reputation avaa tierit, rodut, rekrytoinnit. Loppupeli:
+Golden League ja Vortexin ydin.
