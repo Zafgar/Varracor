@@ -428,7 +428,67 @@ MARKET_PRICES = {
     # Mitä pelaaja voi ostaa kojulta
     "buy": {
         "Empty Bucket": {"price": 5, "kind": "item", "class": "BucketEmpty"},
+        "Weak Pickaxe": {"price": 12, "kind": "item", "class": "WeakPickaxe"},
         "Apple": {"price": 4, "kind": "material"},
         "Egg": {"price": 4, "kind": "material"},
+    },
+}
+
+
+# =========================================================
+# TALOUS
+# =========================================================
+ECONOMY = {
+    "currencies": {
+        "SP": {"name": "Silver Piece", "value_in_sp": 1,
+               "use": "Arki: ruoka, majoitus, halvat korjaukset (Tier 0-1)"},
+        "GP": {"name": "Gold Piece", "value_in_sp": 100,
+               "use": "Ammattilaistaso: terasvarusteet, taikajuomat, sepat"},
+        "PL": {"name": "Platinum Piece", "value_in_sp": 10000,
+               "use": "Eliitti: harvinaiset materiaalit, temppelioperaatiot"},
+        "HC": {"name": "Highstone Crown", "value_in_sp": 1000000,
+               "use": "Endgame: artefaktit, poliittinen valta"},
+    },
+    "cost_of_living": {
+        "muckford_night": (8, 15, "SP"),
+        "muckford_stew": (2, 8, "SP"),
+        "giltgate_night": (1, 3, "GP"),
+        "giltgate_meal": (1, 2, "GP"),
+        "healing_potion": (25, 60, "SP"),
+        "mana_draught": (1, 4, "GP"),
+        "antidote": (1, 4, "GP"),
+        "crude_sharpening": (5, 15, "SP"),
+        "steel_armor_repair": (3, 10, "GP"),
+        "stormsilver_work": (20, 60, "GP"),
+        "temple_major_treatment": (0.2, 1.5, "PL"),
+    },
+    "regional_exports": {
+        "crown_dominion": ["Iron", "Steel", "Parchment", "Archive Ink",
+                           "Contracts (Ledgerford)"],
+        "lupine_wardens": ["Ironbark", "Moonwillow", "Living Fiber",
+                           "Herbs", "Moondew (mana)"],
+        "horned_throne": ["Direhide", "Trollbone Plating", "Drake Scale",
+                          "Water (Saffron Oasis)"],
+        "highstone_sanctum": ["Official Seals", "Protocol Documents",
+                              "Stormsilver", "Focus Crystal"],
+        "vortex": ["Void-Iron", "Abyssal Chitin", "Vortex Residue"],
+    },
+    "engines": {
+        "arena_business": ("Tier 0: rekisterointimaksut ja ruokakojut; "
+                           "Tier 1-3: vedonlyonti, liput, sponsorit. "
+                           "Sponsorit maksavat stipendia, voitto- ja "
+                           "tavoitebonuksia; saavat mainosta ja valtaa."),
+        "monster_economy": ("Hamo valittaa palkkioita: rottaparvi 1-4 GP, "
+                            "iso bossi 0.1-0.4 PL, Vortex-kohde HC-tasoa. "
+                            "Echo Shards/Hearts artefaktimateriaaleina."),
+        "oath_of_debt": ("Velka ja palvelukset epavirallisena valuuttana. "
+                         "Majatalonpitajat myyvat velkakirjoja eteenpain; "
+                         "temppelit sitovat pelastetut Oath of Debt "
+                         "-kirjoihin. Pelissa: Mardan 25 kullan alkuvelka."),
+    },
+    "bounty_ranges": {
+        "swarm_cleanup": (1, 4, "GP"),
+        "major_boss": (0.1, 0.4, "PL"),
+        "vortex_target": (1, 10, "HC"),
     },
 }

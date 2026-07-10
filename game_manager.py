@@ -128,6 +128,8 @@ class GameManager:
 
         # --- INNKEEPER DEBT (alkutarina: yöt tajuttomana Sunk Caskissa) ---
         self.innkeeper_debt = 0
+        # Kaivoksen avain: Marda antaa kun velka on maksettu
+        self.mine_key_owned = False
 
         # --- GAME STATE ---
         self.mode = "Arena" 

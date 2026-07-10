@@ -196,6 +196,15 @@ class ChatMenu(BaseMenu):
                 print(f"[Debt] Innkeeper debt set: {value} gold")
             except Exception: pass
 
+        elif command == "give_mine_key":
+            if not getattr(self.manager, "mine_key_owned", False):
+                self.manager.mine_key_owned = True
+                self.manager.vfx.show_damage(
+                    self.manager.player_character.rect.centerx,
+                    self.manager.player_character.rect.top - 30,
+                    "Received: Mine Key!", color=(255, 215, 0))
+                print("[Story] Mine key received from Marda")
+
         elif command == "pay_innkeeper_debt":
             debt = int(getattr(self.manager, "innkeeper_debt", 0))
             if debt > 0 and self.manager.gold >= debt:
