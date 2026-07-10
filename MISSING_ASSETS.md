@@ -3,9 +3,9 @@
 Generoitu komennolla `python tools/asset_scan.py` — aja uudelleen
 aina kun lisäät tiedostoja, niin lista pysyy ajan tasalla.
 
-- Koodissa viitattuja tiedostoja: **182**
+- Koodissa viitattuja tiedostoja: **183**
 - Löytyy levyltä: **0**
-- Puuttuu: **182**
+- Puuttuu: **183**
 
 Laita tiedosto täsmälleen alla olevaan polkuun (suhteessa pelin
 juurikansioon), niin peli löytää sen automaattisesti — koodia ei
@@ -73,10 +73,11 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/images/hub_background.png` | kuva | menus/town_hub.py |
 | `assets/images/menu_background.png` | kuva | menus/main_menu.py |
 
-## assets/music/ (11 kpl)
+## assets/music/ (12 kpl)
 
 | Tiedosto | Tyyppi | Käytetään tiedostossa |
 |---|---|---|
+| `assets/music/crypt_theme.mp3` | musiikki | citys/mucford/mine_cave_menu.py |
 | `assets/music/crypt_theme.wav` | ääni | maps/bog_1/mission.py, maps/crypt_1/mission.py |
 | `assets/music/menu_theme.mp3` | musiikki | menus/main_menu.py |
 | `assets/music/menu_theme.wav` | ääni | menus/main_menu.py |
@@ -85,7 +86,7 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/music/rat_boss_theme.wav` | ääni | maps/rat_sewer/mission.py |
 | `assets/music/swamp_loop.mp3` | musiikki | maps/bog_1/mission.py |
 | `assets/music/swamp_loop.wav` | ääni | maps/bog_1/mission.py |
-| `assets/music/swamp_theme.mp3` | musiikki | citys/mucford/forest_road_menu.py, citys/mucford/muckford_city_menu.py, maps/bog_1/mission.py |
+| `assets/music/swamp_theme.mp3` | musiikki | citys/mucford/forest_road_menu.py, citys/mucford/mine_road_menu.py, citys/mucford/muckford_city_menu.py (+1 muuta) |
 | `assets/music/swamp_theme.wav` | ääni | maps/bog_1/mission.py |
 | `assets/music/town_hub.wav` | ääni | menus/town_hub.py |
 

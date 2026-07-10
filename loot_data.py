@@ -38,11 +38,42 @@ LOOT_DROPS = {
 # type: 'weapon', 'armor', 'helmet', 'shield', 'usable'
 BLUEPRINTS = {
     # WEAPONS
+    # --- IRON SERIES (Seppä: kaivoksen rautaharkoista) ---
     'Iron Sword': {
         'type': 'weapon',
-        'desc': 'A standard soldier\'s blade.',
-        'cost': 150,
-        'mats': {'Broken Tooth': 2}
+        'desc': 'A standard soldier\'s blade. Forged from mine iron.',
+        'cost': 25,
+        'mats': {'Iron Bar': 2, 'Swamp Wood': 1}
+    },
+    'Iron Axe': {
+        'type': 'weapon',
+        'desc': 'A heavy woodsman\'s axe, reforged for war.',
+        'cost': 25,
+        'mats': {'Iron Bar': 2, 'Swamp Wood': 1}
+    },
+    'Iron Mace': {
+        'type': 'weapon',
+        'desc': 'Crushes armor and bone alike.',
+        'cost': 25,
+        'mats': {'Iron Bar': 3}
+    },
+    'Bent Spear': {
+        'type': 'weapon',
+        'desc': 'Long reach, slightly crooked shaft.',
+        'cost': 20,
+        'mats': {'Iron Bar': 1, 'Swamp Wood': 2}
+    },
+    'Iron Dagger': {
+        'type': 'weapon',
+        'desc': 'Quick, light and easy to hide.',
+        'cost': 15,
+        'mats': {'Iron Bar': 1}
+    },
+    'Light Crossbow': {
+        'type': 'weapon',
+        'desc': 'Slow to load, hits like a mule.',
+        'cost': 30,
+        'mats': {'Iron Bar': 2, 'Swamp Wood': 2}
     },
     'Rat Poison Sword': {
         'type': 'weapon',

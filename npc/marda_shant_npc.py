@@ -85,7 +85,7 @@ class MardaShantNPC(BaseNPC):
         # --- VELKA (Alkutarina: yöt tajuttomana maksavat) ---
         nodes["intro_debt"] = DialogueNode(
             id="intro_debt",
-            text="Don't thank me yet. Two nights on my floor, a ruined rug, and the broth I spooned into you - that's 25 gold you owe me. Work it off in the village. Farmer Gus always needs hands, and the woods are full of scrap.",
+            text="Don't thank me yet. Two nights on my floor, a ruined rug, and the broth I spooned into you - that's 25 silver you owe me. Work it off in the village. Farmer Gus always needs hands, and the woods are full of scrap.",
             speaker=self.name,
             emotion="rude",
             on_enter_effects=["set_innkeeper_debt:25"],
@@ -97,7 +97,7 @@ class MardaShantNPC(BaseNPC):
 
         nodes["intro_debt_argue"] = DialogueNode(
             id="intro_debt_argue",
-            text="The floor was the cheap part. You screamed about a 'Vortex' half the night and scared away my customers. 25. Gold. Or the guards hear about the stranger who can't pay his debts.",
+            text="The floor was the cheap part. You screamed about a 'Vortex' half the night and scared away my customers. 25. Silver. Or the guards hear about the stranger who can't pay his debts.",
             speaker=self.name,
             emotion="angry",
             choices=[
@@ -114,12 +114,12 @@ class MardaShantNPC(BaseNPC):
             DialogueChoice("Any rumors?", "gossip"),
         ]
         if debt > 0:
-            hub_choices.insert(0, DialogueChoice(f"About my debt... ({debt} gold)", "debt_status"))
+            hub_choices.insert(0, DialogueChoice(f"About my debt... ({debt} silver)", "debt_status"))
         hub_choices.append(DialogueChoice("Just passing through.", None, effects=["close_chat"]))
 
         hub_text = "What do you want? I'm busy running a business here, not babysitting."
         if debt > 0:
-            hub_text = f"You still owe me {debt} gold. I haven't forgotten, and neither should you."
+            hub_text = f"You still owe me {debt} silver. I haven't forgotten, and neither should you."
 
         nodes["hub"] = DialogueNode(
             id="hub",
@@ -133,11 +133,11 @@ class MardaShantNPC(BaseNPC):
             if gold >= debt:
                 nodes["debt_status"] = DialogueNode(
                     id="debt_status",
-                    text=f"Well, well. {debt} gold, and we're square. Hand it over.",
+                    text=f"Well, well. {debt} silver, and we're square. Hand it over.",
                     speaker=self.name,
                     emotion="thinking",
                     choices=[
-                        DialogueChoice(f"Pay {debt} gold.", "debt_paid", effects=["pay_innkeeper_debt"]),
+                        DialogueChoice(f"Pay {debt} silver.", "debt_paid", effects=["pay_innkeeper_debt"]),
                         DialogueChoice("Not yet.", "hub")
                     ]
                 )
@@ -152,7 +152,7 @@ class MardaShantNPC(BaseNPC):
             else:
                 nodes["debt_status"] = DialogueNode(
                     id="debt_status",
-                    text=f"You have {gold} gold and you owe me {debt}. Do I look like I take promises? Go shovel manure, chop wood, milk a cow - Muckford pays for honest sweat.",
+                    text=f"You have {gold} silver and you owe me {debt}. Do I look like I take promises? Go shovel manure, chop wood, milk a cow - Muckford pays for honest sweat.",
                     speaker=self.name,
                     emotion="pissed",
                     choices=[DialogueChoice("I'm working on it.", "hub")]

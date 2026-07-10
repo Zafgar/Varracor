@@ -91,6 +91,16 @@ tiedostot kuuluu pudottaa.
 - **Talouslore**: lore/world_data.py ECONOMY (valuutat SP/GP/PL/HC 100x-
   kertoimin, elinkustannukset, alueviennit, sponsorit/palkkiot/Oath of Debt).
 
+- **Kaivosluola** (mine_cave_*.py) — kaivostien perältä (E suuaukolla, tie
+  raivattava ensin). Pimeys + soihtuvalo pelaajan ympärillä, 8 rautaa,
+  4 hiiltä, 2 rubiinisuonta, vahvistetut epäkuolleet leashilla (heräävät
+  vasta pelaajan lähellä). Taontaketju: malmi+hiili → sulatto → Iron Bar →
+  sepän Iron-sarja (BLUEPRINTS loot_data.py).
+- **Valuutta**: sisäinen yksikkö = SP (hopea). format_money muotoilee
+  100x-portain (SP/GP/PL/HC). Kaupungin M-näppäin avaa kartan.
+- **Potionit**: Potion.cast() parantaa ja kuluttaa pullon (usable-slotit
+  näppäimet 4/7/8 + klikkaus).
+
 ## Pelin visio (tiivistetysti — koko kuva docs/LORE.md)
 
 Hero menetti muistinsa Mnemonic Devourerille matkalla Vortexiin; alkaa

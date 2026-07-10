@@ -90,6 +90,14 @@ class MuckfordCityMenu(BaseMenu):
         # 5. Eläimet (Lehmät)
         self.animals = []
 
+        # --- KARTTA (M-näppäin) ---
+        self.show_map = False
+
+        # Siivoa kartan ulkopuolelle jääneet propit (esim. reunan yli
+        # generoidut puut) - muuten AI voi valita ne työkohteiksi ja
+        # jäädä kävelemään seinää päin
+        self._remove_out_of_bounds_props()
+
         # --- RAT RAID -JÄRJESTELMÄ ---
         # Rat King lähettää parvia kylään kunnes hänet kukistetaan (quest hunt_01)
         self.raid_rats = []
@@ -257,6 +265,97 @@ class MuckfordCityMenu(BaseMenu):
                     self.npcs.append(v)
                     break
 
+    def _remove_out_of_bounds_props(self):
+        bounds = pygame.Rect(0, 0, self.arena.width, self.arena.height)
+        removed = 0
+        for prop in list(self.arena.props):
+            if not bounds.colliderect(prop.rect):
+                self.arena.props.remove(prop)
+                if prop in self.arena.obstacles:
+                    self.arena.obstacles.remove(prop)
+                removed += 1
+        if removed:
+            print(f"[City] Removed {removed} out-of-bounds props")
+
+    def _draw_city_map(self, screen):
+        """Muckfordin kartta: rakennukset, maatila, portit ja pelaaja."""
+        from ui_kit import get_fullscreen_overlay
+        screen.blit(get_fullscreen_overlay((0, 0, 0, 190)), (0, 0))
+
+        # Karttapaneeli keskelle
+        map_w, map_h = 1100, 750
+        panel = pygame.Rect((SCREEN_WIDTH - map_w) // 2, (SCREEN_HEIGHT - map_h) // 2 - 30, map_w, map_h)
+        pygame.draw.rect(screen, (52, 46, 38), panel, border_radius=10)
+        pygame.draw.rect(screen, (140, 125, 95), panel, 3, border_radius=10)
+        draw_text("MUCKFORD", font_title, GOLD_COLOR, screen, panel.centerx - 90, panel.y + 12)
+
+        # Skaalaus maailmasta kartalle
+        inner = panel.inflate(-60, -110)
+        inner.y += 30
+        sx = inner.w / self.arena.width
+        sy = inner.h / self.arena.height
+
+        def to_map(wx, wy):
+            return (int(inner.x + wx * sx), int(inner.y + wy * sy))
+
+        # Maatila-alue (jos määritelty)
+        farm = getattr(self.arena, "farm_area", None)
+        if farm:
+            fr = pygame.Rect(*to_map(farm.x, farm.y),
+                             max(6, int(farm.w * sx)), max(6, int(farm.h * sy)))
+            pygame.draw.rect(screen, (70, 85, 55), fr, border_radius=4)
+            pygame.draw.rect(screen, (110, 130, 85), fr, 2, border_radius=4)
+
+        # Kohteet: (objekti/rect, väri, nimi)
+        from assets.tiles.muckford_objects import TownHall, MuckfordStall, Smeltery, Well, ChickenCoop
+        from assets.tiles.farm_objects import FarmStorage, ManurePile
+        markers = []
+        if getattr(self, "tavern_house", None):
+            markers.append((self.tavern_house.rect, (230, 190, 90), "Tavern (Sunk Cask)"))
+        if getattr(self, "blacksmith_house", None):
+            markers.append((self.blacksmith_house.rect, (230, 140, 60), "Blacksmith"))
+        seen = set()
+        for prop in self.arena.props:
+            for cls, col, label in ((TownHall, (110, 150, 230), "Town Hall"),
+                                    (MuckfordStall, (110, 210, 110), "Market"),
+                                    (Smeltery, (220, 90, 70), "Smeltery"),
+                                    (Well, (100, 200, 220), "Well"),
+                                    (ChickenCoop, (200, 170, 120), "Chicken Coop"),
+                                    (FarmStorage, (170, 140, 90), "Storage"),
+                                    (ManurePile, (130, 110, 70), "Compost")):
+                if isinstance(prop, cls) and label not in seen:
+                    seen.add(label)
+                    markers.append((prop.rect, col, label))
+
+        # Kaivostien portti
+        gate = self._mine_gate_rect()
+        gate_col = (200, 200, 210) if getattr(self.manager, "mine_key_owned", False) else (120, 120, 130)
+        gate_label = "Mine Road" if getattr(self.manager, "mine_key_owned", False) else "Mine Road (locked)"
+        markers.append((gate, gate_col, gate_label))
+
+        # Piirrä merkit + legenda
+        legend_x = panel.x + 20
+        legend_y = panel.bottom - 46
+        col_w = 215
+        for i, (rect, col, label) in enumerate(markers):
+            mx, my = to_map(rect.centerx, rect.centery)
+            pygame.draw.circle(screen, col, (mx, my), 8)
+            pygame.draw.circle(screen, (20, 20, 20), (mx, my), 8, 2)
+            lx = legend_x + (i % 5) * col_w
+            ly = legend_y - (1 - i // 5) * 24
+            pygame.draw.circle(screen, col, (lx, ly + 8), 6)
+            draw_text(label, font_small, WHITE, screen, lx + 12, ly)
+
+        # Pelaaja (sykkivä valkoinen piste)
+        px, py = to_map(self.player.rect.centerx, self.player.rect.centery)
+        pulse = 3 + int(2 * abs(math.sin(pygame.time.get_ticks() * 0.005)))
+        pygame.draw.circle(screen, WHITE, (px, py), 6 + pulse, 2)
+        pygame.draw.circle(screen, (255, 255, 255), (px, py), 5)
+        draw_text("YOU", font_small, WHITE, screen, px + 10, py - 8)
+
+        draw_text("[M] / [ESC] close", font_small, (170, 170, 170), screen,
+                  panel.right - 160, panel.y + 18)
+
     def _mine_gate_rect(self):
         """Kaivostien portti kaupungin itäreunalla."""
         return pygame.Rect(self.arena.width - 70, self.arena.height // 2 - 120, 70, 240)
@@ -405,6 +504,16 @@ class MuckfordCityMenu(BaseMenu):
         # Estetään tässä vain muu toiminta dialogin aikana.
         if self.manager.active_dialogue:
             return
+
+        # KARTTA (M) - toggle, ja kartan ollessa auki muut eventit ohitetaan
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+            self.show_map = not self.show_map
+            sound_system.play_sound('click')
+            return
+        if self.show_map:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.show_map = False
+            return
             
         # 0.5 SMELTERY UI HANDLING
         if self.active_smeltery:
@@ -502,7 +611,7 @@ class MuckfordCityMenu(BaseMenu):
                     else:
                         debt = int(getattr(self.manager, "innkeeper_debt", 0))
                         if debt > 0:
-                            msg = f"Locked. Marda holds the key - pay your {debt}g debt first."
+                            msg = f"Locked. Marda holds the key - pay your {debt} silver debt first."
                         else:
                             msg = "Locked. Ask Marda at the Sunk Cask about the key."
                         self.manager.vfx.show_damage(self.player.rect.centerx,
@@ -1116,6 +1225,12 @@ class MuckfordCityMenu(BaseMenu):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LALT] or keys[pygame.K_RALT]:
             self._draw_names(screen, offset)
+
+        # M-kartta päällimmäisenä
+        if self.show_map:
+            self._draw_city_map(screen)
+        else:
+            draw_text("[M] Map", font_small, (180, 180, 180), screen, 20, SCREEN_HEIGHT - 30)
 
         # Smeltery Overlay
         if self.active_smeltery:

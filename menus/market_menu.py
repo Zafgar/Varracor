@@ -49,7 +49,7 @@ class MarketMenu(BaseMenu):
             del self.manager.inventory[name]
         self.manager.gold += total
         sound_system.play_sound("coin")
-        self._flash(f"Sold {amount}x {name} for {total}g")
+        self._flash(f"Sold {amount}x {name} for {format_money(total)}")
 
     def _buy(self, key):
         entry = MARKET_PRICES["buy"][key]
@@ -79,7 +79,7 @@ class MarketMenu(BaseMenu):
                 self._flash("Out of stock!")
                 return
         sound_system.play_sound("coin")
-        self._flash(f"Bought {key} for {price}g")
+        self._flash(f"Bought {key} for {format_money(price)}")
 
     def _flash(self, text):
         self.feedback = text
@@ -150,7 +150,7 @@ class MarketMenu(BaseMenu):
                              row, border_radius=6)
             draw_text(f"{name}  x{count}", font_main, WHITE, screen,
                       row.x + 12, row.y + 8)
-            draw_text(f"{price}g / kpl", font_main, GOLD_COLOR, screen,
+            draw_text(format_money(price), font_main, GOLD_COLOR, screen,
                       row.right - 110, row.y + 8)
             self.sell_rects.append((row, name))
             y += row_h
@@ -175,7 +175,7 @@ class MarketMenu(BaseMenu):
             pygame.draw.rect(screen, bg, row, border_radius=6)
             draw_text(key, font_main, WHITE if afford else GRAY, screen,
                       row.x + 12, row.y + 8)
-            draw_text(f"{entry['price']}g", font_main,
+            draw_text(format_money(entry['price']), font_main,
                       GOLD_COLOR if afford else GRAY, screen,
                       row.right - 80, row.y + 8)
             self.buy_rects.append((row, key))

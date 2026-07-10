@@ -75,9 +75,24 @@ class MineRoadMenu(GameplayScreen):
             u = cls(cls.__name__.replace("Undead", ""), x, y, ENEMY_TEAM)
             self.undead.append(u)
 
+    def _leashed_undead(self):
+        """Epäkuolleet heräävät vasta kun pelaaja tulee lähelle
+        (eivät ryntää kartan poikki heti sisään astuttaessa)."""
+        import math as _math
+        px, py = self.player.rect.center
+        active = []
+        for u in self.undead:
+            if u.is_dead:
+                continue
+            d = _math.hypot(u.rect.centerx - px, u.rect.centery - py)
+            if d < 650 or getattr(u, "_aggro", False):
+                u._aggro = True
+                active.append(u)
+        return active
+
     def _all_units(self):
         units = [self.player]
-        units.extend(u for u in self.undead if not u.is_dead)
+        units.extend(self._leashed_undead())
         # Malmit mukaan, jotta pelaajan lyönnit osuvat niihin
         units.extend(n for n in self.arena.ore_nodes if not n.is_empty)
         return units
@@ -115,8 +130,22 @@ class MineRoadMenu(GameplayScreen):
         if self.player.rect.colliderect(self.exit_rect):
             self.next_state = "muckford_city"
 
+    def _cave_mouth_rect(self):
+        return pygame.Rect(self.arena.width - 300, self.arena.height // 2 - 150, 260, 300)
+
     def handle_event(self, event):
         super().handle_event(event)
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_e:
+            if self.player.rect.colliderect(self._cave_mouth_rect()):
+                # Luolaan pääsee vasta kun tie on raivattu
+                if any(not u.is_dead for u in self.undead):
+                    self.manager.vfx.show_damage(self.player.rect.centerx,
+                                                 self.player.rect.top - 30,
+                                                 "Clear the road first!", color=(255, 120, 120))
+                    sound_system.play_sound('error')
+                else:
+                    self.next_state = "mine_cave"
+                    sound_system.play_sound('click')
 
     def draw(self, screen):
         all_units = self._all_units()
@@ -139,3 +168,10 @@ class MineRoadMenu(GameplayScreen):
             if ore_left:
                 draw_text(f"Iron deposits at the mine mouth: {ore_left}", font_small,
                           GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 150, 130)
+
+        # Luolan suuaukon prompt
+        mouth = self._cave_mouth_rect()
+        if self.player.rect.colliderect(mouth):
+            self.manager._draw_floating_prompt(screen, mouth.centerx, mouth.top - 20,
+                                               "E", (self.camera_x, self.camera_y),
+                                               "Enter Mine")
