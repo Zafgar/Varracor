@@ -166,7 +166,24 @@ class ChatMenu(BaseMenu):
         elif command == "finish_quest" and value:
             try:
                 from quest_system import quest_manager
-                quest_manager.finish_quest(value)
+                rewards = quest_manager.finish_quest(value)
+                # BUGIKORJAUS: palkinnot jäivät aiemmin maksamatta
+                # (finish_quest palauttaa ne, mutta paluuarvoa ei käytetty)
+                if rewards:
+                    gold = int(rewards.get("gold", 0))
+                    if gold:
+                        self.manager.gold += gold
+                    rep = int(rewards.get("reputation", 0))
+                    if rep:
+                        quest_manager.add_reputation(rep)
+                        self.manager.reputation = quest_manager.reputation
+                    if gold or rep:
+                        print(f"[Quest] Rewards paid: {gold} gold, {rep} reputation")
+                        try:
+                            from sound_manager import sound_system
+                            sound_system.play_sound("coin")
+                        except Exception:
+                            pass
             except ImportError: pass
             
         # "clear_reaction" -> Nollaa NPC:n reaktion (esim. taistelun jälkeen)
