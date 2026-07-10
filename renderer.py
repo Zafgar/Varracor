@@ -75,7 +75,7 @@ class GladiatorRenderer:
             try:
                 gray_surf = rotated.copy()
                 gray_surf.fill((160, 160, 160, 255), special_flags=pygame.BLEND_RGBA_MULT)
-            except:
+            except Exception:
                 gray_surf = rotated # Fallback jos ei toimi
 
             gray_surf.set_alpha(alpha)

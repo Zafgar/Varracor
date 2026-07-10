@@ -21,7 +21,7 @@ class CryptFloor:
             try:
                 loaded = pygame.image.load(tile_path).convert()
                 tile_surf = pygame.transform.scale(loaded, (tile_w, tile_h))
-            except: pass
+            except Exception: pass
         
         # Tiilitetään koko alueelle
         for y in range(0, h, tile_h):

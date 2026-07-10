@@ -175,7 +175,7 @@ class GameManager:
                     t = str(getattr(item, "type", "")).lower()
                     if "weapon" in t or "melee" in t or "ranged" in t or "shield" in t:
                         self.equipment_bag.append(item)
-                except:
+                except Exception:
                     pass
 
         # Alusta Hubin tiedot
@@ -200,7 +200,7 @@ class GameManager:
             path = "assets/ui/esc.png"
             if os.path.exists(path):
                 self.ui_esc_bg = pygame.image.load(path).convert_alpha()
-        except: pass
+        except Exception: pass
 
         cx = SCREEN_WIDTH // 2
         cy = SCREEN_HEIGHT // 2
@@ -226,14 +226,39 @@ class GameManager:
             "assets/ui/btn_hub_idle.png", "assets/ui/btn_hub_hover.png", "assets/ui/btn_hub_pressed.png",
             "RETURN TO HUB", target_width=250
         )
-        
+
+        self.btn_save = SpriteButton(
+            cx, 0,
+            "assets/ui/btn_options_idle.png", "assets/ui/btn_options_hover.png", "assets/ui/btn_options_pressed.png",
+            "SAVE GAME", target_width=250
+        )
+
         self.btn_exit = SpriteButton(
             cx, 0,
             "assets/ui/btn_exit_idle.png", "assets/ui/btn_exit_hover.png", "assets/ui/btn_exit_pressed.png",
             "EXIT GAME", target_width=250
         )
-        
-        self.pause_buttons = [self.btn_resume, self.btn_options, self.btn_hub, self.btn_exit]
+
+        self.pause_buttons = [self.btn_resume, self.btn_save, self.btn_options, self.btn_hub, self.btn_exit]
+        self.save_feedback_msg = ""
+        self.save_feedback_timer = 0
+
+    # --- SAVE / LOAD ---
+    def save_current_game(self):
+        import save_manager
+        ok = save_manager.save_game(self)
+        self.save_feedback_msg = "Game Saved!" if ok else "Save Failed!"
+        self.save_feedback_timer = 120  # ~2 sekuntia
+        sound_system.play_sound('click' if ok else 'error')
+        return ok
+
+    def load_saved_game(self):
+        import save_manager
+        ok = save_manager.load_game(self)
+        self.save_feedback_msg = "Game Loaded!" if ok else "No Save Found!"
+        self.save_feedback_timer = 120
+        sound_system.play_sound('click' if ok else 'error')
+        return ok
 
     # --- REPUTATION SYSTEM ---
     def get_faction_rep(self, faction_id):
@@ -266,8 +291,7 @@ class GameManager:
         # Varmistetaan että globaali reputaatio on ajan tasalla
         self.npc_state["global"]["reputation"] = self.reputation
 
-        GREEN = (0, 255, 0) 
-        my_roster = [u for u in self.all_units if getattr(u, "team_color", None) == GREEN]
+        my_roster = [u for u in self.all_units if getattr(u, "team_color", None) == PLAYER_TEAM]
 
         # Kerätään suoritetut tehtävät kontekstiin
         completed_ids = []
@@ -476,7 +500,7 @@ class GameManager:
                 f.second_wind_triggered = False
                 
                 try: f.attackers.clear()
-                except: pass
+                except Exception: pass
 
         if self.mode == "League":
             if self.current_enemy_team:
@@ -487,7 +511,7 @@ class GameManager:
                     e.current_mana = e.max_mana
                     e.is_dead = False
                     try: e.kill()
-                    except: pass
+                    except Exception: pass
                     self.enemy_team.add(e)
                 self.current_arena = get_random_arena(self._get_league_tier())
 
@@ -596,7 +620,7 @@ class GameManager:
             boss.assign_manager(self)
             return boss
             
-        RED = (255, 50, 50)
+        RED = ENEMY_TEAM
         if name == 'Giant Rat': return GiantRat(name, 0, 0)
         if name == 'Rat Rider': return RatRider(name, 0, 0, RED)
         if name == 'Bandit': return Human("Bandit", 0, 0, RED, "Common")
@@ -1445,7 +1469,7 @@ class GameManager:
         try:
             for bp in BLUEPRINTS.values():
                 for m in bp.get("mats", {}).keys(): mats.add(m)
-        except: pass
+        except Exception: pass
         return mats
 
     def _looks_like_material(self, name):
@@ -1511,8 +1535,8 @@ class GameManager:
 
                 team = getattr(sprite, "team_color", None)
                 
-                if team == (0, 255, 0): color = (100, 255, 100) # Pelaaja (Vihreä)
-                elif team == (255, 50, 50): color = (255, 100, 100) # Vihollinen (Punainen)
+                if team == PLAYER_TEAM: color = (100, 255, 100) # Pelaaja (Vihreä)
+                elif team == ENEMY_TEAM: color = (255, 100, 100) # Vihollinen (Punainen)
                 else: color = (220, 220, 220)
 
             if name:
@@ -1863,6 +1887,16 @@ class GameManager:
                 sound_system.play_sound('click')
                 return True # Event handled
 
+            # --- QUICKSAVE / QUICKLOAD ---
+            if event.key == pygame.K_F5:
+                self.save_current_game()
+                return True
+            if event.key == pygame.K_F9:
+                if self.load_saved_game():
+                    self.paused = False
+                    return "hub"  # Palataan Hubiin ladatulla tilalla
+                return True
+
         if self.paused:
             # Päivitä napit (SpriteButton käyttää update() eikä is_clicked(event))
             # Mutta tässä loopissa meillä on event. SpriteButton.update() lukee hiiren tilan itse.
@@ -1883,7 +1917,11 @@ class GameManager:
         if self.btn_resume.update():
                 self.paused = False
                 return None
-        
+
+        if self.btn_save.update():
+            self.save_current_game()
+            return None
+
         if self.btn_options.update():
             print("Options clicked (Not implemented)")
             return None
@@ -1952,33 +1990,28 @@ class GameManager:
             if current_state_key == "forest_road" and not CHEAT_MODE:
                 show_hub = False
             
-            # Asettelu
+            # Asettelu: näkyvät napit järjestyksessä
+            visible_buttons = [self.btn_resume, self.btn_save, self.btn_options]
+            if show_hub:
+                visible_buttons.append(self.btn_hub)
+            visible_buttons.append(self.btn_exit)
+
             btn_h = 60
             gap = 20
-            btn_count = 3 if not show_hub else 4
-            content_h = btn_count * (btn_h + gap) # Otsikko pois, vähemmän tilaa
-            
+            content_h = len(visible_buttons) * (btn_h + gap)
+
             bg_w = 320 # Kapeampi (oli 530)
             bg_h = max(300, content_h + 100)
             bg_y = cy - bg_h // 2
-            
+
             start_y = bg_y + 50 # Nostettu ylemmäs
-            
+
             # Päivitä nappien sijainnit ja törmäysalueet (rect)
-            self.btn_resume.base_x = cx; self.btn_resume.base_y = start_y
-            self.btn_resume.rect.topleft = (cx - self.btn_resume.width // 2, start_y)
-            
-            self.btn_options.base_x = cx; self.btn_options.base_y = start_y + 80
-            self.btn_options.rect.topleft = (cx - self.btn_options.width // 2, start_y + 80)
-            
-            current_y = start_y + 160
-            if show_hub:
-                self.btn_hub.base_x = cx; self.btn_hub.base_y = current_y
-                self.btn_hub.rect.topleft = (cx - self.btn_hub.width // 2, current_y)
+            current_y = start_y
+            for btn in visible_buttons:
+                btn.base_x = cx; btn.base_y = current_y
+                btn.rect.topleft = (cx - btn.width // 2, current_y)
                 current_y += 80
-            
-            self.btn_exit.base_x = cx; self.btn_exit.base_y = current_y
-            self.btn_exit.rect.topleft = (cx - self.btn_exit.width // 2, current_y)
 
             # Päivitä logiikka tässä (koska SpriteButton vaatii jatkuvaa päivitystä)
             action = self._update_pause_menu(current_state_key)
@@ -2001,12 +2034,8 @@ class GameManager:
                 screen.blit(scaled_bg, (bg_x, bg_y))
                 
                 # Napit
-                if show_hub:
-                    self.btn_hub.draw(screen)
-                
-                self.btn_resume.draw(screen)
-                self.btn_options.draw(screen)
-                self.btn_exit.draw(screen)
+                for btn in visible_buttons:
+                    btn.draw(screen)
             else:
                 # Fallback
                 draw_text("PAUSED", font_title, GOLD_COLOR, screen, cx - 60, cy - 150)
@@ -2020,3 +2049,10 @@ class GameManager:
             if hasattr(self, "pending_state_change") and self.pending_state_change:
                 # Tämä pitäisi käsitellä main loopissa.
                 pass
+
+        # --- SAVE/LOAD FEEDBACK (näkyy myös ilman pause-valikkoa, esim. F5) ---
+        if self.save_feedback_timer > 0:
+            self.save_feedback_timer -= 1
+            msg_color = GOLD_COLOR if "Saved" in self.save_feedback_msg or "Loaded" in self.save_feedback_msg else (255, 80, 80)
+            draw_text(self.save_feedback_msg, font_title, msg_color, screen,
+                      SCREEN_WIDTH // 2 - 80, SCREEN_HEIGHT - 120)

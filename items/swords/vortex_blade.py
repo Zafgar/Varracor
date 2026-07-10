@@ -47,7 +47,7 @@ class VortexBlade(Weapon):
                 img = pygame.image.load(path).convert_alpha()
                 self.image = pygame.transform.smoothscale(img, (24, 64)) # Iso miekka
                 self.big_image = img
-            except: 
+            except Exception: 
                 self.image = None
 
     def draw_card_icon(self, surface, x, y, size):

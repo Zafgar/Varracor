@@ -51,7 +51,7 @@ class BogLeech(Gladiator):
                 try:
                     img = pygame.image.load(path).convert_alpha()
                     self.sprites[act] = pygame.transform.smoothscale(img, target_size)
-                except: pass
+                except Exception: pass
         
         if not self.sprites:
             s = pygame.Surface(target_size)

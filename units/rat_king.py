@@ -4,12 +4,13 @@ import random
 import math
 from gladiator import Gladiator
 from sound_manager import sound_system
+from settings import ENEMY_TEAM
 from units.rat import GiantRat
 
 class RatKing(Gladiator):
     def __init__(self, name, x, y):
         # Boss-väri ja alustus
-        super().__init__(name, "Rat", x, y, (255, 50, 50))
+        super().__init__(name, "Rat", x, y, ENEMY_TEAM)
         
         # --- FIX: Asetetaan base_attributes, jotta calculate_final_stats ei nollaa niitä ---
         # Gladiator-luokka käyttää näitä arvoja laskiessaan lopulliset statsit.

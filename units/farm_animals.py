@@ -52,7 +52,7 @@ class Cow(Gladiator):
                         self.sprites[state] = pygame.transform.smoothscale(img, (64, 48))
                         print(f"[Cow] Loaded {state}: {fname}")
                         break # Löytyi, siirry seuraavaan tilaan
-                    except: pass
+                    except Exception: pass
         
         if not self.sprites:
             s = pygame.Surface((64, 48))

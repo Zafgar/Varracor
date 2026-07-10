@@ -16,7 +16,7 @@ class BucketEmpty(Item):
             try:
                 img = pygame.image.load(self.image_path).convert_alpha()
                 self.image = pygame.transform.smoothscale(img, (24, 24))
-            except: pass
+            except Exception: pass
 
     def draw_equipped(self, surface, unit_rect, facing_right, attack_cooldown):
         if self.image:
@@ -38,7 +38,7 @@ class BucketMilk(Item):
             try:
                 img = pygame.image.load(self.image_path).convert_alpha()
                 self.image = pygame.transform.smoothscale(img, (24, 24))
-            except: pass
+            except Exception: pass
 
     def draw_equipped(self, surface, unit_rect, facing_right, attack_cooldown):
         if self.image:
@@ -62,7 +62,7 @@ class BucketWater(Item):
                 img = pygame.image.load(self.image_path).convert_alpha()
                 self.image = pygame.transform.smoothscale(img, (24, 24))
                 return
-            except: pass
+            except Exception: pass
         
         # Fallback: Yritetään ladata kirjoitusvirheellisellä nimellä (bucekt) jos alkuperäinen puuttuu
         typo_path = self.image_path.replace("bucket", "bucekt")
@@ -70,7 +70,7 @@ class BucketWater(Item):
             try:
                 img = pygame.image.load(typo_path).convert_alpha()
                 self.image = pygame.transform.smoothscale(img, (24, 24))
-            except: pass
+            except Exception: pass
 
     def draw_equipped(self, surface, unit_rect, facing_right, attack_cooldown):
         if self.image:

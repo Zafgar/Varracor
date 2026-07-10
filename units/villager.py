@@ -87,7 +87,7 @@ class Villager(Gladiator):
 
                         self.sprites[state] = pygame.transform.smoothscale(img, (32, 48)) # Kapeampi ja korkeampi
                         break # Löytyi, siirry seuraavaan tilaan
-                    except: pass
+                    except Exception: pass
         
         # Ladataan työkalut ja esineet
         self.img_bucket_empty = self._load_extra("assets/gear/tools/bucket_empty.png")
@@ -104,7 +104,7 @@ class Villager(Gladiator):
             try:
                 img = pygame.image.load(path).convert_alpha()
                 return pygame.transform.smoothscale(img, (24, 24))
-            except: pass
+            except Exception: pass
         return None
 
     def take_damage(self, amount, damage_type="Physical", attacker=None, manager=None):

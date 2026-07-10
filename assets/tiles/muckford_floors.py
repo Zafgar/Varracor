@@ -23,7 +23,7 @@ class MuckfordFloor:
                     for x in range(0, w, tile.get_width()):
                         self.image.blit(tile, (x, y))
                 return # Lopetetaan jos kuva löytyi
-            except: pass
+            except Exception: pass
 
         # 2. Fallback: Generoidaan koodilla jos kuvaa ei ole
         self.image.fill((60, 50, 40)) # Muta

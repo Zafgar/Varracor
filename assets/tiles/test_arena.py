@@ -23,7 +23,7 @@ class TestArena:
         if self.vfx:
             if hasattr(self.vfx, "update"):
                 try: self.vfx.update(manager)
-                except: self.vfx.update()
+                except Exception: self.vfx.update()
 
     def draw_background(self, screen, offset):
         self.floor.draw(screen, offset)

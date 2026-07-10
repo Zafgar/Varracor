@@ -85,7 +85,7 @@ class CorruptedCrow(Gladiator):
                     self.sprites[key].append(scaled)
                 else:
                     self.sprites[key] = scaled
-            except: pass
+            except Exception: pass
 
     def update(self, obstacles=None, manager=None):
         super().update(obstacles, manager)

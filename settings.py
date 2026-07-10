@@ -1,4 +1,5 @@
 import pygame
+import sys
 
 # --- SCREEN SETTINGS ---
 SCREEN_WIDTH = 1920
@@ -17,19 +18,26 @@ GOLD_COLOR = (255, 215, 0)
 ORANGE = (255, 165, 0)
 PURPLE = (150, 50, 200) # Quest / Boss väri
 
+# Tiimivärit. Käytä AINA näitä vakioita team_color-vertailuissa,
+# älä koskaan kovakoodattua väriarvoa.
+PLAYER_TEAM = GREEN
+ENEMY_TEAM = (255, 50, 50)
+
+# --- DEBUG & CHEATS ---
+# Käynnistä peli cheat-tilassa: python main.py --cheat  (tai PLAY_DEV.bat)
+# Kun tämä on True:
+# - Paina 'L' Guild-valikossa -> Level Up
+# - Paina 'M' Guild-valikossa -> Lisää rahaa
+# - F8 avaa karttaeditorin
+CHEAT_MODE = "--cheat" in sys.argv
+
 # --- GAME CONSTANTS ---
-STARTING_GOLD = 100000
+STARTING_GOLD = 100000 if CHEAT_MODE else 500
 BASE_RECRUIT_COST = 80
 
 # --- FONT SIZES ---
 FONT_SIZE_UI = 20
 FONT_SIZE_TITLE = 30
-
-# --- DEBUG & CHEATS ---
-# Kun tämä on True:
-# - Paina 'L' Guild-valikossa -> Level Up
-# - Paina 'M' Guild-valikossa -> Lisää rahaa
-CHEAT_MODE = True
 
 # --- ASSET CONFIGURATION ---
 ENABLE_VIDEO_BACKGROUND = True # Set to False if video loading fails (e.g. codec issues)

@@ -38,7 +38,7 @@ class WoodcuttersAxe(Weapon):
             try:
                 img = pygame.image.load(path).convert_alpha()
                 self.image = pygame.transform.smoothscale(img, (18, 45))
-            except: 
+            except Exception: 
                 pass
 
     def draw_card_icon(self, surface, x, y, size):

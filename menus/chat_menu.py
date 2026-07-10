@@ -129,14 +129,14 @@ class ChatMenu(BaseMenu):
             try:
                 amount = int(value)
                 npc_data["relationship"] += amount
-            except: pass
+            except Exception: pass
 
         elif command == "fame" and value:
             try:
                 amount = int(value)
                 self.manager.reputation += amount
                 global_data["reputation"] = self.manager.reputation
-            except: pass
+            except Exception: pass
 
         # --- QUEST KOMENNOT ---
 
@@ -259,7 +259,7 @@ class ChatMenu(BaseMenu):
             for btn in self.buttons:
                 if btn.is_clicked(event):
                     try: sound_system.play_sound("click")
-                    except: pass
+                    except Exception: pass
                     self.make_choice(btn.choice_data)
                     return
 

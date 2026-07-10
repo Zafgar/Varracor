@@ -38,7 +38,7 @@ class WeakDagger(Weapon):
                 img = pygame.image.load(path).convert_alpha()
                 self.image = pygame.transform.smoothscale(img, (12, 24))
                 self.big_image = img
-            except: 
+            except Exception: 
                 print(f"Failed to load {path}")
                 self.image = None
                 self.big_image = None

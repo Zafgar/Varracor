@@ -257,7 +257,7 @@ class SpriteButton:
                 snd = pygame.mixer.Sound(path)
                 snd.set_volume(volume)
                 return snd
-            except: pass
+            except Exception: pass
         return None
 
     def _load_and_scale(self, path):
@@ -269,7 +269,7 @@ class SpriteButton:
                 new_w = self.target_width
                 new_h = int(new_w * ratio)
                 return pygame.transform.smoothscale(img, (new_w, new_h))
-            except: pass
+            except Exception: pass
         return None
 
     def check_hover(self, mouse_pos):
@@ -284,7 +284,7 @@ class SpriteButton:
             if self.snd_hover: self.snd_hover.play()
             else:
                 try: sound_system.play_sound("hover")
-                except: pass
+                except Exception: pass
             sound_system.play_sound("hover", volume=self.hover_vol)
         
         self.was_hovering = is_hovering
@@ -302,7 +302,7 @@ class SpriteButton:
                     if self.snd_click: self.snd_click.play()
                     else:
                         try: sound_system.play_sound("click")
-                        except: pass
+                        except Exception: pass
                     sound_system.play_sound("click", volume=self.click_vol)
                 self.state = "hover"
         else:

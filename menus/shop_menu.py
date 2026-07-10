@@ -142,7 +142,7 @@ class ShopMenu(BaseMenu):
         if os.path.exists(path):
             try:
                 self.card_frame = pygame.image.load(path).convert_alpha()
-            except: pass
+            except Exception: pass
 
     # -------------------------
     # State switching

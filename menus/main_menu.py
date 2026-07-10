@@ -81,7 +81,7 @@ class MainMenu(BaseMenu):
             try:
                 raw = pygame.image.load(bg_path).convert()
                 self.bg_image = pygame.transform.smoothscale(raw, (SCREEN_WIDTH, SCREEN_HEIGHT))
-            except: pass
+            except Exception: pass
             
         # 2.5 VIDEO BACKGROUND
         self.video_cap = None
@@ -189,13 +189,19 @@ class MainMenu(BaseMenu):
             pygame.mixer.music.fadeout(1000)
             
             try: sound_system.play_sound("battle_start") 
-            except: pass
+            except Exception: pass
             
             # Siirrytään latausruutuun, joka hoitaa alustukset
             self.next_state = "intro"
 
         if self.btn_load.update():
-            print("Load clicked")
+            import save_manager
+            if save_manager.load_game(self.manager):
+                pygame.mixer.music.fadeout(1000)
+                self.next_state = "hub"
+            else:
+                try: sound_system.play_sound("error")
+                except Exception: pass
 
         if self.btn_options.update():
             print("Options clicked")

@@ -105,5 +105,5 @@ def get_spell_by_name(name):
         try:
             if spell_cls.__name__ == name:
                 return spell_cls
-        except: pass
+        except Exception: pass
     return None

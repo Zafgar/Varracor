@@ -42,9 +42,6 @@ class BaseMenu:
         
         # Editor Update
         if CHEAT_MODE and hasattr(self, "map_editor") and self.map_editor.active:
-            # Pass camera offset if available
-            cam_x = getattr(self.manager, "camera_x", 0)
-            cam_y = getattr(self.manager, "camera_y", 0)
             self.map_editor.update()
 
     def handle_editor_event(self, event):

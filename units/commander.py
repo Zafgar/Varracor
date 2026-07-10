@@ -27,7 +27,7 @@ class MaterialWrapper:
             self.rarity = info.get("rarity", "Common")
             self.description = info.get("desc", "")
             self.cost = info.get("value", 0)
-        except: pass
+        except Exception: pass
         
     def draw_card_icon(self, screen, x, y, size):
         # Draw count
@@ -208,20 +208,20 @@ class Commander(Gladiator):
         try:
             self.ui_inv_bg = pygame.image.load(os.path.join(base_dir, "assets/ui/inventory/panel_bg.png")).convert_alpha()
             self.ui_slot_frame = pygame.image.load(os.path.join(base_dir, "assets/ui/inventory/slot_frame.png")).convert_alpha()
-        except: pass
+        except Exception: pass
         
         try:
             path_main = os.path.join(base_dir, "assets/ui player/inventory_main.png")
             if os.path.exists(path_main):
                 self.ui_inv_main_frame = pygame.image.load(path_main).convert_alpha()
                 print(f"[Commander] Loaded inventory frame: {path_main}")
-        except: pass
+        except Exception: pass
         
         try:
             path_grid = os.path.join(base_dir, "assets/ui player/grid_9_11.png")
             if os.path.exists(path_grid):
                 self.ui_inv_grid_bg = pygame.image.load(path_grid).convert_alpha()
-        except: pass
+        except Exception: pass
         
         # Load Equip UI
         try:
@@ -229,7 +229,7 @@ class Commander(Gladiator):
             if os.path.exists(path_equip):
                 self.ui_equip_bg = pygame.image.load(path_equip).convert_alpha()
                 print(f"[Commander] Loaded Equip UI: {path_equip}")
-        except: pass
+        except Exception: pass
         
         # Load Attributes UI
         try:
@@ -265,9 +265,9 @@ class Commander(Gladiator):
                     path = p1 if os.path.exists(p1) else p2
                     if os.path.exists(path):
                         try: self.ui_tab_imgs[key] = pygame.image.load(path).convert_alpha()
-                        except: pass
+                        except Exception: pass
                         break
-        except: pass
+        except Exception: pass
             
         try:
             # Load Money UI
@@ -281,7 +281,7 @@ class Commander(Gladiator):
                     self.ui_money_img = pygame.image.load(p).convert_alpha()
                     print(f"[Commander] Loaded Money UI: {p}")
                     break
-        except: pass
+        except Exception: pass
 
         # VFX Lists
         self.hp_bubbles = []
@@ -351,7 +351,7 @@ class Commander(Gladiator):
             if os.path.exists(path):
                 try:
                     return pygame.image.load(path).convert_alpha()
-                except: pass
+                except Exception: pass
             return None
 
         def _load(filename):

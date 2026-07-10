@@ -18,7 +18,7 @@ class TownHub(BaseMenu):
             try:
                 raw = pygame.image.load(bg_path).convert()
                 self.bg_image = pygame.transform.smoothscale(raw, (SCREEN_WIDTH, SCREEN_HEIGHT))
-            except: pass
+            except Exception: pass
 
         # --- NAPPIEN ASETTELU ---
         center_x = SCREEN_WIDTH // 2

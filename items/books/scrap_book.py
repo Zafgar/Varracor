@@ -35,7 +35,7 @@ class ScrapBook(Weapon):
                 img = pygame.image.load(path).convert_alpha()
                 self.image = pygame.transform.smoothscale(img, (24, 30))
                 self.big_image = img
-            except: pass
+            except Exception: pass
 
     def draw_card_icon(self, surface, x, y, size):
         img = getattr(self, "big_image", self.image)

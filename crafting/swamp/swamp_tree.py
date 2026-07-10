@@ -36,7 +36,7 @@ class SwampTree(Prop):
                 try:
                     img = pygame.image.load(path).convert_alpha()
                     self.sprites[state] = pygame.transform.scale(img, (140, 220))
-                except: pass
+                except Exception: pass
 
     def take_damage(self, amount, damage_type="Physical", attacker=None, manager=None):
         # Ohjataan vahinko chop-metodiin

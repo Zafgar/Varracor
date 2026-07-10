@@ -60,7 +60,7 @@ class IronOre(pygame.sprite.Sprite):
                     img = pygame.image.load(path).convert_alpha()
                     img = pygame.transform.smoothscale(img, target_size)
                     self.sprites[key] = img
-                except:
+                except Exception:
                     print(f"[IronOre] Failed to load {filename}")
             else:
                 # Hiljainen virhe tai printti debuggausta varten

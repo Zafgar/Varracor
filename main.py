@@ -46,7 +46,8 @@ from minigames.crown_knives import CrownKnivesMenu
 from menus.test_menu import TestMenu
 
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+# SCALED skaalaa 1920x1080-pelin automaattisesti näytön kokoon (pienemmätkin näytöt toimivat)
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
 pygame.display.set_caption("AutoArena: Gladiator Tycoon")
 clock = pygame.time.Clock()
 
@@ -56,10 +57,11 @@ def main():
     # Musiikki
     try:
         sound_system.play_music('assets/sounds/battle_theme.mp3')
-    except:
+    except Exception:
         pass
 
     # --- ALUSTETAAN VALIKOT ---
+    battle_screen = BattleScreen(manager)  # Yksi jaettu instanssi ("game" ja "battle" ovat sama tila)
     menus = {
         "menu": MainMenu(manager),
         "intro": IntroScreen(manager),
@@ -69,8 +71,8 @@ def main():
         "magic_shop": MagicMenu(manager),
         "mission_select": MissionMenu(manager),
         "prepare": PrepareMenu(manager),
-        "game": BattleScreen(manager), 
-        "battle": BattleScreen(manager), 
+        "game": battle_screen,
+        "battle": battle_screen,
         "guild": GuildMenu(manager),
         "hospital": HospitalMenu(manager),
         "workshop": WorkshopMenu(manager),
@@ -105,6 +107,91 @@ def main():
         "test_arena": TestMenu(manager)
     }
     
+    # =========================================================
+    # TILASIIRTYMÄSÄÄNNÖT (datavetoinen — uusi valikko ei vaadi
+    # muutoksia itse tilakoneeseen, vain rivin näihin tauluihin)
+    # =========================================================
+
+    # Millä luokalla tila luodaan (uudelleen)luonnissa
+    MENU_FACTORIES = {
+        "prepare": PrepareMenu,
+        "mission_prepare": MissionPrepareMenu,
+        "loading": LoadingScreen,
+        "manager_menu": ManagerMenu,
+        "commander_skills": CommanderSkillMenu,
+        "workshop_locations": WorkshopLocationMenu,
+        "sponsors": SponsorMenu,
+        "reputation": ReputationMenu,
+        "magic_school": MagicSchoolMenu,
+        "necro_school": NecroSchoolMenu,
+        "shop_locations": ShopLocationMenu,
+        "city_storage": CityStorageMenu,
+        "muckford_intro": MuckfordIntroScreen,
+        "test_arena": TestMenu,
+        "tavern_sunk_cask": TavernMenu,
+        "muckford_city": MuckfordCityMenu,
+        "blacksmith_interior": BlacksmithMenu,
+        "forest_road": ForestRoadMenu,
+    }
+
+    # Luodaan aina uusi instanssi tilaan tultaessa
+    RECREATE_ALWAYS = {
+        "prepare", "mission_prepare", "loading", "manager_menu",
+        "commander_skills", "workshop_locations", "sponsors", "reputation",
+        "magic_school", "necro_school", "shop_locations", "city_storage",
+        "muckford_intro", "test_arena",
+    }
+
+    # Luodaan uusi PAITSI jos tullaan näistä tiloista (tila säilyy)
+    RECREATE_UNLESS_FROM = {
+        "tavern_sunk_cask": {"dialogue", "crown_knives"},
+    }
+
+    # Luodaan vain jos instanssia ei vielä ole
+    CREATE_IF_MISSING = {"muckford_city", "blacksmith_interior", "forest_road"}
+
+    # Tiloille kutsutaan on_enter() tultaessa
+    CALL_ON_ENTER = {
+        "muckford_city", "blacksmith_interior", "forest_road",
+        "test_arena", "crown_knives",
+    }
+
+    # Näistä tiloista tultaessa EI tehdä alustusta lainkaan
+    # (esim. dialogista palatessa kaupungin tila säilyy)
+    SKIP_INIT_FROM = {
+        "muckford_city": {"dialogue"},
+        "blacksmith_interior": {"dialogue"},
+    }
+
+    def enter_state(new_key, old_key):
+        """Alustaa tilan siirtymäsääntöjen mukaan."""
+        if old_key in SKIP_INIT_FROM.get(new_key, ()):
+            pass  # Säilytä vanha tila sellaisenaan
+        else:
+            factory = MENU_FACTORIES.get(new_key)
+            recreate = (
+                new_key in RECREATE_ALWAYS
+                or (new_key in RECREATE_UNLESS_FROM
+                    and old_key not in RECREATE_UNLESS_FROM[new_key])
+            )
+            if factory and (recreate or (new_key in CREATE_IF_MISSING and menus[new_key] is None)):
+                menus[new_key] = factory(manager)
+            if new_key in CALL_ON_ENTER and hasattr(menus[new_key], "on_enter"):
+                menus[new_key].on_enter()
+
+        # --- Tilakohtaiset erikoisalustukset ---
+        if new_key == "skill_tree":
+            if getattr(manager, "selected_hero", None):
+                menus["skill_tree"].set_unit(manager.selected_hero)
+
+        if new_key == "mission_select":
+            menus["mission_select"].selected_mission = None
+
+        if new_key == "match_loading":
+            if hasattr(manager, "pending_match_data"):
+                units, limit = manager.pending_match_data
+                menus["match_loading"].set_match_data(units, limit)
+
     current_state_key = "menu"
     current_menu = menus[current_state_key]
 
@@ -227,106 +314,16 @@ def main():
             # --- NORMAALI VAIHTO ---
             if new_key == "exit":
                 running = False
-            
+
             # --- CLEANUP OLD STATE ---
             if hasattr(current_menu, "on_exit"):
                 current_menu.on_exit()
 
             if new_key in menus:
                 current_menu.next_state = None
-                
-                # --- State Transition Logic ---
-                if old_key == "league" and new_key == "battle":
-                    pass
 
-                if new_key == "skill_tree":
-                    if hasattr(manager, "selected_hero") and manager.selected_hero:
-                        menus["skill_tree"].set_unit(manager.selected_hero)
-                
-                if new_key == "mission_select":
-                    menus["mission_select"].selected_mission = None
-                
-                if new_key == "prepare":
-                    menus["prepare"] = PrepareMenu(manager)
-
-                if new_key == "mission_prepare":
-                    menus["mission_prepare"] = MissionPrepareMenu(manager)
-                
-                if new_key == "loading":
-                    menus["loading"] = LoadingScreen(manager)
-                
-                if new_key == "manager_menu":
-                    menus["manager_menu"] = ManagerMenu(manager)
-                
-                if new_key == "commander_skills":
-                    menus["commander_skills"] = CommanderSkillMenu(manager)
-                
-                if new_key == "workshop_locations":
-                    menus["workshop_locations"] = WorkshopLocationMenu(manager)
-                
-                if new_key == "sponsors":
-                    menus["sponsors"] = SponsorMenu(manager)
-                
-                if new_key == "reputation":
-                    menus["reputation"] = ReputationMenu(manager)
-                
-                if new_key == "magic_school":
-                    menus["magic_school"] = MagicSchoolMenu(manager)
-                
-                if new_key == "necro_school":
-                    menus["necro_school"] = NecroSchoolMenu(manager)
-                
-                if new_key == "shop_locations":
-                    menus["shop_locations"] = ShopLocationMenu(manager)
-                
-                if new_key == "city_storage":
-                    menus["city_storage"] = CityStorageMenu(manager)
-                
-                # Re-init tavern only if NOT returning from dialogue (preserves state)
-                if new_key == "tavern_sunk_cask" and old_key not in ["dialogue", "crown_knives"]:
-                     menus["tavern_sunk_cask"] = TavernMenu(manager)
-
-                # Init City
-                if new_key == "muckford_city" and old_key != "dialogue":
-                    if menus["muckford_city"] is None:
-                        menus["muckford_city"] = MuckfordCityMenu(manager)
-                    # Kutsu on_enter aina kun tullaan (paitsi dialogista palatessa)
-                    if hasattr(menus["muckford_city"], "on_enter"):
-                        menus["muckford_city"].on_enter()
-                        
-                # Init Blacksmith
-                if new_key == "blacksmith_interior" and old_key != "dialogue":
-                    if menus["blacksmith_interior"] is None:
-                        menus["blacksmith_interior"] = BlacksmithMenu(manager)
-                    if hasattr(menus["blacksmith_interior"], "on_enter"):
-                        menus["blacksmith_interior"].on_enter()
-                
-                # Init Forest Road
-                if new_key == "forest_road":
-                    # Luo uusi vain jos ei ole olemassa.
-                    # ÄLÄ luo uutta jos palataan dialogista, jotta tila säilyy.
-                    if menus["forest_road"] is None:
-                        menus["forest_road"] = ForestRoadMenu(manager)
-                    menus["forest_road"].on_enter()
-
-                if new_key == "muckford_intro":
-                    menus["muckford_intro"] = MuckfordIntroScreen(manager)
-                
-                if new_key == "test_arena":
-                    menus["test_arena"] = TestMenu(manager)
-                    menus["test_arena"].on_enter()
-                
-                if new_key == "battle" or new_key == "game":
-                    pass
-
-                # --- MATCH LOADING SETUP ---
-                if new_key == "match_loading":
-                    if hasattr(manager, "pending_match_data"):
-                        units, limit = manager.pending_match_data
-                        menus["match_loading"].set_match_data(units, limit)
-                
-                if new_key == "crown_knives":
-                    menus["crown_knives"].on_enter()
+                # Alusta uusi tila siirtymäsääntöjen mukaan
+                enter_state(new_key, old_key)
 
                 current_state_key = new_key
                 current_menu = menus[new_key]
