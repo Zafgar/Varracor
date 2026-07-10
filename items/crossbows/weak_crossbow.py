@@ -19,14 +19,14 @@ class WeakCrossbow(Weapon):
         self.weapon_group = "crossbow"
         self.level_required = 2
         
-        self.damage = 9
+        self.damage = 15
         self.attack_range = 320
         self.speed_bonus = -0.2 # Hitaampi
         self.scaling = {'DEX': 0.6, 'STR': 0.2}
         
         self.is_loaded = False
         self.load_progress = 0
-        self.load_time = 80 # Nopeampi lataus (1.3s)
+        self.load_time = 55 # Nopeampi lataus (0.9s)
         self.charge_enabled = True
         self.last_charge_tick = 0
         self.just_finished_loading = False

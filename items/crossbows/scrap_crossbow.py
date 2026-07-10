@@ -19,14 +19,14 @@ class ScrapCrossbow(Weapon):
         self.weapon_group = "crossbow"
         self.level_required = 1
         
-        self.damage = 14 # Kovempi vahinko
+        self.damage = 11 # Kovempi vahinko
         self.attack_range = 350
         self.speed_bonus = -0.1
         self.scaling = {"DEX": 0.7, "STR": 0.2}
         
         self.is_loaded = False
         self.load_progress = 0
-        self.load_time = 90 # 1.5 sekuntia lataus
+        self.load_time = 70 # Reilun sekunnin lataus
         self.charge_enabled = True
         self.last_charge_tick = 0
         self.just_finished_loading = False # UUSI: Estää välittömän laukaisun latauksen jälkeen

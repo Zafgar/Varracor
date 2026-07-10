@@ -18,7 +18,7 @@ class ScrapSpear(Weapon):
         self.weapon_group = "spear"
         self.level_required = 1
         
-        self.damage = 4
+        self.damage = 6
         self.attack_range = 55
         self.speed_bonus = -0.05
         self.scaling = {"STR": 0.3, "DEX": 0.3}

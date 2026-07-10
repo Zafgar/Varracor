@@ -19,7 +19,7 @@ class ScrapStaff(Weapon):
         self.weapon_group = "staff"
         self.level_required = 1
         
-        self.damage = 6
+        self.damage = 5
         self.attack_range = 250 # Vakio kantama
         self.speed_bonus = -0.05
         self.scaling = {"INT": 0.8}

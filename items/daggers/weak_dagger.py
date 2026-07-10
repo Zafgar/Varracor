@@ -18,7 +18,7 @@ class WeakDagger(Weapon):
         self.weapon_group = "dagger"
         self.level_required = 2
         
-        self.damage = 5
+        self.damage = 7
         self.attack_range = 28
         self.speed_bonus = 0.1
         self.scaling = {"DEX": 0.7}
