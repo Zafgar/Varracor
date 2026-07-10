@@ -111,6 +111,7 @@ class Gladiator(pygame.sprite.Sprite):
 
         # Combat runtime
         self.is_dead = False
+        self.facing_right = True # Alustettava: AI/liike päivittää tätä myöhemmin
         self.attack_cooldown = 0
         self.spell_cooldowns = {"spell1": 0, "spell2": 0, "spell3": 0}
         self.attack_speed = 60  # frames between attacks
