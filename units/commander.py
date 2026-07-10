@@ -1390,9 +1390,8 @@ class Commander(Gladiator):
         self.hovered_tooltip_text = None # Nollaa teksti-tooltip
         
         # Overlay
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 200))
-        screen.blit(overlay, (0, 0))
+        from ui_kit import get_fullscreen_overlay
+        screen.blit(get_fullscreen_overlay((0, 0, 0, 200)), (0, 0))
         
         # --- UUSI KEHYS LOGIIKKA ---
         if self.ui_inv_main_frame:

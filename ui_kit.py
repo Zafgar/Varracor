@@ -502,3 +502,28 @@ def draw_item_tooltip(surface, item, x, y, player_unit=None):
     val_txt = f"Value: {format_money(cost)}"
     val_surf = font_small.render(val_txt, True, GOLD_COLOR)
     surface.blit(val_surf, (x + box_w - val_surf.get_width() - padding, y + box_h - 20))
+
+# =========================================================
+# CACHED FULLSCREEN OVERLAYS
+# =========================================================
+# Koko ruudun himmennyspintoja käytetään lähes joka valikossa.
+# Uuden 1920x1080-pinnan luonti joka framella on turha allokaatio,
+# joten samat pinnat välimuistitetaan värin perusteella.
+_overlay_cache = {}
+
+def get_fullscreen_overlay(color):
+    """
+    Palauttaa välimuistitetun koko ruudun kokoisen pinnan täytettynä
+    annetulla värillä. RGBA-väri (4 komponenttia) tuottaa SRCALPHA-pinnan.
+    ÄLÄ piirrä palautetulle pinnalle - se on jaettu.
+    """
+    key = tuple(color)
+    surf = _overlay_cache.get(key)
+    if surf is None:
+        if len(key) == 4:
+            surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        else:
+            surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        surf.fill(key)
+        _overlay_cache[key] = surf
+    return surf

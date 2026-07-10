@@ -1203,6 +1203,14 @@ class GameManager:
         self.active_player_units.empty()
         self.refresh_hub()
 
+        # --- AUTOSAVE ---
+        # Tallennetaan automaattisesti taistelun jälkeen, ettei edistys katoa
+        try:
+            import save_manager
+            save_manager.save_game(self)
+        except Exception as e:
+            print(f"[Save] Autosave failed: {e}")
+
     # =========================================================
     # HELPERS & HUB MANAGEMENT
     # =========================================================
@@ -1754,10 +1762,9 @@ class GameManager:
         text = data["text"]
         
         # Tummenna tausta
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 150))
-        screen.blit(overlay, (0, 0))
-        
+        from ui_kit import get_fullscreen_overlay
+        screen.blit(get_fullscreen_overlay((0, 0, 0, 150)), (0, 0))
+
         # Popup Box
         box_w, box_h = 800, 200
         box_x = (SCREEN_WIDTH - box_w) // 2
@@ -2023,10 +2030,9 @@ class GameManager:
                 # Tehdään niin että tallennetaan pending_state.
                 self.pending_state_change = action
 
-            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 200))
-            screen.blit(overlay, (0, 0))
-            
+            from ui_kit import get_fullscreen_overlay
+            screen.blit(get_fullscreen_overlay((0, 0, 0, 200)), (0, 0))
+
             # --- DRAW ESC FRAME ---
             if self.ui_esc_bg:
                 scaled_bg = pygame.transform.smoothscale(self.ui_esc_bg, (bg_w, bg_h))

@@ -128,7 +128,13 @@ class BaseMenu:
             self._bg_init_particles(70)
 
         # piirretään omalle overlaylle (alpha)
-        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        # Uudelleenkäytetään samaa pintaa (uusi allokaatio joka framella on turha)
+        overlay = getattr(self, "_particle_surf", None)
+        if overlay is None or overlay.get_size() != (w, h):
+            overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+            self._particle_surf = overlay
+        else:
+            overlay.fill((0, 0, 0, 0))
 
         for p in self._bg_particles:
             # suhteuta alkuarvot screeniin
