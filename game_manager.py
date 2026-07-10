@@ -264,6 +264,22 @@ class GameManager:
         sound_system.play_sound('click' if ok else 'error')
         return ok
 
+    # --- HERO XP ---
+    def grant_hero_xp(self, amount, x=None, y=None):
+        """Antaa Commanderille XP:tä (esim. kaupungin töistä) ja näyttää sen.
+        Palauttaa True jos hahmo nousi tason."""
+        pc = self.player_character
+        if not pc or amount <= 0:
+            return False
+        leveled = pc.add_xp(int(amount))
+        px = x if x is not None else pc.rect.centerx
+        py = y if y is not None else pc.rect.top
+        self.vfx.show_damage(px, py - 30, f"+{int(amount)} XP", color=(190, 150, 255))
+        if leveled:
+            self.vfx.show_damage(pc.rect.centerx, pc.rect.top - 60, "LEVEL UP!", color=(255, 215, 0))
+            sound_system.play_sound("win")
+        return leveled
+
     # --- REPUTATION SYSTEM ---
     def get_faction_rep(self, faction_id):
         if faction_id == "global":

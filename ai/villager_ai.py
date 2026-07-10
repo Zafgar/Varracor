@@ -26,7 +26,12 @@ class VillagerAI(BaseAI):
         self.panic_mode = False
         self.panic_timer = 0
         self.follow_target = None
-        self.work_type = None # "chop", "scavenge", "farm", "build"
+        self.work_type = None # "chop", "scavenge", "farm", "clean", "milk", "collect_egg", "build"
+        self.work_target = None # BUGIKORJAUS: luettiin ennen ensimmäistä asetusta
+
+        # NPC-NPC keskustelu
+        self.chat_freeze = 0        # Seiso paikallaan keskustelun ajan
+        self.pending_reply = None   # (teksti, viive frameina)
         
         # --- STUCK DETECTION ---
         self.stuck_counter = 0
@@ -119,7 +124,9 @@ class VillagerAI(BaseAI):
             return
 
         # 0.5 Osuma-reaktio (Jos otetaan vahinkoa, pakene hetki riippumatta tilasta)
-        if getattr(self.unit, "hurt_timer", 0) > 10: # Juuri osuttu
+        # BUGIKORJAUS: hurt_timer-attribuuttia ei ole Gladiatorilla, joten
+        # reaktio ei koskaan lauennut. Käytetään osuma-animaation tilaa.
+        if self.unit.animation_state == "hurt" and getattr(self.unit, "animation_timer", 0) > 8:
             self.flee_override_timer = 60 # 1 sekunti paniikkia
         
         # 1. Uhka-analyysi (Joka frame, koska selviytyminen on tärkeintä)
@@ -173,7 +180,23 @@ class VillagerAI(BaseAI):
 
         # 2. Rauhan ajan toiminta (Ei uhkia)
         self.unit.set_sprinting(False)
-        
+
+        # Vastausvuoro käsitellään tilasta riippumatta (myös kesken työn)
+        if self.pending_reply:
+            text, delay = self.pending_reply
+            if delay <= 0:
+                if manager:
+                    manager.vfx.create_speech_bubble(self.unit, text, duration=200)
+                self.pending_reply = None
+            else:
+                self.pending_reply = (text, delay - 1)
+
+        # Keskustelun ajan seistään paikallaan kasvokkain
+        if self.chat_freeze > 0:
+            self.chat_freeze -= 1
+            self.unit.animation_state = "idle"
+            return
+
         # Tilakoneen vaihto
         if self.state_timer <= 0:
             # Priorisoidaan työt
@@ -192,8 +215,8 @@ class VillagerAI(BaseAI):
 
         # Toiminta tilan mukaan
         if self.state == STATE_WORK:
-            # Mene kohteeseen ja "näyttele" työntekoa
-            self._handle_fake_work(obstacles, all_units, manager)
+            # Mene kohteeseen, tee työtä ja tuota kylän varastoon
+            self._handle_work(obstacles, all_units, manager)
             
         elif self.state == STATE_IDLE:
             # Oletus: Idle
@@ -335,22 +358,46 @@ class VillagerAI(BaseAI):
 
     def _try_talk(self, manager, phrases=None):
         if not manager: return
+
         if self.speech_timer <= 0 and random.random() < 0.005: # 0.5% per frame (harvemmin)
             self.speech_timer = random.randint(500, 1000) # 8-16s hiljaisuus
-            
-            # Etsi joku jolle puhua (lähellä oleva ystävä)
-            has_friend = False
+
+            # Etsi keskustelukumppani (lähellä oleva joutilas villager)
+            partner = None
             for u in manager.all_units:
-                if u != self.unit and not u.is_dead and u.team_color == self.unit.team_color:
-                    if math.hypot(u.rect.centerx - self.unit.rect.centerx, u.rect.centery - self.unit.rect.centery) < 150:
-                        has_friend = True
-                        break
-            
-            if has_friend or random.random() < 0.3: # Puhu yksikseen harvemmin
-                # Valitse aihe laajasta listasta
-                topic = random.choice(list(DIALOGUE_TOPICS.keys()))
-                text = random.choice(DIALOGUE_TOPICS[topic])
-                manager.vfx.create_speech_bubble(self.unit, text, duration=180)
+                if u is self.unit or getattr(u, "is_dead", False): continue
+                if u.team_color != self.unit.team_color: continue
+                ai = getattr(u, "ai_controller", None)
+                if not isinstance(ai, VillagerAI): continue
+                if ai.state not in (STATE_IDLE, STATE_WORK): continue
+                if math.hypot(u.rect.centerx - self.unit.rect.centerx,
+                              u.rect.centery - self.unit.rect.centery) < 150:
+                    partner = u
+                    break
+
+            topic = random.choice(list(DIALOGUE_TOPICS.keys()))
+            lines = DIALOGUE_TOPICS[topic]
+
+            if partner:
+                # --- PARIKESKUSTELU ---
+                # Molemmat pysähtyvät ja kääntyvät toisiaan kohti
+                self.chat_freeze = 260
+                self.wander_target = None
+                self.unit.facing_right = (partner.rect.centerx > self.unit.rect.centerx)
+
+                p_ai = partner.ai_controller
+                p_ai.chat_freeze = 260
+                p_ai.wander_target = None
+                p_ai.speech_timer = max(p_ai.speech_timer, 400)
+                partner.facing_right = (self.unit.rect.centerx > partner.rect.centerx)
+
+                # Aloittaja puhuu heti, kumppani vastaa samasta aiheesta
+                opener = random.choice(lines)
+                reply = random.choice([l for l in lines if l != opener] or lines)
+                manager.vfx.create_speech_bubble(self.unit, opener, duration=200)
+                p_ai.pending_reply = (reply, random.randint(90, 140))
+            elif random.random() < 0.3: # Puhu yksikseen harvemmin
+                manager.vfx.create_speech_bubble(self.unit, random.choice(lines), duration=180)
 
     def _find_farm_work(self, all_units, manager):
         """Etsii maatilan töitä ja asettaa tilan ja kohteen."""
@@ -360,24 +407,42 @@ class VillagerAI(BaseAI):
         # Ei tarkisteta onko kohde tyhjä tai varattu.
 
         # --- TYÖT ROOLIN MUKAAN ---
+        # HUOM: Kynnysarvot jättävät pelaajalle aina kerättävää!
+        # Villagerit tarttuvat vain "ylimäärään".
 
         # 1. FARMER (Maanviljelijä)
         if self.job == "Farmer":
-            # Etsi lehmä, kana tai lanta
-            cows = [u for u in all_units if isinstance(u, Cow)]
+            cows = [u for u in all_units if isinstance(u, Cow) and not u.is_dead]
+            milkable = [c for c in cows if getattr(c, "milk_ready", False)]
             manure = [p for p in manager.current_arena.props if isinstance(p, Manure)]
-            
-            if cows:
-                self.work_target = random.choice(cows)
-                self.work_type = "farm"
+            eggs = [p for p in manager.current_arena.props if isinstance(p, Egg)]
+
+            # a) Lypsä VAIN jos maitolehmiä on useita (pelaajalle jää)
+            if len(milkable) >= 2:
+                self.work_target = random.choice(milkable)
+                self.work_type = "milk"
                 self._equip_tool("bucket")
-                self.state_timer = random.randint(300, 600) # Työskentele hetki
+                self.state_timer = random.randint(300, 500)
                 return True
-            elif manure:
+            # b) Siivoa lantaa VAIN jos sitä on runsaasti
+            if len(manure) > 10:
                 self.work_target = random.choice(manure)
                 self.work_type = "clean"
                 self._equip_tool("bucket")
                 self.state_timer = random.randint(200, 400)
+                return True
+            # c) Kerää munia VAIN jos niitä lojuu paljon
+            if len(eggs) >= 5:
+                self.work_target = random.choice(eggs)
+                self.work_type = "collect_egg"
+                self.state_timer = random.randint(150, 300)
+                return True
+            # d) Muuten hoivaa lehmiä (ei tuota mitään)
+            if cows:
+                self.work_target = random.choice(cows)
+                self.work_type = "farm"
+                self._equip_tool("bucket")
+                self.state_timer = random.randint(300, 600)
                 return True
 
         # 2. SCAVENGER (Romunkerääjä)
@@ -415,29 +480,31 @@ class VillagerAI(BaseAI):
 
         return False
 
-    def _handle_fake_work(self, obstacles, all_units, manager):
+    def _handle_work(self, obstacles, all_units, manager):
         """
-        Yksinkertaistettu logiikka: Mene kohteeseen -> Soita animaatio/ääni -> Lopeta.
-        Ei muuta pelin tilaa (resursseja).
+        Mene kohteeseen -> Työskentele (animaatio + ääni) -> Kun valmis,
+        tuota resurssi kylän varastoon (city_storage).
+        Kynnysarvot _find_farm_workissa varmistavat, että pelaajalle jää
+        aina kerättävää.
         """
         if not self.work_target:
             self.state = STATE_IDLE
             return
 
         self.unit.animation_state = "run"
-        
+
         # 1. Liiku kohteeseen
         final_target_pos = self.work_target.rect.center
         current_target_pos = self._get_nav_target(final_target_pos, manager)
         self.navigate_to(current_target_pos, obstacles, all_units, manager)
-        
+
         # 2. Tarkista etäisyys
         dist_to_final = math.hypot(final_target_pos[0] - self.unit.rect.centerx, final_target_pos[1] - self.unit.rect.centery)
-        
+
         if dist_to_final < 60:
-            # 3. Perillä: Esitä työntekoa
+            # 3. Perillä: Työskentele
             self.state_timer -= 1
-            
+
             # Käänny kohti työtä
             dx = self.work_target.rect.centerx - self.unit.rect.centerx
             if abs(dx) > 1: self.unit.facing_right = (dx > 0)
@@ -449,7 +516,7 @@ class VillagerAI(BaseAI):
                     from sound_manager import sound_system
                     sound_system.play_sound("axe_1")
                     if manager: manager.vfx.create_falling_leaves(self.work_target.rect.centerx, self.work_target.rect.centery)
-            
+
             elif self.work_type == "scavenge":
                 self.unit.animation_state = "attack" # Hakkaa/Tonkii
                 if self.state_timer % 60 == 0:
@@ -457,7 +524,7 @@ class VillagerAI(BaseAI):
                     sound_system.play_sound("mining_hit")
                     if manager: manager.vfx.create_dust_cloud(self.work_target.rect.centerx, self.work_target.rect.centery)
 
-            elif self.work_type == "farm":
+            elif self.work_type in ("farm", "milk"):
                 self.unit.animation_state = "working"
                 if self.state_timer % 120 == 0:
                     from sound_manager import sound_system
@@ -466,10 +533,57 @@ class VillagerAI(BaseAI):
             else:
                 self.unit.animation_state = "working"
 
-            # 4. Kun aika loppuu, lopeta
+            # 4. Kun aika loppuu: tuota resurssi ja lopeta
             if self.state_timer <= 0:
+                self._finish_work(manager)
                 self.state = STATE_IDLE
                 self._clear_work_target()
+
+    def _finish_work(self, manager):
+        """Työ valmis: vie tuotos kylän varastoon ja päivitä maailma."""
+        if not manager or not self.work_target:
+            return
+        t = self.work_target
+        storage = manager.city_storage
+
+        def deposit(name, amount=1):
+            storage[name] = storage.get(name, 0) + amount
+            manager.vfx.show_damage(self.unit.rect.centerx, self.unit.rect.top - 30,
+                                    f"+{amount} {name}", color=(180, 220, 180))
+
+        if self.work_type == "milk":
+            # Lypsä vain jos maito on yhä valmiina (pelaaja voi ehtiä ensin)
+            if getattr(t, "milk_ready", False):
+                t.milk_ready = False
+                deposit("Milk")
+
+        elif self.work_type == "clean":
+            # Poista lantaläjä maailmasta (jos pelaaja ei ehtinyt ensin)
+            if t in manager.current_arena.props:
+                manager.current_arena.props.remove(t)
+                if t in manager.all_units:
+                    manager.all_units.remove(t)
+                deposit("Manure")
+
+        elif self.work_type == "collect_egg":
+            if t in manager.current_arena.props:
+                manager.current_arena.props.remove(t)
+                if t in manager.all_units:
+                    manager.all_units.remove(t)
+                deposit("Egg")
+
+        elif self.work_type == "chop":
+            # Puu tuottaa kylälle, mutta EI kuluta pelaajan hakattavia
+            # osumia loppuun (jätetään aina vähintään 2)
+            hits = getattr(t, "current_hits", None)
+            if hits is not None and hits > 2:
+                t.current_hits -= 1
+            deposit(getattr(t, "resource_name", "Swamp Wood"))
+
+        elif self.work_type == "scavenge":
+            if not getattr(t, "is_empty", False):
+                deposit("Scrap")
+        # "farm" (hoiva) ja "build" eivät tuota mitään
 
     def _equip_tool(self, tool_type):
         """Etsii inventoryssa olevan työkalun ja laittaa sen käteen."""

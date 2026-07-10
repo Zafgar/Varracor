@@ -177,6 +177,9 @@ class ChatMenu(BaseMenu):
                     if rep:
                         quest_manager.add_reputation(rep)
                         self.manager.reputation = quest_manager.reputation
+                    xp = int(rewards.get("xp", 0))
+                    if xp:
+                        self.manager.grant_hero_xp(xp)
                     if gold or rep:
                         print(f"[Quest] Rewards paid: {gold} gold, {rep} reputation")
                         try:

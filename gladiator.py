@@ -25,6 +25,10 @@ except ImportError:
     HumanAI = None
 
 
+# Esteiden (rect, type) -parien välimuisti (ks. Gladiator._nearby_obstacles)
+_OBSTACLE_PAIRS_CACHE = {}
+
+
 class Gladiator(pygame.sprite.Sprite):
     """
     Gladiator = unit base class.
@@ -1401,9 +1405,11 @@ class Gladiator(pygame.sprite.Sprite):
             self.rect.y += step_y
             return
 
+        nearby = self._nearby_obstacles(obstacles)
+
         # X axis
         self.rect.x += step_x
-        for r, t in self._iter_obstacles(obstacles):
+        for r, t in nearby:
             if (t is None or t in ["wall", "water"]) and self.rect.colliderect(r):
                 if step_x > 0:
                     self.rect.right = r.left
@@ -1412,7 +1418,7 @@ class Gladiator(pygame.sprite.Sprite):
 
         # Y axis
         self.rect.y += step_y
-        for r, t in self._iter_obstacles(obstacles):
+        for r, t in nearby:
             if (t is None or t in ["wall", "water"]) and self.rect.colliderect(r):
                 if step_y > 0:
                     self.rect.bottom = r.top
@@ -1420,7 +1426,7 @@ class Gladiator(pygame.sprite.Sprite):
                     self.rect.top = r.bottom
 
     def _handle_obstacles_passive(self, obstacles):
-        for r, t in self._iter_obstacles(obstacles):
+        for r, t in self._nearby_obstacles(obstacles, pad=20):
             if t and self.rect.colliderect(r):
                 if t == "mud":
                     if not getattr(self, "mud_immune", False):
@@ -1444,7 +1450,7 @@ class Gladiator(pygame.sprite.Sprite):
         # 2. Obstacle Collision (Työnnä ulos seinistä)
         if not obstacles: return
         
-        for r, t in self._iter_obstacles(obstacles):
+        for r, t in self._nearby_obstacles(obstacles, pad=20):
             if (t is None or t == "wall") and self.rect.colliderect(r):
                 # Oletus: Työnnä poispäin esteen keskipisteestä
                 dx = self.rect.centerx - r.centerx
@@ -1476,6 +1482,35 @@ class Gladiator(pygame.sprite.Sprite):
                     r = getattr(o, "rect", None)
                     if r:
                         yield r, getattr(o, "type", None)
+
+    def _nearby_obstacles(self, obs, pad=100):
+        """
+        Palauttaa vain yksikön lähellä olevat esteet [(rect, type), ...].
+        Estelistan purku välimuistitetaan (esteet ovat staattisia), koska
+        koko listan läpikäynti joka yksikölle joka frame oli kaupungissa
+        selvästi suurin yksittäinen suorituskykysyöppö.
+        """
+        if not obs:
+            return ()
+        key = id(obs)
+        n = len(obs) if hasattr(obs, "__len__") else -1
+        cached = _OBSTACLE_PAIRS_CACHE.get(key)
+        if cached is not None and cached[0] == n:
+            pairs = cached[1]
+        else:
+            pairs = list(self._iter_obstacles(obs))
+            if len(_OBSTACLE_PAIRS_CACHE) > 32:
+                _OBSTACLE_PAIRS_CACHE.clear()
+            _OBSTACLE_PAIRS_CACHE[key] = (n, pairs)
+
+        ux, uy = self.rect.centerx, self.rect.centery
+        out = []
+        for pair in pairs:
+            r = pair[0]
+            if abs(r.centerx - ux) > (r.w >> 1) + pad: continue
+            if abs(r.centery - uy) > (r.h >> 1) + pad: continue
+            out.append(pair)
+        return out
 
     # --- AI HELPERS ---
     def try_cast_spells(self, t, all_units, manager=None):
