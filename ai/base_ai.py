@@ -186,13 +186,27 @@ class BaseAI:
             if is_crossbow:
                 # Käytetään getattr varmuuden vuoksi
                 if not getattr(weapon, "is_loaded", False):
-                    # UUSI: Tarkista stamina ennen latausta
-                    if self.unit.current_stamina > 20:
+                    # Aloita lataus vain jos stamina riittää koko lataukseen
+                    # (lataus vie ~0.7/frame * load_time). Jatka käynnissä
+                    # olevaa latausta niin kauan kuin staminaa on jäljellä.
+                    # (BUGIKORJAUS: aiempi versio putosi stamina loppuessa
+                    #  ampumishaaraan, joka nollasi latauksen joka frame ->
+                    #  varsijousi ei koskaan ampunut.)
+                    loading = getattr(weapon, "load_progress", 0) > 0
+                    # Latauksen kokonaiskustannus (sama kaava kuin update_chargessa),
+                    # rajattuna yksikön maksimistaminaan
+                    drain = max(0.2, 0.8 - self.unit.strength * 0.02)
+                    need = drain * getattr(weapon, "load_time", 80) + 4
+                    need = min(need, self.unit.max_stamina * 0.9)
+                    if (loading and self.unit.current_stamina > 2) or \
+                       (not loading and self.unit.current_stamina >= need):
                         self.state = "reloading"
                         self.unit.temp_speed_mult = 0.0 # Pakota pysähtymään
                         weapon.update_charge(self.unit, manager)
-                        return
-                    # Jos stamina loppu, fall through -> chase/idle (regeneroi)
+                    else:
+                        # Palaudu paikallaan, älä yritä ampua lataamattomalla
+                        self.state = "recovering"
+                    return
                 # Jos ladattu, jatka normaalisti ampumaan
 
             # B) Bow/Staff: Lataa kun kantamalla
@@ -418,7 +432,7 @@ class BaseAI:
                 # Liiku kohti next_point
                 dx = next_point[0] - self.unit.rect.centerx
                 dy = next_point[1] - self.unit.rect.centery
-                self._move_towards(dx, dy, math.hypot(dx, dy), obstacles, all_units)
+                self._move_towards(dx, dy, math.hypot(dx, dy), obstacles, all_units, manager)
                 return
 
         # Fallback: Suora liike

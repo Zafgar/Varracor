@@ -33,6 +33,9 @@ class MnemonicDevourer(Gladiator):
         
         # Assets
         self.sprites = {}
+        # Varmistetaan että base_image on aina olemassa (update käyttää sitä),
+        # vaikka sprite-tiedostot puuttuisivat (procedural fallback)
+        self.base_image = self.image
         self.load_assets()
         self.is_pacified = False
         self.scream_channel = None

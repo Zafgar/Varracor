@@ -387,40 +387,10 @@ class MuckfordCityMenu(BaseMenu):
             return
 
         # 0. DIALOGUE POPUP HANDLING (Smeltery yms.)
-        # Tämä pysäyttää pelin ja antaa syötteen dialogille
+        # Syöte käsitellään keskitetysti GameManager.handle_dialogue_event:issä.
+        # Estetään tässä vain muu toiminta dialogin aikana.
         if self.manager.active_dialogue:
-            if event.type == pygame.KEYDOWN:
-                opts = self.manager.active_dialogue.get("options", [])
-                if event.key == pygame.K_1 and len(opts) >= 1:
-                    self.manager._handle_dialogue_action(opts[0]["action"])
-                elif event.key == pygame.K_2 and len(opts) >= 2:
-                    self.manager._handle_dialogue_action(opts[1]["action"])
-                elif event.key == pygame.K_3 and len(opts) >= 3:
-                    self.manager._handle_dialogue_action(opts[2]["action"])
-                elif event.key in (pygame.K_SPACE, pygame.K_ESCAPE):
-                    self.manager.active_dialogue = None
-            
-            elif event.type == pygame.MOUSEWHEEL:
-                self.manager.handle_dialogue_scroll(event.y)
-            
-            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Hiiren klikkaus dialogin nappeihin
-                mx, my = event.pos
-                box_w, box_h = 800, 200
-                box_x = (SCREEN_WIDTH - box_w) // 2
-                box_y = (SCREEN_HEIGHT - box_h) // 2
-                
-                opts = self.manager.active_dialogue.get("options", [])
-                if opts:
-                    view_y = box_y + 130
-                    view_h = 70
-                    oy = view_y - self.manager.dialogue_scroll
-                    for opt in opts:
-                        if box_x + 220 <= mx <= box_x + 700 and oy <= my <= oy + 25 and view_y <= my <= view_y + view_h:
-                            self.manager._handle_dialogue_action(opt["action"])
-                            return
-                        oy += 30
-            return # Estä muut toiminnot kun dialogi on auki
+            return
             
         # 0.5 SMELTERY UI HANDLING
         if self.active_smeltery:

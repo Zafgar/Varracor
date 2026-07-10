@@ -44,9 +44,8 @@ class CityStorageMenu(BaseMenu):
 
     def draw(self, screen):
         # Himmennetty tausta
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 150))
-        screen.blit(overlay, (0, 0))
+        from ui_kit import get_fullscreen_overlay
+        screen.blit(get_fullscreen_overlay((0, 0, 0, 150)), (0, 0))
         
         draw_panel(screen, self.px, self.py, self.panel_w, self.panel_h, title="VILLAGE STORAGE")
         self.btn_back.check_hover(pygame.mouse.get_pos())

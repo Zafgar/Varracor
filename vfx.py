@@ -81,6 +81,9 @@ class Projectile(pygame.sprite.Sprite):
                         return
 
         # Check unit collision
+        # (Visuaalisilla ammuksilla ei ole manageria eika vahinkoa)
+        if self.manager is None:
+            return
         for unit in self.manager.all_units:
             if unit == self.owner or getattr(unit, "team_color", None) == getattr(self.owner, "team_color", None): continue
             if getattr(unit, "is_dead", False): continue
@@ -93,7 +96,7 @@ class Projectile(pygame.sprite.Sprite):
 
     def on_hit(self, target):
         # Oletusvahinko
-        if hasattr(target, "take_damage"):
+        if self.damage > 0 and hasattr(target, "take_damage"):
             target.take_damage(self.damage, "Physical", self.owner, self.manager)
 
     def on_wall_hit(self):
@@ -1206,7 +1209,10 @@ class VFXManager:
     # --- SPAWN METHODS ---
 
     def create_arrow(self, start, end):
-        self.particles.add(ArrowProjectile(start, end))
+        # Visuaalinen nuoli - vahinko hoidetaan perform_attackissa suoraan.
+        # (BUGIKORJAUS: vanha kutsu ArrowProjectile(start, end) kaatui
+        #  TypeErroriin, jolloin legacy-jouset eivat tehneet mitaan.)
+        self.particles.add(ArrowProjectile(start[0], start[1], end, 22, 0, None, None))
 
     def create_warp_seam(self, start, end):
         self.particles.add(WarpSeam(start, end))

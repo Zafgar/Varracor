@@ -111,6 +111,7 @@ class Gladiator(pygame.sprite.Sprite):
 
         # Combat runtime
         self.is_dead = False
+        self.facing_right = True # Alustettava: AI/liike päivittää tätä myöhemmin
         self.attack_cooldown = 0
         self.spell_cooldowns = {"spell1": 0, "spell2": 0, "spell3": 0}
         self.attack_speed = 60  # frames between attacks
@@ -940,7 +941,7 @@ class Gladiator(pygame.sprite.Sprite):
         final_cost = max(6, int(base_cost - reduction))
 
         self.attack_cooldown = self.attack_speed
-        self.current_stamina -= final_cost
+        self.current_stamina = max(0, self.current_stamina - final_cost)
 
         # --- HITBOX CHECK (UUSI) ---
         hit_targets = []
@@ -1223,11 +1224,11 @@ class Gladiator(pygame.sprite.Sprite):
         # -----------------------------------
 
         if self.ai_controller:
-            try:
-                self.ai_controller.execute_ai(all_units, obstacles, manager)
-            except TypeError:
-                # print(f"Warning: {self.name}'s AI outdated. Calling old execute_ai.")
-                self.ai_controller.execute_ai(all_units, obstacles)
+            # HUOM: Ei except TypeError -fallbackia! Se piilotti aidot
+            # TypeErrorit AI:n sisältä (esim. rikkinäinen create_arrow-kutsu)
+            # ja ajoi AI:n uudelleen ilman manageria. Kaikki AI:t tukevat
+            # manager-parametria.
+            self.ai_controller.execute_ai(all_units, obstacles, manager)
         self.prevent_overlap(all_units)
 
     def update(self, obstacles=None, manager=None):
@@ -1339,7 +1340,7 @@ class Gladiator(pygame.sprite.Sprite):
         else:
             self.speed = max(0.3, current_speed)
             
-        self.current_stamina = min(self.current_stamina, self.max_stamina)
+        self.current_stamina = max(0, min(self.current_stamina, self.max_stamina))
 
         self.is_charging = False # Reset for next frame
 

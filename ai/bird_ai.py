@@ -81,22 +81,26 @@ class BirdAI(BaseAI):
             target = self.current_target
             
             if target and not target.is_dead:
-                dist = math.hypot(target.rect.centerx - self.unit.rect.centerx, 
+                dist = math.hypot(target.rect.centerx - self.unit.rect.centerx,
                                   target.rect.centery - self.unit.rect.centery)
-                
+
                 # Liiku erittäin nopeasti
                 self._fly_towards(target.rect.centerx, target.rect.centery, obstacles, speed_mult=1.5)
-                
+
                 if dist < 50:
                     self.state = STATE_ATTACK
                     self.state_timer = 120 # Hyökkää 2 sekuntia
-            
+            else:
+                # Kohde kuoli tai katosi kesken syöksyn -> takaisin ilmaan
+                self.state = STATE_HOVER
+                self.state_timer = 60
+
             # Jos syöksy kestää liian kauan (esim. kohde juoksee karkuun), nouse takaisin
-            if self.state_timer <= 0:
+            # (BUGIKORJAUS: aiempi else-haara palautti HOVERiin joka frame,
+            #  jolloin syöksy keskeytyi heti eikä varis koskaan hyökännyt)
+            if self.state == STATE_DIVE and self.state_timer <= 0:
                 self.state = STATE_RETREAT
                 self.state_timer = 60
-            else:
-                self.state = STATE_HOVER
 
         # --- STATE: ATTACK (Maassa) ---
         elif self.state == STATE_ATTACK:

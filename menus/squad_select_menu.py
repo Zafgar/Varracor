@@ -66,10 +66,8 @@ class SquadSelectMenu:
     
     def draw(self, screen):
         # Tumma overlay tausta
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.fill((10, 10, 15))
-        overlay.set_alpha(245)
-        screen.blit(overlay, (0, 0))
+        from ui_kit import get_fullscreen_overlay
+        screen.blit(get_fullscreen_overlay((10, 10, 15, 245)), (0, 0))
         
         draw_text(f"PREPARE SQUAD", font_title, GOLD_COLOR, screen, 50, 40)
         draw_text(f"Selected: {len(self.selected_units)} / {self.max_units}", font_main, WHITE, screen, 300, 50)

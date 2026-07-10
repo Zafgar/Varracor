@@ -296,10 +296,8 @@ class ChatMenu(BaseMenu):
 
     def draw(self, screen):
         # 1. Tumma tausta
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.set_alpha(180)
-        overlay.fill((0, 0, 0))
-        screen.blit(overlay, (0, 0))
+        from ui_kit import get_fullscreen_overlay
+        screen.blit(get_fullscreen_overlay((0, 0, 0, 180)), (0, 0))
 
         # 2. ISO MUOTOKUVA (Oikea ala)
         if self.portrait_image:

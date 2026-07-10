@@ -255,7 +255,10 @@ class RatKing(Gladiator):
             for _ in range(3): # 3 rottaa (oli 2)
                 rx = self.rect.centerx + random.randint(-80, 80)
                 ry = self.rect.centery + random.randint(-80, 80)
-                if 0 < rx < manager.current_arena.width and 0 < ry < manager.current_arena.height:
+                arena = manager.current_arena
+                arena_w = getattr(arena, "width", 1920) if arena else 1920
+                arena_h = getattr(arena, "height", 1080) if arena else 1080
+                if 0 < rx < arena_w and 0 < ry < arena_h:
                     rat = GiantRat("Minion", rx, ry, team_color=self.team_color)
                     manager.enemy_team.add(rat)
                     manager.all_units.add(rat)
