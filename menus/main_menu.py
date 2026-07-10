@@ -204,7 +204,7 @@ class MainMenu(BaseMenu):
                 except Exception: pass
 
         if self.btn_options.update():
-            print("Options clicked")
+            self.next_state = "options"
 
         if self.btn_exit.update():
             self.next_state = "exit"

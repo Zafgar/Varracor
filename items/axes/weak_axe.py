@@ -18,8 +18,8 @@ class WeakAxe(Weapon):
         self.weapon_group = "axe"
         self.level_required = 2
         
-        self.damage = 9
-        self.attack_range = 34
+        self.damage = 11
+        self.attack_range = 38
         self.speed_bonus = -0.05
         self.scaling = {"STR": 0.7}
         

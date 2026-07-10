@@ -17,10 +17,17 @@ class WeakSpear(Weapon):
         self.slot_type = "main_hand"
         self.weapon_group = "spear"
         
-        self.damage = 7
+        self.damage = 11
         self.attack_range = 60
         self.speed_bonus = 0.0
         self.scaling = {"STR": 0.4, "DEX": 0.4}
+
+        # BUGIKORJAUS: charge-mekaniikan kentat puuttuivat, vaikka
+        # update_charge/release_charge on toteutettu alla
+        self.charge_time = 0
+        self.max_charge = 60
+        self.charge_enabled = True
+        self.last_charge_tick = 0
         
         self.image = None
         self._load_image()

@@ -1,11 +1,20 @@
 import pygame
 import os
 
+OPTIONS_FILE = "saves/options.json"
+
+
 class SoundManager:
     def __init__(self):
         self.sound_enabled = False
         self.sounds = {}
+        self.base_volumes = {}  # name -> aanen perusvolyymi (balanssi)
         self.music_playing = None
+
+        # Master-volyymit (0.0 - 1.0), kerrotaan perusvolyymien paalle
+        self.music_volume = 1.0
+        self.sfx_volume = 1.0
+        self._load_options()
         
         # Yritetään alustaa äänilaite
         try:
@@ -232,7 +241,8 @@ class SoundManager:
             try: 
                 self.sounds[name] = pygame.mixer.Sound(filepath)
                 # Säädetään äänenvoimakkuutta hieman, etteivät ole liian kovia
-                self.sounds[name].set_volume(volume)
+                self.base_volumes[name] = volume
+                self.sounds[name].set_volume(volume * self.sfx_volume)
                 return True
             except Exception: 
                 print(f"Failed to load sound file: {filepath}")
@@ -242,16 +252,58 @@ class SoundManager:
         if self.sound_enabled and name in self.sounds: 
             s = self.sounds[name]
             if volume is not None:
-                s.set_volume(volume)
+                s.set_volume(volume * self.sfx_volume)
             return s.play(loops=loops)
         return None
+
+    # =========================================================
+    # MASTER VOLUME (Options-valikko)
+    # =========================================================
+    def set_music_volume(self, v):
+        self.music_volume = max(0.0, min(1.0, float(v)))
+        if self.sound_enabled:
+            try:
+                pygame.mixer.music.set_volume(0.3 * self.music_volume)
+            except Exception:
+                pass
+
+    def set_sfx_volume(self, v):
+        self.sfx_volume = max(0.0, min(1.0, float(v)))
+        # Paivita kaikkien ladattujen aanien volyymit perusarvoista
+        for name, snd in self.sounds.items():
+            base = self.base_volumes.get(name, 0.4)
+            try:
+                snd.set_volume(base * self.sfx_volume)
+            except Exception:
+                pass
+
+    def save_options(self):
+        import json
+        try:
+            os.makedirs(os.path.dirname(OPTIONS_FILE), exist_ok=True)
+            with open(OPTIONS_FILE, "w", encoding="utf-8") as f:
+                json.dump({"music_volume": self.music_volume,
+                           "sfx_volume": self.sfx_volume}, f, indent=2)
+        except Exception as e:
+            print(f"[Options] Save failed: {e}")
+
+    def _load_options(self):
+        import json
+        try:
+            if os.path.exists(OPTIONS_FILE):
+                with open(OPTIONS_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self.music_volume = max(0.0, min(1.0, float(data.get("music_volume", 1.0))))
+                self.sfx_volume = max(0.0, min(1.0, float(data.get("sfx_volume", 1.0))))
+        except Exception as e:
+            print(f"[Options] Load failed: {e}")
 
     def play_music(self, filepath, loops=-1):
         if self.sound_enabled and os.path.exists(filepath):
             if self.music_playing != filepath:
                 try:
                     pygame.mixer.music.load(filepath)
-                    pygame.mixer.music.set_volume(0.3) # Taustamusiikki hiljaisemmalle
+                    pygame.mixer.music.set_volume(0.3 * self.music_volume) # Taustamusiikki hiljaisemmalle
                     pygame.mixer.music.play(loops)
                     self.music_playing = filepath
                 except Exception:

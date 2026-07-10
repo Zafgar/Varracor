@@ -19,8 +19,8 @@ class ScrapBow(Weapon):
         self.weapon_group = "bow"
         self.level_required = 1
         
-        self.damage = 8
-        self.attack_range = 300
+        self.damage = 6
+        self.attack_range = 270
         self.speed_bonus = 0.0
         self.scaling = {"DEX": 0.8}
         

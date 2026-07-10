@@ -19,8 +19,8 @@ class WeakBook(Weapon):
         self.weapon_group = "book"
         self.level_required = 2
         
-        self.damage = 7
-        self.attack_range = 260
+        self.damage = 6
+        self.attack_range = 245
         self.speed_bonus = 0.0
         self.scaling = {'INT': 0.8}
         

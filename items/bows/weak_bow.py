@@ -18,10 +18,12 @@ class WeakBow(Weapon):
         self.type = "ranged" 
         
         self.slot_type = "main_hand"
-        self.damage = 6
-        self.attack_range = 280 
-        self.speed_bonus = -0.1 
-        self.scaling = {'DEX': 0.7}
+        self.weapon_group = "bow"  # BUGIKORJAUS: puuttui -> AI ei osannut ladata jousta
+        self.level_required = 2
+        self.damage = 9
+        self.attack_range = 300
+        self.speed_bonus = 0.0
+        self.scaling = {'DEX': 0.8}
         
         self.charge_time = 0
         self.max_charge = 60 # 1 sekunti täyteen lataukseen

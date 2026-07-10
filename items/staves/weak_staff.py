@@ -19,7 +19,7 @@ class WeakStaff(Weapon):
         self.weapon_group = "staff"
         self.level_required = 2
         
-        self.damage = 9
+        self.damage = 8
         self.attack_range = 280
         self.speed_bonus = 0.0
         self.scaling = {"INT": 0.9}

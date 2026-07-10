@@ -18,7 +18,7 @@ class ScrapBook(Weapon):
         self.weapon_group = "book"
         self.level_required = 1
         
-        self.damage = 5
+        self.damage = 6
         self.attack_range = 240
         self.speed_bonus = 0.0
         self.scaling = {'INT': 0.7}

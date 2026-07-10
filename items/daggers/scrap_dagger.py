@@ -18,7 +18,7 @@ class ScrapDagger(Weapon):
         self.weapon_group = "dagger"
         self.level_required = 1
         
-        self.damage = 3
+        self.damage = 5
         self.attack_range = 25
         self.speed_bonus = 0.05 # Hieman hitaampi kuin weak dagger
         self.scaling = {"DEX": 0.6}
