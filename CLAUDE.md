@@ -66,6 +66,22 @@ tiedostot kuuluu pudottaa.
   katso BALANCE_NOTES.md.
 - Kaupunkisimulaation voi ajaa headless: ks. tests/test_city.py.
 
+## Kaupungin elävät järjestelmät (Muckford)
+
+- **world_clock.py** — vuorokausi, kalenteri (Vuosi 3 A.V., 4 vuodenaikaa x
+  28 pv), sää (clear/wind/rain/storm + salamat). Etenee kaupungissa,
+  tallentuu saveen. Yö-tummennus + sade piirretään draw_overlays():lla.
+- **Emännän velka** — intro: Marda vaatii 25 kultaa öistä; ovi-intercept
+  jos ei ole puhuttu; maksu dialogista kun rahat riittävät (+3 rep).
+  manager.innkeeper_debt, chat-efektit set_innkeeper_debt/pay_innkeeper_debt.
+- **Markkinat** — MuckfordStall → "market"-tila (menus/market_menu.py).
+  Hinnat lore/world_data.py MARKET_PRICES. Myy maito/munat/puu/romu/lanta,
+  osta ämpäri yms.
+- **Rat-raidit** — Rat King lähettää parvia ~2-3 pv välein (klo 9-20) kunnes
+  quest hunt_01 on suoritettu. 3 vartijaa puolustaa; rotat perääntyvät 60 s
+  jälkeen elleivät kuole. Pelaajan tapot → +5 rep, kultaa, XP:tä. Ilman
+  pelaajaa rotat usein ehtivät paeta saaliineen (motivoi auttamaan).
+
 ## Pelin visio (tiivistetysti — koko kuva docs/LORE.md)
 
 Hero menetti muistinsa Mnemonic Devourerille matkalla Vortexiin; alkaa
