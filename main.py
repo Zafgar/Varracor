@@ -44,6 +44,7 @@ from citys.mucford.forest_road_menu import ForestRoadMenu
 from menus.muckford_intro_screen import MuckfordIntroScreen
 from minigames.crown_knives import CrownKnivesMenu
 from menus.test_menu import TestMenu
+from menus.options_menu import OptionsMenu
 
 pygame.init()
 # SCALED skaalaa 1920x1080-pelin automaattisesti näytön kokoon (pienemmätkin näytöt toimivat)
@@ -104,7 +105,8 @@ def main():
         "city_storage": CityStorageMenu(manager),
         "forest_road": ForestRoadMenu(manager),
         "muckford_intro": MuckfordIntroScreen(manager),
-        "test_arena": TestMenu(manager)
+        "test_arena": TestMenu(manager),
+        "options": OptionsMenu(manager)
     }
     
     # =========================================================
@@ -128,6 +130,7 @@ def main():
         "city_storage": CityStorageMenu,
         "muckford_intro": MuckfordIntroScreen,
         "test_arena": TestMenu,
+        "options": OptionsMenu,
         "tavern_sunk_cask": TavernMenu,
         "muckford_city": MuckfordCityMenu,
         "blacksmith_interior": BlacksmithMenu,
@@ -139,7 +142,7 @@ def main():
         "prepare", "mission_prepare", "loading", "manager_menu",
         "commander_skills", "workshop_locations", "sponsors", "reputation",
         "magic_school", "necro_school", "shop_locations", "city_storage",
-        "muckford_intro", "test_arena",
+        "muckford_intro", "test_arena", "options",
     }
 
     # Luodaan uusi PAITSI jos tullaan näistä tiloista (tila säilyy)
@@ -170,6 +173,10 @@ def main():
         # ja crown_knives/tavern säilyttävät tavernan käsittelijän.)
         if new_key not in ("crown_knives", "tavern_sunk_cask"):
             manager.dialogue_action_handler = None
+
+        # Options-valikko muistaa mistä tilasta tultiin
+        if new_key == "options" and old_key != "options":
+            manager.options_return_state = old_key
 
         if old_key in SKIP_INIT_FROM.get(new_key, ()):
             pass  # Säilytä vanha tila sellaisenaan
@@ -211,7 +218,7 @@ def main():
             
             # --- GLOBAL UI (Pause & HUD) ---
             # Vain pelitiloissa (ei päävalikossa)
-            if current_state_key not in ["menu", "loading", "match_loading"]:
+            if current_state_key not in ["menu", "loading", "match_loading", "options"]:
                 ui_response = manager.handle_ui_event(event, current_state_key)
                 if ui_response:
                     if isinstance(ui_response, str):

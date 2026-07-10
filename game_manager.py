@@ -1963,8 +1963,8 @@ class GameManager:
             return None
 
         if self.btn_options.update():
-            print("Options clicked (Not implemented)")
-            return None
+            self.paused = False
+            return "options"
 
         # Hub-nappi: Vain jos sallittu
         allow_hub = True
