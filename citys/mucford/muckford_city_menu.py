@@ -307,7 +307,7 @@ class MuckfordCityMenu(BaseMenu):
             pygame.draw.rect(screen, (110, 130, 85), fr, 2, border_radius=4)
 
         # Kohteet: (objekti/rect, väri, nimi)
-        from assets.tiles.muckford_objects import TownHall, MuckfordStall, Smeltery, Well, ChickenCoop, ShantyYardGate
+        from assets.tiles.muckford_objects import TownHall, MuckfordStall, Smeltery, Well, ChickenCoop, ShantyYardGate, TeamBarracks
         from assets.tiles.farm_objects import FarmStorage, ManurePile
         markers = []
         if getattr(self, "tavern_house", None):
@@ -323,7 +323,8 @@ class MuckfordCityMenu(BaseMenu):
                                     (ChickenCoop, (200, 170, 120), "Chicken Coop"),
                                     (FarmStorage, (170, 140, 90), "Storage"),
                                     (ManurePile, (130, 110, 70), "Compost"),
-                                    (ShantyYardGate, (170, 45, 45), "Shanty Yard (League)")):
+                                    (ShantyYardGate, (170, 45, 45), "Shanty Yard (League)"),
+                                    (TeamBarracks, (70, 170, 90), "Team Quarters")):
                 if isinstance(prop, cls) and label not in seen:
                     seen.add(label)
                     markers.append((prop.rect, col, label))
@@ -496,6 +497,14 @@ class MuckfordCityMenu(BaseMenu):
         else:
             self.bram = None
 
+        # Team Barracks -viittaus talteen (E-interaktiota ja ikonia varten)
+        self.barracks = None
+        from assets.tiles.muckford_objects import TeamBarracks
+        for prop in self.arena.props:
+            if isinstance(prop, TeamBarracks):
+                self.barracks = prop
+                break
+
     def _open_smelter_ui(self, smelter):
         self.active_smeltery = smelter
         self.smelter_buttons = []
@@ -610,6 +619,17 @@ class MuckfordCityMenu(BaseMenu):
                     if math.hypot(self.player.rect.centerx - door_x,
                                   self.player.rect.bottom - door_y) < 110:
                         self.next_state = "league"
+                        sound_system.play_sound('click')
+                        return
+
+                # Team Barracks -> tiimitila
+                barracks = getattr(self, "barracks", None)
+                if barracks:
+                    door_x = barracks.rect.centerx
+                    door_y = barracks.rect.bottom
+                    if math.hypot(self.player.rect.centerx - door_x,
+                                  self.player.rect.bottom - door_y) < 110:
+                        self.next_state = "barracks"
                         sound_system.play_sound('click')
                         return
 
@@ -1243,6 +1263,8 @@ class MuckfordCityMenu(BaseMenu):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Town Hall")
                 elif prop is getattr(self, "arena_gate", None):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 30, "E", offset, "Enter Shanty Yard (League)")
+                elif prop is getattr(self, "barracks", None):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 30, "E", offset, "Team Quarters")
                 elif isinstance(prop, MuckfordStall):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Trade")
                 elif isinstance(prop, AppleTree):
@@ -1962,6 +1984,9 @@ class MuckfordCityMenu(BaseMenu):
         gate = getattr(self, "arena_gate", None)
         if gate:
             pois.append((gate.rect.centerx, gate.rect.top - 20, "league"))
+        barracks = getattr(self, "barracks", None)
+        if barracks:
+            pois.append((barracks.rect.centerx, barracks.rect.top - 20, "barracks"))
 
         # Taverna (muki) ja seppä (alasin) ovien kohdalle
         if getattr(self, "tavern_house", None):
@@ -2008,6 +2033,14 @@ class MuckfordCityMenu(BaseMenu):
             pygame.draw.polygon(screen, (170, 45, 45),
                                 [(sx - 10, sy - 7), (sx + 10, sy - 7), (sx, sy + 3)])
             pygame.draw.line(screen, (230, 200, 120), (sx - 10, sy - 31), (sx + 10, sy - 31), 3)
+        elif kind == "barracks":
+            # Vihreä kilpimerkki (oma tiimi)
+            pygame.draw.polygon(screen, (0, 0, 0),
+                                [(sx - 9, sy - 30), (sx + 11, sy - 30), (sx + 11, sy - 12), (sx + 1, sy - 2), (sx - 9, sy - 12)])
+            pygame.draw.polygon(screen, (70, 170, 90),
+                                [(sx - 10, sy - 31), (sx + 10, sy - 31), (sx + 10, sy - 13), (sx, sy - 3), (sx - 10, sy - 13)])
+            pygame.draw.line(screen, (230, 230, 210), (sx, sy - 28), (sx, sy - 8), 2)
+            pygame.draw.line(screen, (230, 230, 210), (sx - 6, sy - 20), (sx + 6, sy - 20), 2)
         elif kind == "tavern":
             # Olutmuki
             pygame.draw.rect(screen, (0, 0, 0), (sx - 8, sy - 24, 18, 20), border_radius=3)

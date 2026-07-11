@@ -356,6 +356,20 @@ class GameManager:
             print(f"Error: NPC ID '{npc_id}' not found.")
             return None
 
+    def open_roster_dialogue(self, unit, return_state="barracks"):
+        """Avaa dialogin oman joukkueen jäsenen kanssa (Barracks)."""
+        npc = RecruitNPC(unit)
+        context = {
+            "player": {"name": "Commander", "gold": self.gold},
+            "reputation": self.reputation,
+            "matches_played": self.matches_played,
+            "unit": unit,
+            "owned": True,
+        }
+        menu = ChatMenu(self, npc, context, return_state=return_state)
+        self.pending_dialogue_menu = menu
+        return menu
+
     def open_recruit_dialogue(self, unit):
         """Avaa dialogin tietyn rekrytoitavan yksikön kanssa."""
         npc = RecruitNPC(unit)

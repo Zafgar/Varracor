@@ -304,9 +304,10 @@ class GuildMenu(BaseMenu):
                     self._show_feedback("CHEAT: +1000 Gold")
 
         if event.type == pygame.MOUSEBUTTONDOWN:
-            # Back
+            # Back (paluutila konfiguroitavissa - esim. Barracksista tultaessa)
             if self.btn_back.rect.collidepoint(mouse_pos):
-                self.next_state = "hub"
+                self.next_state = getattr(self.manager, "guild_return_state", None) or "hub"
+                self.manager.guild_return_state = None
                 sound_system.play_sound('click')
                 return
 

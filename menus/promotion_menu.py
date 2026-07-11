@@ -3,7 +3,7 @@ import random
 import math
 from settings import *
 from menus.base_menu import BaseMenu
-from ui_kit import SpriteButton, draw_text, font_title, font_main, GOLD_COLOR, WHITE
+from ui_kit import SpriteButton, draw_text, font_title, font_main, font_small, GOLD_COLOR, WHITE
 
 class Confetti:
     def __init__(self):
@@ -85,8 +85,24 @@ class PromotionMenu(BaseMenu):
         draw_text(f"You have ascended to:", font_main, (200, 200, 200), screen, SCREEN_WIDTH//2 - 100, 300)
         
         draw_text(str(tier_name).upper(), font_title, (100, 255, 100), screen, SCREEN_WIDTH//2 - 100, 350)
-        
-        draw_text("New challenges and stronger opponents await.", font_main, (150, 150, 150), screen, SCREEN_WIDTH//2 - 190, 450)
+
+        # --- SEURAAVAN TIERIN KAANON-PREVIEW ---
+        try:
+            from lore.world_data import get_tier_preview
+            le = self.manager.league_engine
+            lore_tier = max(0, int(getattr(le, "tier", 1)) - 1)
+            preview = get_tier_preview(lore_tier)
+        except Exception:
+            preview = None
+
+        if preview:
+            cx = SCREEN_WIDTH // 2
+            draw_text(preview["name"], font_main, GOLD_COLOR, screen, cx - 150, 420)
+            draw_text(f"Keeper: {preview['keeper']}", font_small, WHITE, screen, cx - 150, 458)
+            draw_text(f"Hub: {preview['hub']}  -  Arena: {preview['arena']}", font_small, (180, 180, 180), screen, cx - 150, 486)
+            draw_text(preview["character"], font_small, (150, 150, 150), screen, cx - 150, 514)
+        else:
+            draw_text("New challenges and stronger opponents await.", font_main, (150, 150, 150), screen, SCREEN_WIDTH//2 - 190, 450)
 
         # Nappi
         self.btn_continue.draw(screen)

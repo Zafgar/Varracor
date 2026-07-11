@@ -145,3 +145,41 @@ def test_poi_icons(manager):
     assert "tavern" in kinds
     assert "smith" in kinds
     assert any(k.startswith("quest") for k in kinds)  # Farmer Gus
+
+
+def test_barracks_in_city_and_enter(manager):
+    """Team Barracks on kartalla ja E avaa tiimitilan."""
+    import pygame
+    from citys.mucford.muckford_city_menu import MuckfordCityMenu
+    from assets.tiles.muckford_objects import TeamBarracks
+
+    city = MuckfordCityMenu(manager)
+    barr = next((p for p in city.arena.props if isinstance(p, TeamBarracks)), None)
+    assert barr is not None, "Barracks puuttuu kartalta"
+    assert getattr(city, "barracks", None) is barr
+
+    city.player.rect.center = (barr.rect.centerx, barr.rect.bottom + 40)
+    city.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e))
+    assert city.next_state == "barracks"
+
+
+def test_barracks_menu_roster_and_equip(manager):
+    """Barracks-menu näyttää roosterin ja ohjaa varusteisiin."""
+    import pygame
+    from menus.barracks_menu import BarracksMenu
+
+    manager.recruit_initial_hero()
+    bm = BarracksMenu(manager)
+    roster = bm._roster()
+    assert manager.player_character in roster
+    assert len(roster) >= 2  # commander + hero
+
+    # Equipment-nappi -> guild + return state (draw asettaa _last_draw_rect)
+    import pygame as pg
+    surf = pg.Surface((1920, 1080))
+    bm.draw(surf)
+    pos = bm.btn_equip._last_draw_rect.center
+    ev = pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos)
+    bm.handle_event(ev)
+    assert bm.next_state == "guild"
+    assert manager.guild_return_state == "barracks"

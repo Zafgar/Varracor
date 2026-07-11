@@ -134,6 +134,11 @@ class Arena:
         from assets.tiles.muckford_objects import ShantyYardGate
         self._add_prop(ShantyYardGate(w // 2 + 700, street_top - 300))
 
+        # Pelaajan tiimitila (Team Barracks) - Bramin antamat köyhät tilat,
+        # areenaportin vieressä (tiimin hallinta: varusteet + jäsenet)
+        from assets.tiles.muckford_objects import TeamBarracks
+        self._add_prop(TeamBarracks(w // 2 + 1100, street_top - 320))
+
         # Blacksmith & Smeltery (Oikea ylä)
         self._add_prop(ScrapIronBuilding(w - 700, 100))
         self._add_prop(Smeltery(w - 800, 450)) # Lähellä katua

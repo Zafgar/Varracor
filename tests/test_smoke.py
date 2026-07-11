@@ -86,3 +86,32 @@ def test_hamo_dialogue_and_bounty(manager):
     menu.apply_effect("hamo_sell_tails")
     assert manager.gold == gold0 + 7 * 4
     assert manager.inventory.get("Rat Tail", 0) == 0
+
+
+def test_tier1_canon_and_promotion_preview():
+    """Tier 1 -kaanon: 8 tiimiä + Sera; promootio-preview toimii."""
+    from lore.world_data import (get_tier_teams, get_tier_preview,
+                                 TIER1_CHARACTERS, TIER1_ARENAS)
+    teams = get_tier_teams(1)
+    assert len(teams) == 8
+    assert any(t["name"] == "Bridgeguard Five" for t in teams)
+    assert "sera_quench" in TIER1_CHARACTERS
+    assert "scrapring" in TIER1_ARENAS
+
+    p = get_tier_preview(1)
+    assert p["keeper"] == "Sera Quench"
+    assert p["hub"] == "Rattlebridge"
+
+    from leagues.league_data import generate_league_teams
+    league = generate_league_teams(2)  # game tier 2 = lore tier 1
+    names = [t.name for t in league]
+    assert "Rattlebridge Runners" in names
+
+
+def test_tier_promotion_advances(manager):
+    """Promootio nostaa tieria ja lataa uuden tierin tiimit."""
+    le = manager.league_engine
+    le._ensure_initialized()
+    start_tier = le.tier
+    le.promote_player()
+    assert le.tier == start_tier + 1

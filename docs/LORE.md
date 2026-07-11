@@ -84,9 +84,13 @@ tiensä takaisin: Tier 0:sta Golden Leagueen, ja lopulta Vortexin ytimeen.
   tiedonmyynti; laittoman tarkkoja Vortex-karttoja.
   *The Siltbound* — suo- ja mutabossien jäljittäjät; jatkuvat
   temppelilaskut loistartunnoista ja infektioista.
-- **Tier 1:** *Rattlebridge Runners* (kurinalainen, helppo markkinoida),
-  *Bolt Cage Bruisers* (raaka häkkitappeluvoima),
-  *Timbercross Wardens* (metsän rajaturva).
+- **Tier 1** (8 tiimiä): *Rattlebridge Runners* (Sera Quenchin suosikki,
+  helppo markkinoida), *Bolt Cage Bruisers* (raaka häkkivoima,
+  luunmurtumat), *Timbercross Wardens* (metsän rajaturva), *The Copper
+  Saints* ("hyväntekeväisyys" + tiedonmyynti), *Rivet Row Renegades*
+  (improvisoidut varusteet, metallivarkausepäilyt), *Gutterlight Company*
+  (likaiset työt, Hamon luottotiimi), *The Inked Oath* (tekee tismalleen
+  mitä sopimuksessa lukee), *Bridgeguard Five* ("pidetään linja").
 - **Tier 2:** *Giltgate Goldclaws* (tehokas show-tiimi, rahanpesuepäilyt),
   *Ledgerford Litigators* (voittaa sääntökikkailulla),
   *Coinharbor Corsairs* (satamien meribossit).
@@ -180,6 +184,31 @@ Valuutat: **SP** (hopea) → **GP** (kulta) → **PL** (platina) →
   vaarallisemmiksi.
 - **The Rat King of Muckford** (Abyssal Echo, Rank C) — laumojen johtaja;
   kaupungin suurin jatkuva kriisi.
+
+#### Tier 1 -paikalliskaanon (The Scrapring Circuit)
+
+**Manageri:** *Sera Quench* (ihminen) — kunnianhimoinen eduntavoittelija;
+tekee gladiaattoreista brändejä, myy tarinoita ja kerää sponsorirahat.
+Scoutit poimivat Tier 0:n lupaukset; myy "tuotteensa" Tier 2:n
+vedonlyöntimarkkinoille.
+
+**Areenat:** *The Scrapring* (Rattlebridge — murskaavat rattaat,
+sokaisevat höyrypurkaukset), *Bolt Cage* (Rivet Row — sähkökaaret,
+sulkeutuvat ovet eristävät tiimin), *Timber Yard* (Timbercross —
+putoavat tukit, syttyvät pihkakuopat).
+
+**Majatalot:** *Boil-Cider House "The Span"* (Hendrik Ironspan;
+kurinalaiset duunarit ja kilpimiehet), *The Rivet & Wrench* (Kessa
+"Wrench" Mallory; mekaanikot, haarniskankorjaajat, tankit).
+
+**Sponsorit (Tier 1, Trade Contracts):** *Rattlebridge Ironspan Union*
+(sillat ja tullireitit turvaan), *Rivet Row Foundry League* (haarniskahuolto
++ alennukset jos tuotantoreitit auki).
+
+**Uhat:** *Hush-Mantle* (Rank C/B; akustinen tyhjiö vaimentaa äänet —
+salamurhia), *Gutter Swarm* (viemärien lima+rotta, kaappaa ihmisiä),
+*myrkylliset rune plates* (Vortex-saastuneita, kutsuvat hirviöitä),
+*temppelikiskonta* (Prior Jannik Voss laskuttaa hoidoista holtittomasti).
 
 ### Länsi/Luode — The Crown Dominion (ihmiset)
 - **Crownhold** — pääkaupunki, byrokratia ja propaganda

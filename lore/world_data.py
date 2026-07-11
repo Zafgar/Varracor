@@ -143,9 +143,22 @@ ARENA_TEAMS = {
          "loistartunnoista ja infektioista."),
     ],
     1: [
-        ("Rattlebridge Runners", "Kurinalainen ja puhdas; helppo markkinoida"),
-        ("Bolt Cage Bruisers", "Raaka häkkitappelijan voima"),
-        ("Timbercross Wardens", "Metsän rajaturva"),
+        ("Rattlebridge Runners", "Sera Quench",
+         "Kurinalainen, puhdas, vähädraamainen; Seran suosikki - helppo markkinoida."),
+        ("Bolt Cage Bruisers", "-",
+         "Raaka voima ja häkkimatsien kovuus; kärsivät jatkuvista luunmurtumista."),
+        ("Timbercross Wardens", "-",
+         "Metsänreunojen turva ja rajapartiointi."),
+        ("The Copper Saints", "-",
+         "Ratsastavat 'hyväntekeväisyys'-maineella; keräävät hoitorahaa - ja myyvät tietoa sivussa."),
+        ("Rivet Row Renegades", "-",
+         "Teollisuusalueen kovikset improvisoiduilla varusteilla; metallivarkausepäilyt."),
+        ("Gutterlight Company", "-",
+         "Likaiset työt ja kadonneiden etsintä kyselemättä; Hamon luottotiimi."),
+        ("The Inked Oath", "-",
+         "Sopimusnojainen: tekee tismalleen mitä paperissa lukee, ei enempää eikä vähempää."),
+        ("Bridgeguard Five", "-",
+         "'Pidetään linja' -puolustustaktiikka."),
     ],
     2: [
         ("Giltgate Goldclaws", "Tehokas show-tiimi; rahanpesuepäilyt"),
@@ -602,3 +615,119 @@ TIER0_THREATS = {
 HAMO_BOUNTIES = {
     "Rat Tail": 4,   # markkinahinta 2
 }
+
+
+# =========================================================
+# TIER 1 / THE SCRAPRING CIRCUIT - KAANON
+# =========================================================
+TIER1_CHARACTERS = {
+    "sera_quench": {
+        "name": "Sera Quench", "race": "Human",
+        "role": ("Tier 1 -verkoston manageri. Kunnianhimoinen, laskelmoiva "
+                 "eduntavoittelija; tyylikäs, kantaa kirjanpitoa ja "
+                 "mainosjulisteita. Tekee gladiaattoreista brändejä, myy "
+                 "tarinoita ja kerää sponsorirahat. Omat scoutit poimivat "
+                 "Tier 0:n lupaukset ja myy 'tuotteensa' Tier 2:n "
+                 "vedonlyöntimarkkinoille."),
+    },
+    "hendrik_ironspan": {
+        "name": "Hendrik Ironspan", "race": "Human",
+        "role": ("Boil-Cider House 'The Span' (Rattlebridge). Käytännöllinen, "
+                 "sanansa pitävä Ironspan Unionin luottomies. Lämmin siideri; "
+                 "ei tappelua ilman perusteltua syytä. Värväys: kurinalaiset "
+                 "duunaritaistelijat ja kilpimiehet."),
+    },
+    "kessa_wrench": {
+        "name": 'Kessa "Wrench" Mallory', "race": "Human",
+        "role": ("The Rivet & Wrench (Rivet Row). Rääväsuinen; salin perällä "
+                 "korjauspöydät varaosien vaihtoon. Värväys: mekaanikot, "
+                 "haarniskankorjaajat ja raskaat tankit."),
+    },
+    "prior_jannik_voss": {
+        "name": "Prior Jannik Voss", "race": "Human",
+        "role": ("Rattlebridgen Bridgeward-kappelin johtaja. Laskuttaa "
+                 "areenatiimeiltä valtavia summia erikoishoidoista "
+                 "häkkimatsien jäljiltä (temppelikiskonta)."),
+    },
+}
+
+TIER1_ARENAS = {
+    "scrapring": {
+        "name": "The Scrapring", "hub": "Rattlebridge",
+        "desc": ("Tier 1:n pääareena Crown Dominionin rajalla; ensimmäinen "
+                 "'oikea' areena - sponsoribanderollit, ottelukortit, "
+                 "kuuluttajat, pieni sairasosasto."),
+        "hazards": ["Hitaasti liikkuvat murskaavat rattaat",
+                    "Sokaisevat höyrypurkaukset"],
+    },
+    "bolt_cage": {
+        "name": "Bolt Cage", "hub": "Rivet Row",
+        "desc": "Teollisen pikkukaupungin metallihäkki; korjaamohallin tunnelma, raa'at ottelut.",
+        "hazards": ["Iskevät sähkökaaret",
+                    "Satunnaisesti sulkeutuvat ovet eristävät tiimin jäseniä"],
+    },
+    "timber_yard": {
+        "name": "Timber Yard", "hub": "Timbercross",
+        "desc": "Puinen kehikko ihmisten ja Wyrdwoodin raja-alueella.",
+        "hazards": ["Putoavat tukit",
+                    "Tahmeat, helposti syttyvät pihkakuopat"],
+    },
+}
+
+TIER1_SPONSORS = {
+    "ironspan_union": {
+        "name": "Rattlebridge Ironspan Union",
+        "desc": ("Rahoittaa tiimejä pitääkseen sillat ja tullireitit "
+                 "turvassa; haluaa eroon alikatujen swarmeista."),
+    },
+    "foundry_league": {
+        "name": "Rivet Row Foundry League",
+        "desc": ("Työpajojen yhteenliittymä: haarniskahuolto ja alennukset, "
+                 "jos metallin ja romun tuotantoreitit pysyvät auki."),
+    },
+}
+
+TIER1_THREATS = {
+    "hush_mantle": {
+        "name": "Hush-Mantle", "rank": "C/B", "hub": "Rattlebridge",
+        "desc": ("Sumussa liikkuva boss-ilmiö; luo 'akustisen tyhjiön' - "
+                 "äänet katoavat, joten taisteluääniä tai avunhuutoja ei "
+                 "kuulla. Lisännyt salamurhia."),
+    },
+    "gutter_swarm": {
+        "name": "Gutter Swarm", "hub": "Rivet Row & Rattlebridge",
+        "desc": ("Viemäreiden saastunut lima+rotta -yhdistelmä; kaappaa "
+                 "ihmisiä (esim. pajojen oppipoikia)."),
+    },
+    "tainted_gear": {
+        "name": "Myrkylliset varusteet (rune plates)", "hub": "Rivet Row",
+        "desc": ("Epäilyttävän halvat riimulevyt ovat Vortex-jätteen "
+                 "saastuttamia: hetkellistä tehoa, mutta kutsuvat "
+                 "Vortex-hirviöitä."),
+    },
+}
+
+
+# =========================================================
+# TIER-PROGRESSIO: APURIT
+# =========================================================
+TIER_MANAGERS = {
+    0: "bram_mudhand",
+    1: "sera_quench",
+}
+
+
+def get_tier_preview(lore_tier):
+    """Palauttaa tiivistelmän tierista promootionäkymää varten:
+    {"tier", "name", "keeper", "hub", "arena", "character"} tai None."""
+    t = ARENA_TIERS.get(int(lore_tier))
+    if not t:
+        return None
+    return {
+        "tier": int(lore_tier),
+        "name": t["name"],
+        "keeper": t["keeper"],
+        "hub": t["hub"],
+        "arena": t["arena"],
+        "character": t["character"],
+    }

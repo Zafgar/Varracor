@@ -733,3 +733,40 @@ class ShantyYardGate(Prop):
                 pygame.draw.ellipse(surf, (120, 90, 60), (bx, h - 70, 45, 60))
                 pygame.draw.ellipse(surf, dark, (bx, h - 70, 45, 60), 3)
             self.image = surf
+
+
+class TeamBarracks(Prop):
+    """
+    Pelaajan oma tiimitila (Team Quarters). Bram antaa nämä köyhät tilat
+    kun pelaaja liittyy Tier 0:aan. E avaa tiimivalikon (varusteet + jutut).
+    """
+    def __init__(self, x, y):
+        w, h = 380, 300
+        coll_rect = pygame.Rect(x + 20, y + h - 90, w - 40, 70)
+        super().__init__(x, y, w, h, img_path="assets/tiles/muckford/team_barracks.png",
+                         color=(70, 65, 55), collision_rect=coll_rect)
+        self.door_offset = (w // 2, h - 20)
+        self.interaction_range = 100
+        self.interaction_label = "Barracks"
+        self._draw_procedural(w, h)
+
+    def _draw_procedural(self, w, h):
+        if not self.image or self.image.get_at((0, 0)) == (70, 65, 55, 255):
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            wall = (95, 80, 62); dark = (60, 50, 40); roof = (120, 70, 55)
+            # Runko
+            pygame.draw.rect(surf, wall, (20, 90, w - 40, h - 90))
+            pygame.draw.rect(surf, dark, (20, 90, w - 40, h - 90), 4)
+            # Vino paikattu katto
+            pygame.draw.polygon(surf, roof, [(10, 95), (w - 10, 95), (w - 40, 30), (50, 45)])
+            pygame.draw.polygon(surf, dark, [(10, 95), (w - 10, 95), (w - 40, 30), (50, 45)], 3)
+            # Ovi
+            pygame.draw.rect(surf, dark, (w // 2 - 35, h - 90, 70, 90))
+            pygame.draw.rect(surf, (150, 130, 90), (w // 2 - 35, h - 90, 70, 90), 3)
+            # Ikkunat (laudoitetut)
+            for wx in (45, w - 105):
+                pygame.draw.rect(surf, (40, 45, 55), (wx, 120, 60, 50))
+                pygame.draw.line(surf, wall, (wx, 145), (wx + 60, 145), 4)
+            # Kyltti
+            pygame.draw.rect(surf, (150, 130, 90), (w // 2 - 50, 100, 100, 22))
+            self.image = surf
