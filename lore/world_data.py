@@ -118,11 +118,29 @@ ARENA_TIERS = {
     },
 }
 
+# HUOM: Tier 0:n alkiot ovat (nimi, manageri, kuvaus) -kolmikoita;
+# muut tierit toistaiseksi (nimi, kuvaus) -pareja. get_tier_teams()
+# normalisoi molemmat dict-muotoon.
 ARENA_TEAMS = {
     0: [
-        ("Shanty Yard Saints", "Muckfordin työjuhta ja kansan suosikki"),
-        ("Muckford Ratcatchers", "Rottaswarmien raivaus viemäreistä"),
-        ("Saffron Oasis Runners", "Aavikon karavaanien ja veden turvaajat"),
+        ("Shanty Yard Saints", "Mara Pikestring",
+         "Muckfordin työjuhta ja katsomon suosikki; aina paikalla, ottaa "
+         "kaikki pikkukeikat. Epäillään väärien boss-havaintojen myymisestä."),
+        ("Muckford Ratcatchers", "Old Rinna 'Net'",
+         "Rottaongelmien erikoistiimi; Hamon vahvistuspartio viemäreissä. "
+         "Epäillään rottamyrkyn laittomasta myynnistä siviileille."),
+        ("The Unclaimed Five", "'No-Name' Pell",
+         "Tuntemattomista taustoista; tekee vain riskikeikkoja. Bram inhoaa "
+         "heitä - sotkevat järjestystä, epäillään rötöksistä."),
+        ("The Ragged Lanterns", "Toma Vale",
+         "Heartlandsin pelastuskeikat; Saint Lumen Field Hospice tukee, "
+         "koska tuovat kadonneita elossa takaisin."),
+        ("Croak & Dagger", "-",
+         "Sammakko-humanoidien tiimi: ansojen purku, tiedustelu ja "
+         "tiedonmyynti. Laittoman tarkkoja Vortex-karttoja."),
+        ("The Siltbound", "-",
+         "Suo- ja mutabossien jäljittäjät; jatkuvat temppelilaskut "
+         "loistartunnoista ja infektioista."),
     ],
     1: [
         ("Rattlebridge Runners", "Kurinalainen ja puhdas; helppo markkinoida"),
@@ -493,4 +511,94 @@ ECONOMY = {
         "major_boss": (0.1, 0.4, "PL"),
         "vortex_target": (1, 10, "HC"),
     },
+}
+
+
+def get_tier_teams(lore_tier):
+    """Palauttaa tierin tiimit normalisoituina dictteinä:
+    {"name", "manager", "desc"}. Tukee sekä (nimi, kuvaus)- että
+    (nimi, manageri, kuvaus) -muotoja."""
+    out = []
+    for entry in ARENA_TEAMS.get(int(lore_tier), []):
+        if len(entry) == 3:
+            name, manager, desc = entry
+        else:
+            name, desc = entry
+            manager = None
+        out.append({"name": name, "manager": manager, "desc": desc})
+    return out
+
+
+# =========================================================
+# TIER 0 / MUCKFORD - PAIKALLISKAANON
+# =========================================================
+TIER0_CHARACTERS = {
+    "bram_mudhand": {
+        "name": 'Bram "Mudhand" Carrow', "race": "Dwarf",
+        "role": ("Koko Tier 0 -verkoston manageri. Käytännöllinen selviytyjä: "
+                 "likaiset arpiset kädet, nahkaesiliina. Pyörittää järjestelmän "
+                 "sisääntuloporttia - rekisteröintimaksut ja velkakontrolli."),
+    },
+    "marda_shant": {
+        "name": "Marda Shant", "race": "Human",
+        "role": ("The Sunk Caskin pitäjä ja Shanty Consortiumin epävirallinen "
+                 "velkakirjuri. Äkäinen, laskelmoiva; pieni nuija 'rauhoitteluun'. "
+                 "Velkakirjat kassakaapissa - voisi kiristää puolta kaupunkia."),
+    },
+    "rhea_ashford": {
+        "name": "Sister-Medic Rhea Ashford", "race": "Human",
+        "role": ("Saint Lumen Field Hospicen johtaja Muckfordin laitamilla. "
+                 "Hoitaa areena- ja kenttäloukkaantuneet; tiukka "
+                 "Vortex-altistuneiden eristämisessä tautien takia."),
+    },
+    "hamo": {
+        "name": "Hamo", "race": "Goblin",
+        "role": ("Bounty broker - tietoa ja palkkiotehtäviä areenojen "
+                 "liepeillä. Muckfordissa maksaa rottien hännistä ja "
+                 "varhaisista boss-havainnoista."),
+    },
+}
+
+TIER0_PLACES = {
+    "shanty_yard": {
+        "name": "Shanty Yard",
+        "desc": ("Muckfordin mutainen piha-areena; katsomot romusta ja "
+                 "tynnyreistä."),
+        "hazards": ["Slick Mud Lanes (liukkaat mutakaistat)",
+                    "Rot Planks (lahot, pettävät laudat)",
+                    "Katsomo heittelee satunnaisesti romua kentälle"],
+    },
+    "sunk_cask": {
+        "name": "The Sunk Cask",
+        "motto": "Täällä allekirjoitat sopimuksen, tai sinut allekirjoitetaan.",
+        "menu": ["Mud-Stew (halpa juuresmuhennos)",
+                 "Sour Ale (laimea olut)",
+                 "Ratpot Pie (sisällöstä vitsaillaan synkästi)"],
+        "desc": "Kaupungin tärkein majatalo ja värväyskeskus.",
+    },
+    "saint_lumen": {
+        "name": "Saint Lumen Field Hospice",
+        "desc": ("Hätätemppeli Muckfordin laitamilla; areenahaavat, "
+                 "kenttäevakuoinnit ja Vortex-altistuneiden karanteeni."),
+    },
+}
+
+TIER0_THREATS = {
+    "rat_armies": {
+        "name": "Muckford Rat-Armies", "threat_class": "S2",
+        "desc": ("Viemäreistä nousevat loputtomat rottaswarmit: taudit ja "
+                 "ruokavarastojen tyhjennys. Silmät hohtavat nykyään "
+                 "violetteina - syövät Vortex-jätettä ja muuttuvat "
+                 "vaarallisemmiksi."),
+    },
+    "rat_king": {
+        "name": "The Rat King of Muckford", "rank": "C",
+        "type": "Abyssal Echo",
+        "desc": "Rottalaumojen johtaja; Muckfordin suurin jatkuva kriisi.",
+    },
+}
+
+# Hamon ostohinnat (parempi kuin markkinat - siksi hänet kannattaa etsiä)
+HAMO_BOUNTIES = {
+    "Rat Tail": 4,   # markkinahinta 2
 }

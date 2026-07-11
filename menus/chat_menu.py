@@ -222,6 +222,31 @@ class ChatMenu(BaseMenu):
                 except Exception: pass
                 print(f"[Debt] Paid {debt} gold to Marda (+3 reputation)")
 
+        # "hamo_sell_tails" -> Hamo ostaa kaikki rotanhännät bounty-hintaan
+        elif command == "hamo_sell_tails":
+            from lore.world_data import HAMO_BOUNTIES
+            price = HAMO_BOUNTIES.get("Rat Tail", 4)
+            count = int(self.manager.inventory.get("Rat Tail", 0))
+            if count > 0:
+                self.manager.inventory.pop("Rat Tail", None)
+                total = count * price
+                self.manager.gold += total
+                # Maine: +1 per 5 häntää (Consortium arvostaa tuholaistorjuntaa)
+                rep = count // 5
+                if rep:
+                    try:
+                        from quest_system import quest_manager
+                        quest_manager.add_reputation(rep)
+                        self.manager.reputation = quest_manager.reputation
+                    except ImportError:
+                        pass
+                try:
+                    from sound_manager import sound_system
+                    sound_system.play_sound("coin")
+                except Exception:
+                    pass
+                print(f"[Hamo] Bought {count} Rat Tails for {total} gold (+{rep} rep)")
+
         # "clear_reaction" -> Nollaa NPC:n reaktion (esim. taistelun jälkeen)
         elif command == "clear_reaction":
             try:

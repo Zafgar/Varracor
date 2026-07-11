@@ -74,7 +74,9 @@ class HospitalMenu(BaseMenu):
         screen.fill((15, 15, 20))
         self.btn_back.draw(screen)
         self.btn_heal_all.draw(screen)
-        draw_text("TEMPLE & TRAINING", font_title, WHITE, screen, 400, 50)
+        draw_text("SAINT LUMEN FIELD HOSPICE", font_title, WHITE, screen, 400, 50)
+        draw_text("Sister-Medic Rhea Ashford - \"Arena wounds heal. Vortex taint gets quarantined.\"",
+                  font_small, GRAY, screen, 400, 88)
         draw_text(f"Funds: {format_money(self.manager.gold)}", font_title, GOLD_COLOR, screen, 20, 100)
         
         char_y = 150

@@ -976,6 +976,7 @@ class TavernMenu(BaseMenu):
         if not self.show_recruit_list:
             self.btn_back.draw(screen)
             draw_text(self.tavern_name.upper(), font_title, GOLD_COLOR, screen, 200, 50)
+            draw_text('"Sign the contract, or be signed away."', font_small, GRAY, screen, 200, 92)
         
         # Recruit Overlay
         if self.show_recruit_list:

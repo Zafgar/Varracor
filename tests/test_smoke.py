@@ -58,3 +58,31 @@ def test_dialogue_event_handling(manager):
     ev = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE)
     assert manager.handle_dialogue_event(ev) is True
     assert manager.active_dialogue is None
+
+
+def test_tier0_lore_integration():
+    """Tier 0 -kaanon: 6 tiimiä managereineen kytkeytyy liigaan."""
+    from lore.world_data import get_tier_teams, TIER0_CHARACTERS, HAMO_BOUNTIES
+    teams = get_tier_teams(0)
+    assert len(teams) == 6
+    assert teams[0]["manager"] == "Mara Pikestring"
+    assert "hamo" in TIER0_CHARACTERS
+    assert HAMO_BOUNTIES["Rat Tail"] > 0
+
+    from leagues.league_data import generate_league_teams
+    league = generate_league_teams(1)  # game tier 1 = lore tier 0
+    names = [t.name for t in league]
+    assert "Shanty Yard Saints" in names
+    assert "The Siltbound" in names
+
+
+def test_hamo_dialogue_and_bounty(manager):
+    """Hamo aukeaa ja ostaa rotanhännät bounty-hintaan."""
+    from quest_system import quest_manager
+    manager.inventory["Rat Tail"] = 7
+    menu = manager.open_dialogue("hamo")
+    assert menu is not None
+    gold0 = manager.gold
+    menu.apply_effect("hamo_sell_tails")
+    assert manager.gold == gold0 + 7 * 4
+    assert manager.inventory.get("Rat Tail", 0) == 0
