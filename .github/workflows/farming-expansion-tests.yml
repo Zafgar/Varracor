@@ -60,19 +60,15 @@ jobs:
             items/tools/harvest_tools.py \
             menus/barracks_menu.py \
             skills/commander_skills_data.py \
-            tests/test_farming_expansion.py \
-            tests/test_farming_content.py \
-            tests/test_farming_stations.py
+            tests/test_farming_*.py
 
       - name: Run farming tests
         id: farming_pytest
         shell: bash
         run: |
           set +e
-          python -m pytest -q --tb=short \
-            tests/test_farming_expansion.py \
-            tests/test_farming_content.py \
-            tests/test_farming_stations.py 2>&1 | tee farming-test-output.txt
+          python -m pytest -q --tb=short tests/test_farming_*.py \
+            2>&1 | tee farming-test-output.txt
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
