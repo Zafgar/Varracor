@@ -192,3 +192,24 @@ class SunleafRestorative(Potion):
             caster.injured = False
             caster.injury_severity = None
         return caster.current_hp > before or (was_injured and not caster.injured)
+
+
+class IronstemFortifier(Potion):
+    display_name = "Ironstem Fortifier"
+    description_text = "Restores 20% health and 35% stamina."
+    bottle_color = (108, 122, 110)
+    rarity_name = "Rare"
+    price = 62
+    image_path = "assets/items/potions/ironstem_fortifier.png"
+
+    def apply_effect(self, caster, manager):
+        max_hp = max(1, int(getattr(caster, "max_hp", 1)))
+        max_stamina = max(1, int(getattr(caster, "max_stamina", 1)))
+        old_hp = float(getattr(caster, "current_hp", 0))
+        old_stamina = float(getattr(caster, "current_stamina", 0))
+        caster.current_hp = min(max_hp, old_hp + max(1, int(max_hp * 0.20)))
+        caster.current_stamina = min(
+            max_stamina,
+            old_stamina + max(1, int(max_stamina * 0.35)),
+        )
+        return caster.current_hp > old_hp or caster.current_stamina > old_stamina
