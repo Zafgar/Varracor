@@ -127,10 +127,18 @@ class Gladiator(pygame.sprite.Sprite):
         self.status_effects = []
         self.traits = []
 
+        # --- RACIAL ABILITIES ---
+        self.is_invisible = False      # Goblin Shadowstep
+        self.invis_timer = 0
+        self.revealed = False          # See Invisibility paljastaa
+        self.reveal_timer = 0
+        self.stoneform_timer = 0       # Dwarf Stoneform (-50% vahinko)
+        self.speed_buff_timer = 0      # Elf Wind Dance (+40% nopeus)
+        self.racial_cooldown = 0
+
         # --- SKILL FLAGS ---
         self.has_executioner = False
         self.has_second_wind = False
-        self.has_steady_draw = False
         self.has_steady_draw = False # Estää jousen jännityksen staggeroinnin
         self.second_wind_triggered = False
 
@@ -957,6 +965,7 @@ class Gladiator(pygame.sprite.Sprite):
 
         self.attack_cooldown = self.attack_speed
         self.current_stamina = max(0, self.current_stamina - final_cost)
+        self._break_invisibility(manager)  # Hyökkäys paljastaa
 
         # --- HITBOX CHECK (UUSI) ---
         hit_targets = []
@@ -1173,9 +1182,14 @@ class Gladiator(pygame.sprite.Sprite):
                     manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20, "Block")
                 return 0
 
+        # Stoneform: -50% kaikesta vahingosta
+        if self.stoneform_timer > 0:
+            amount = int(amount * 0.5)
+
         final = max(1, int(amount) - int(self.defense))
         self.current_hp -= final
-        
+        self._break_invisibility(manager)  # Osuma paljastaa
+
         # --- HIT STUN & ANIMATION (Vasta kun vahinko on varma) ---
         # Vain jos ei immuniteettia
         if self.stun_immunity <= 0:
@@ -1329,7 +1343,25 @@ class Gladiator(pygame.sprite.Sprite):
         if self.current_mana < self.max_mana:
             self.current_mana += self.mana_regen
 
+        # --- RACIAL TIMERS ---
+        if self.racial_cooldown > 0: self.racial_cooldown -= 1
+        if self.stoneform_timer > 0: self.stoneform_timer -= 1
+        if self.speed_buff_timer > 0: self.speed_buff_timer -= 1
+        if self.reveal_timer > 0:
+            self.reveal_timer -= 1
+            if self.reveal_timer <= 0:
+                self.revealed = False
+        if self.is_invisible:
+            self.invis_timer -= 1
+            if self.invis_timer <= 0:
+                self._break_invisibility()
+            elif self.image:
+                try: self.image.set_alpha(70 if not self.revealed else 150)
+                except Exception: pass
+
         current_speed = self.walk_speed
+        if self.is_invisible: current_speed *= 1.3   # Shadowstep
+        if self.speed_buff_timer > 0: current_speed *= 1.4  # Wind Dance
         if self.is_dashing:
             current_speed = self.walk_speed * self.dash_speed_mult
             move_x = self.dash_vector[0] * current_speed
@@ -1645,6 +1677,7 @@ class Gladiator(pygame.sprite.Sprite):
 
             if success:
                 self.spell_cooldowns[slot] = int(getattr(spell, "cooldown_max", 60))
+                self._break_invisibility(manager)  # Loitsu paljastaa
                 return True
         return False
 
@@ -1684,6 +1717,86 @@ class Gladiator(pygame.sprite.Sprite):
     def clear_level_up_flag(self):
         self.just_leveled_up = False
         self._level_up_timer = 0
+
+    # =========================================================
+    # RACIAL ABILITIES
+    # =========================================================
+    RACIAL_INFO = {
+        "Goblin": ("Shadowstep", "Näkymättömyys + nopeus; toiminta tai osuma rikkoo"),
+        "Dwarf": ("Stoneform", "-50% vahinko 4s; puhdistaa stunit ja efektit"),
+        "Human": ("Adrenaline Rush", "Palauttaa staminaa ja hyökkäys heti valmis"),
+        "Elf": ("Wind Dance", "+40% nopeus 4s ja syöksyt takaisin"),
+    }
+
+    def get_racial_info(self):
+        """Palauttaa (nimi, kuvaus) tai None jos rodulla ei ole kykyä."""
+        return self.RACIAL_INFO.get(self.race_name)
+
+    def use_racial_ability(self, manager=None):
+        """Aktivoi rodun erikoiskyvyn. Palauttaa True jos aktivoitui."""
+        if self.racial_cooldown > 0 or self.is_dead:
+            return False
+        race = self.race_name
+        # Stun estää muut kyvyt paitsi Dwarfin Stoneformin, joka nimenomaan
+        # puhdistaa stunin (hätäkyky).
+        if self.stun_timer > 0 and race != "Dwarf":
+            return False
+
+        if race == "Goblin":
+            # Kesto skaalautuu tasolla: 2s + 0.2s/lvl
+            self.is_invisible = True
+            self.revealed = False
+            self.invis_timer = 120 + self.level * 12
+            self.racial_cooldown = 1500  # 25s
+            if manager:
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
+                                        "*poof*", color=(160, 160, 200))
+            return True
+
+        if race == "Dwarf":
+            self.stoneform_timer = 240  # 4s
+            self.stun_timer = 0
+            self.status_effects = [e for e in self.status_effects
+                                   if e.get("type") not in ("Burn", "Bleed", "Poison", "Slow")]
+            self.racial_cooldown = 1800  # 30s
+            if manager:
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
+                                        "STONEFORM!", color=(150, 150, 160))
+            return True
+
+        if race == "Human":
+            self.current_stamina = min(self.max_stamina, self.current_stamina + 40)
+            self.attack_cooldown = 0
+            self.racial_cooldown = 1500
+            if manager:
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
+                                        "ADRENALINE!", color=(255, 220, 100))
+            return True
+
+        if race == "Elf":
+            self.speed_buff_timer = 240  # 4s, +40% nopeus updatessa
+            self.current_dashes = self.max_dashes
+            self.dash_recharge_timer = 0
+            self.racial_cooldown = 1500
+            if manager:
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
+                                        "WIND DANCE!", color=(150, 255, 200))
+            return True
+
+        return False
+
+    def _break_invisibility(self, manager=None):
+        if self.is_invisible:
+            self.is_invisible = False
+            self.invis_timer = 0
+            if self.image:
+                try: self.image.set_alpha(255)
+                except Exception: pass
+
+    def reveal(self, duration=180):
+        """See Invisibility -kyky paljastaa tämän yksikön kaikille."""
+        self.revealed = True
+        self.reveal_timer = max(self.reveal_timer, duration)
 
     def apply_status(self, type, duration, damage=0):
         self.status_effects.append({"type": type, "timer": duration, "dmg": damage})

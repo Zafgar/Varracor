@@ -608,6 +608,13 @@ class Commander(Gladiator):
             self.perform_dash(dx, dy)
             if self.is_dashing: return
 
+        # RACIAL ABILITY (R) - kerran painallusta kohti
+        if keys[pygame.K_r] and not self.prev_keys[pygame.K_r]:
+            if self.racial_cooldown <= 0:
+                self.use_racial_ability(manager)
+            else:
+                sound_system.play_sound("error")
+
         # SPELL SELECTION (Toggle logic 1-4)
         # Apufunktio tarkistamaan painettiinko nappia juuri nyt
         def check_toggle(key_code, slot_name):
@@ -749,10 +756,44 @@ class Commander(Gladiator):
         
         return False
 
+    def _draw_racial_indicator(self, screen):
+        """Pieni [R]-kykyindikaattori (rotukyky) HUDin vasemmassa alakulmassa."""
+        info = self.get_racial_info()
+        if not info:
+            return
+        name = info[0]
+        w, h = screen.get_size()
+        x, y, size = 24, h - 96, 64
+        ready = self.racial_cooldown <= 0
+        active = (self.is_invisible or self.stoneform_timer > 0
+                  or self.speed_buff_timer > 0)
+
+        border = (255, 220, 120) if ready else (90, 90, 100)
+        if active:
+            border = (120, 255, 160)
+        pygame.draw.rect(screen, (20, 20, 28), (x, y, size, size), border_radius=8)
+        pygame.draw.rect(screen, border, (x, y, size, size), 3, border_radius=8)
+
+        # Cooldown-varjostus alhaalta ylös
+        if not ready:
+            frac = min(1.0, self.racial_cooldown / 1500.0)
+            sh = int(size * frac)
+            shade = pygame.Surface((size, sh), pygame.SRCALPHA)
+            shade.fill((0, 0, 0, 150))
+            screen.blit(shade, (x, y + size - sh))
+            secs = self.racial_cooldown // 60 + 1
+            draw_text(str(secs), font_main, WHITE, screen, x + size // 2 - 8, y + size // 2 - 12)
+
+        draw_text("R", font_main, border, screen, x + 4, y + 2)
+        key_font = pygame.font.SysFont("Arial", 11)
+        label = key_font.render(name, True, (200, 200, 210))
+        screen.blit(label, (x + size // 2 - label.get_width() // 2, y + size + 3))
+
     def draw_hud(self, screen):
         """Piirtää Commanderin käyttöliittymän (Bars + Quickbar)."""
         w, h = screen.get_size()
         time_ms = pygame.time.get_ticks()
+        self._draw_racial_indicator(screen)
         
         # Uudet mitat käyttäjän toiveiden mukaan (506x578 aspect ratio)
         slot_w = 90 

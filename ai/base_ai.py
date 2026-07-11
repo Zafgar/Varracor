@@ -55,7 +55,10 @@ class BaseAI:
             self.target_last_pos.clear()
 
         target = self.current_target
-        
+
+        # 1.4 RACIAL ABILITY (AI-käyttö tilanteen mukaan)
+        self._maybe_use_racial(target, manager)
+
         # 1.5 RETREAT LOGIC (Low HP) - Pakeneminen menee kaiken edelle
         # Jos HP < 20% ja staminaa on, yritä paeta hetkeksi
         # (no_retreat-lippu ohittaa: esim. raivostunut Orc ei pakene)
@@ -427,6 +430,54 @@ class BaseAI:
                 
                 self.navigate_to(target.rect.center, obstacles, all_units, manager)
 
+    def _maybe_use_racial(self, target, manager):
+        """Käyttää rodun erikoiskyvyn kun tilanne on otollinen."""
+        u = self.unit
+        if getattr(u, "racial_cooldown", 1) > 0:
+            return
+        race = getattr(u, "race_name", "")
+        hp_pct = u.current_hp / max(1, u.max_hp)
+        try:
+            # See Invisibility: jos huomasi vihollisen katoavan, paljasta
+            # lähellä olevat näkymättömät viholliset (kaikki näkevät ne).
+            if getattr(self, "_saw_invisible", False) and manager:
+                revealed_any = False
+                for other in manager.all_units:
+                    if (getattr(other, "is_invisible", False)
+                            and not getattr(other, "revealed", False)
+                            and getattr(other, "team_color", None) != u.team_color):
+                        d = math.hypot(other.rect.centerx - u.rect.centerx,
+                                       other.rect.centery - u.rect.centery)
+                        if d < 400:
+                            other.reveal()
+                            revealed_any = True
+                if revealed_any:
+                    manager.vfx.show_damage(u.rect.centerx, u.rect.top - 30,
+                                            "SPOTTED!", color=(255, 255, 120))
+                    self._saw_invisible = False
+
+            if race == "Dwarf":
+                # Stoneform kun matala HP tai kärsii efekteistä/stunista
+                if hp_pct < 0.5 or u.status_effects or u.stun_timer > 0:
+                    u.use_racial_ability(manager)
+            elif race == "Goblin":
+                # Shadowstep kun matala HP (pakoon/repositioon)
+                if hp_pct < 0.45:
+                    u.use_racial_ability(manager)
+            elif race == "Human":
+                # Adrenaline kun stamina loppumassa lähitaistelussa
+                if u.current_stamina < 20 and target:
+                    d = math.hypot(target.rect.centerx - u.rect.centerx,
+                                   target.rect.centery - u.rect.centery)
+                    if d < 120:
+                        u.use_racial_ability(manager)
+            elif race == "Elf":
+                # Wind Dance kun matala HP (kiting/pakoliike)
+                if hp_pct < 0.5:
+                    u.use_racial_ability(manager)
+        except Exception:
+            pass
+
     def _find_cover_point(self, threat, obstacles, max_dist=300):
         """Etsii pisteen lähimmän ammukset pysäyttävän esteen takaa
         (uhkaan nähden vastakkaiselta puolelta). None jos ei sovi."""
@@ -466,26 +517,34 @@ class BaseAI:
         my_team = getattr(self.unit, "team_color", None)
         mx, my = self.unit.rect.center
         
+        saw_invisible = False
         for other in all_units:
             if other == self.unit or getattr(other, "is_dead", False): continue
             if getattr(other, "is_structure", False): continue
             if my_team and getattr(other, "team_color", None) == my_team: continue
-            
+
+            # Näkymätöntä ei voi kohdentaa (paitsi jos se on paljastettu)
+            if getattr(other, "is_invisible", False) and not getattr(other, "revealed", False):
+                if math.hypot(other.rect.centerx - mx, other.rect.centery - my) < 400:
+                    saw_invisible = True
+                continue
+
             ox, oy = other.rect.center
             d = math.hypot(ox - mx, oy - my)
-            
+
             score = -d
             if other.current_hp < other.max_hp * 0.3:
-                score += 150 
-                
+                score += 150
+
             # --- TEAMWORK: Suojele pelaajaa ---
             if manager and manager.player_character and self.unit.team_color == manager.player_character.team_color:
                 if other in manager.player_character.attackers:
                     score += 200 # Korkea prioriteetti komentajan kimppuun käyville
-            
+
             if score > best_score:
                 best_score = score
                 best = other
+        self._saw_invisible = saw_invisible
         return best
 
     def navigate_to(self, target_pos, obstacles, all_units, manager):

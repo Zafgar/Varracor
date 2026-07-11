@@ -352,3 +352,93 @@ def test_cover_point_found(manager):
     d_cover = math.hypot(cover[0] - threat.rect.centerx, cover[1] - threat.rect.centery)
     d_wall = math.hypot(490 - threat.rect.centerx, 500 - threat.rect.centery)
     assert d_cover > d_wall
+
+
+def test_goblin_invisibility_and_break(manager):
+    """Goblin Shadowstep tekee näkymättömäksi; hyökkäys ja osuma rikkovat."""
+    from units.goblin import Goblin
+    from units.human import Human
+
+    gob = Goblin("Sneak", 300, 500, PLAYER_TEAM)
+    assert gob.get_racial_info() is not None
+    assert gob.use_racial_ability(manager) is True
+    assert gob.is_invisible is True
+    assert gob.racial_cooldown > 0
+    # Cooldown estää uusinnan
+    assert gob.use_racial_ability(manager) is False
+
+    # Osuma paljastaa (rikkoo näkymättömyyden)
+    gob.take_damage(5, "Physical", attacker=Human("X", 0, 0, ENEMY_TEAM), manager=manager)
+    assert gob.is_invisible is False
+
+    # Uusi näkymättömyys, hyökkäys rikkoo
+    gob.racial_cooldown = 0
+    gob.stun_timer = 0  # osuma saattoi stunata
+    gob.use_racial_ability(manager)
+    assert gob.is_invisible is True
+    foe = Human("Foe", 320, 500, ENEMY_TEAM)
+    manager.all_units.add(gob, foe)
+    gob.attack_cooldown = 0
+    gob.current_stamina = 100
+    gob.perform_attack(foe, manager=manager)
+    assert gob.is_invisible is False, "hyokkays ei rikkonut nakymattomyytta"
+
+
+def test_invisible_untargetable_until_revealed(manager):
+    """AI ei kohdista näkymätöntä; reveal palauttaa targetoinnin."""
+    from units.human import Human
+    from units.goblin import Goblin
+
+    hunter = Human("Hunter", 300, 500, PLAYER_TEAM)
+    gob = Goblin("Ghost", 400, 500, ENEMY_TEAM)
+    manager.all_units.add(hunter, gob)
+
+    gob.use_racial_ability(manager)
+    assert gob.is_invisible
+    t = hunter.ai_controller.find_best_target(list(manager.all_units), manager)
+    assert t is None, "nakymaton ei saisi olla kohdennettavissa"
+    assert hunter.ai_controller._saw_invisible is True
+
+    gob.reveal()
+    t2 = hunter.ai_controller.find_best_target(list(manager.all_units), manager)
+    assert t2 is gob, "paljastettu pitaa olla kohdennettavissa"
+
+
+def test_dwarf_stoneform_halves_damage_and_cleanses(manager):
+    """Dwarf Stoneform puolittaa vahingon ja puhdistaa stunit/efektit."""
+    from units.human import Human
+
+    dwarf = Human("Durin", 300, 500, PLAYER_TEAM)
+    dwarf.race_name = "Dwarf"
+    dwarf.defense = 0
+    dwarf.apply_status("Burn", 120, damage=2)
+    dwarf.stun_timer = 20
+    assert dwarf.use_racial_ability(manager) is True
+    assert dwarf.stun_timer == 0
+    assert not dwarf.has_status("Burn")
+
+    hp0 = dwarf.current_hp
+    dwarf.stun_immunity = 999
+    dwarf.take_damage(40, "Physical", manager=manager)
+    dmg_stone = hp0 - dwarf.current_hp
+
+    dwarf.stoneform_timer = 0
+    dwarf.current_hp = hp0
+    dwarf.stun_immunity = 999
+    dwarf.take_damage(40, "Physical", manager=manager)
+    dmg_normal = hp0 - dwarf.current_hp
+    assert dmg_stone < dmg_normal, (dmg_stone, dmg_normal)
+
+
+def test_elf_wind_dance_speed(manager):
+    """Elf Wind Dance nostaa liikenopeutta hetkeksi."""
+    from units.human import Human
+
+    elf = Human("Legolas", 300, 500, PLAYER_TEAM)
+    elf.race_name = "Elf"
+    elf.use_racial_ability(manager)
+    assert elf.speed_buff_timer > 0
+
+    elf.stun_timer = 0
+    elf.update(None, manager=manager)
+    assert elf.speed > elf.walk_speed  # buffi voimassa
