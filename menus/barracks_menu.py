@@ -100,9 +100,9 @@ class BarracksMenu(BaseMenu):
         self.btn_back.draw(screen)
 
 
-# Farming modules are installed here because main.py imports BarracksMenu after
-# MuckfordCityMenu. All class extensions are therefore active before menu
-# instances are created in main().
+# Farming and material modules are installed here because main.py imports
+# BarracksMenu before creating GameManager/menu instances. Runtime extensions
+# are therefore active for new games and save loading.
 try:
     from citys.mucford.farming_expansion import install_farming_expansion
     from citys.mucford.farming_hardening import install_farming_hardening
@@ -114,6 +114,7 @@ try:
     from citys.mucford.farming_stations_hardening import (
         install_farming_stations_hardening,
     )
+    from systems.material_integration import install_material_integration
 
     install_farming_expansion()
     install_farming_hardening()
@@ -121,5 +122,6 @@ try:
     install_farming_content_hardening()
     install_farming_stations()
     install_farming_stations_hardening()
+    install_material_integration()
 except Exception as exc:
     print(f"[FarmingExpansion] Could not install: {exc}")
