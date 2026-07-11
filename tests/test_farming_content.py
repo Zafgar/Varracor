@@ -13,9 +13,15 @@ pygame.display.set_mode((1, 1))
 from menus.barracks_menu import BarracksMenu
 import citys.mucford.farming_expansion as farming
 from citys.mucford.farming_content import HERB_DATA, POTION_RECIPES
-from items.farm_potions import BitterleafTonic, MoonpetalElixir
-from items.tools.harvest_tools import GuildHarvestScythe, IronHarvestSickle
+from items.farm_potions import (
+    BitterleafTonic,
+    IronstemFortifier,
+    MoonpetalElixir,
+)
+from items.item_registry import create_item
+from items.tools.harvest_tools import GuildHarvestScythe
 from lore.world_data import MARKET_PRICES
+from settings import SCREEN_HEIGHT, SCREEN_WIDTH
 
 
 class DummyVFX:
@@ -66,7 +72,7 @@ class DummyFighter:
         self.current_hp = 20
         self.max_mana = 80
         self.current_mana = 10
-        self.max_stamina = 90
+        self.max_stamina = 100
         self.current_stamina = 15
         self.injured = True
         self.injury_severity = "Minor"
@@ -77,12 +83,35 @@ def test_expanded_layout_has_twenty_valid_plots_and_named_herbs():
     assert getattr(BarracksMenu, "_farm_alchemy_installed", False)
     assert len(farming.PLOT_LAYOUT) == 20
     assert len(HERB_DATA) == 7
+    assert len({(col, row) for _crop, col, row in farming.PLOT_LAYOUT}) == 20
+    assert max(col for _crop, col, _row in farming.PLOT_LAYOUT) == 3
+    assert max(row for _crop, _col, row in farming.PLOT_LAYOUT) == 4
     for crop_name, _col, _row in farming.PLOT_LAYOUT:
         assert crop_name in farming.CROP_DATA
     for herb_name, herb in HERB_DATA.items():
         assert herb_name in farming.CROP_DATA
         assert herb["kind"] == "herb"
         assert herb["potion_use"]
+
+
+def test_plot_grid_fits_farm_and_leaves_eastern_apple_corridor():
+    world_w = int(SCREEN_WIDTH * 3.0)
+    world_h = int(SCREEN_HEIGHT * 3.0)
+    street_bottom = world_h // 2 + 200
+    farm = pygame.Rect(
+        100,
+        street_bottom + 50,
+        world_w // 2 - 200,
+        world_h - street_bottom - 150,
+    )
+    max_col = max(col for _crop, col, _row in farming.PLOT_LAYOUT)
+    max_row = max(row for _crop, _col, row in farming.PLOT_LAYOUT)
+    grid_right = farm.x + 1240 + max_col * (farming.CropPlot.WIDTH + 28) + farming.CropPlot.WIDTH
+    grid_bottom = farm.y + 130 + max_row * (farming.CropPlot.HEIGHT + 32) + farming.CropPlot.HEIGHT
+
+    # Apple trees begin near farm.right - 200; keep a broad worker corridor.
+    assert grid_right <= farm.right - 300
+    assert grid_bottom <= farm.bottom
 
 
 def test_market_contains_all_harvest_tools_and_water():
@@ -96,6 +125,18 @@ def test_market_contains_all_harvest_tools_and_water():
         assert MARKET_PRICES["buy"][shop_name]["class"] == class_name
     for herb_name in HERB_DATA:
         assert herb_name in MARKET_PRICES["sell"]
+
+
+def test_item_registry_creates_shop_tools_and_brewed_potions():
+    for name in (
+        "BucketWater",
+        "CrudeHarvestSickle",
+        "IronHarvestSickle",
+        "GuildHarvestScythe",
+        "Bitterleaf Tonic",
+        "Ironstem Fortifier",
+    ):
+        assert create_item(name) is not None, name
 
 
 def test_npc_harvest_places_real_product_in_city_storage_and_ledger():
@@ -145,9 +186,27 @@ def test_farm_potions_apply_effects_and_are_consumed_from_slot():
     assert fighter.current_mana == 46
     assert fighter.equipment["usable2"] is None
 
+    fortifier = IronstemFortifier()
+    fighter.equipment["usable"] = fortifier
+    hp_before = fighter.current_hp
+    stamina_before = fighter.current_stamina
+    assert fortifier.cast(fighter)
+    assert fighter.current_hp > hp_before
+    assert fighter.current_stamina > stamina_before
+    assert fighter.equipment["usable"] is None
+
+
+def test_every_named_herb_is_used_by_a_real_potion_recipe():
+    used_ingredients = {
+        ingredient
+        for recipe in POTION_RECIPES.values()
+        for ingredient in recipe["ingredients"]
+    }
+    assert set(HERB_DATA).issubset(used_ingredients)
+
 
 def test_every_alchemy_recipe_builds_a_concrete_potion():
-    assert len(POTION_RECIPES) >= 5
+    assert len(POTION_RECIPES) >= 6
     for recipe in POTION_RECIPES.values():
         potion = recipe["factory"]()
         assert potion.type == "potion"
