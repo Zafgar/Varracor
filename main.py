@@ -48,6 +48,7 @@ from minigames.crown_knives import CrownKnivesMenu
 from menus.test_menu import TestMenu
 from menus.options_menu import OptionsMenu
 from menus.barracks_menu import BarracksMenu
+from menus.notice_board_menu import NoticeBoardMenu
 from menus.market_menu import MarketMenu
 
 pygame.init()
@@ -114,6 +115,7 @@ def main():
         "test_arena": TestMenu(manager),
         "options": OptionsMenu(manager),
         "barracks": BarracksMenu(manager),
+        "notice_board": NoticeBoardMenu(manager),
         "market": MarketMenu(manager)
     }
     
@@ -140,6 +142,7 @@ def main():
         "test_arena": TestMenu,
         "options": OptionsMenu,
         "barracks": BarracksMenu,
+        "notice_board": NoticeBoardMenu,
         "market": MarketMenu,
         "tavern_sunk_cask": TavernMenu,
         "muckford_city": MuckfordCityMenu,
@@ -154,7 +157,7 @@ def main():
         "prepare", "mission_prepare", "loading", "manager_menu",
         "commander_skills", "workshop_locations", "sponsors", "reputation",
         "magic_school", "necro_school", "shop_locations", "city_storage",
-        "muckford_intro", "test_arena", "options", "market", "barracks",
+        "muckford_intro", "test_arena", "options", "market", "barracks", "notice_board",
     }
 
     # Luodaan uusi PAITSI jos tullaan näistä tiloista (tila säilyy)

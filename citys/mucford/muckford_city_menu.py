@@ -308,7 +308,7 @@ class MuckfordCityMenu(BaseMenu):
             pygame.draw.rect(screen, (110, 130, 85), fr, 2, border_radius=4)
 
         # Kohteet: (objekti/rect, väri, nimi)
-        from assets.tiles.muckford_objects import TownHall, MuckfordStall, Smeltery, Well, ChickenCoop, ShantyYardGate, TeamBarracks
+        from assets.tiles.muckford_objects import TownHall, MuckfordStall, Smeltery, Well, ChickenCoop, ShantyYardGate, TeamBarracks, NoticeBoard
         from assets.tiles.farm_objects import FarmStorage, ManurePile
         markers = []
         if getattr(self, "tavern_house", None):
@@ -325,7 +325,8 @@ class MuckfordCityMenu(BaseMenu):
                                     (FarmStorage, (170, 140, 90), "Storage"),
                                     (ManurePile, (130, 110, 70), "Compost"),
                                     (ShantyYardGate, (170, 45, 45), "Shanty Yard (League)"),
-                                    (TeamBarracks, (70, 170, 90), "Team Quarters")):
+                                    (TeamBarracks, (70, 170, 90), "Team Quarters"),
+                                    (NoticeBoard, (220, 200, 150), "Notice Board")):
                 if isinstance(prop, cls) and label not in seen:
                     seen.add(label)
                     markers.append((prop.rect, col, label))
@@ -513,6 +514,14 @@ class MuckfordCityMenu(BaseMenu):
                 self.stage = prop
                 break
 
+        # Ilmoitustaulu talteen (kylätehtävät)
+        self.notice_board = None
+        from assets.tiles.muckford_objects import NoticeBoard
+        for prop in self.arena.props:
+            if isinstance(prop, NoticeBoard):
+                self.notice_board = prop
+                break
+
         # Rivaalitiimien gladiaattoreita lorvimassa kaupungissa (liikkuvat,
         # asenteellinen dialogi). Merkitään ne rival_infolla.
         self.rival_units = []
@@ -654,6 +663,15 @@ class MuckfordCityMenu(BaseMenu):
                     if math.hypot(self.player.rect.centerx - door_x,
                                   self.player.rect.bottom - door_y) < 110:
                         self.next_state = "barracks"
+                        sound_system.play_sound('click')
+                        return
+
+                # Notice Board -> kylätehtävät
+                board = getattr(self, "notice_board", None)
+                if board:
+                    if math.hypot(self.player.rect.centerx - board.rect.centerx,
+                                  self.player.rect.bottom - board.rect.bottom) < 100:
+                        self.next_state = "notice_board"
                         sound_system.play_sound('click')
                         return
 
@@ -1364,6 +1382,8 @@ class MuckfordCityMenu(BaseMenu):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 30, "E", offset, "Enter Shanty Yard (League)")
                 elif prop is getattr(self, "barracks", None):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 30, "E", offset, "Team Quarters")
+                elif prop is getattr(self, "notice_board", None):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 20, "E", offset, "Notice Board")
                 elif isinstance(prop, MuckfordStall):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Trade")
                 elif isinstance(prop, AppleTree):
@@ -2086,6 +2106,17 @@ class MuckfordCityMenu(BaseMenu):
         barracks = getattr(self, "barracks", None)
         if barracks:
             pois.append((barracks.rect.centerx, barracks.rect.top - 20, "barracks"))
+        board = getattr(self, "notice_board", None)
+        if board:
+            # Ikoni: ! jos on lunastettavaa tai uutta tarjolla, muuten ?
+            vt = self.manager.village_tasks
+            kind = "notice"
+            if vt:
+                if any(t.status == "ready_turnin" for t in vt.active_tasks()):
+                    kind = "notice_ready"
+                elif vt.available_for(self.manager.reputation):
+                    kind = "notice_new"
+            pois.append((board.rect.centerx, board.rect.top - 15, kind))
 
         # Taverna (muki) ja seppä (alasin) ovien kohdalle
         if getattr(self, "tavern_house", None):
@@ -2140,6 +2171,20 @@ class MuckfordCityMenu(BaseMenu):
                                 [(sx - 10, sy - 31), (sx + 10, sy - 31), (sx + 10, sy - 13), (sx, sy - 3), (sx - 10, sy - 13)])
             pygame.draw.line(screen, (230, 230, 210), (sx, sy - 28), (sx, sy - 8), 2)
             pygame.draw.line(screen, (230, 230, 210), (sx - 6, sy - 20), (sx + 6, sy - 20), 2)
+        elif kind in ("notice", "notice_new", "notice_ready"):
+            # Ilmoitustaulu: ruskea lappu, jonka päällä ! (uutta/lunastettavaa) tai ?
+            pygame.draw.rect(screen, (0, 0, 0), (sx - 9, sy - 30, 20, 24))
+            paper = (235, 225, 200)
+            pygame.draw.rect(screen, paper, (sx - 10, sy - 31, 20, 24))
+            pygame.draw.rect(screen, (120, 90, 60), (sx - 10, sy - 31, 20, 24), 2)
+            if kind == "notice_ready":
+                mark, col = "!", (90, 200, 110)
+            elif kind == "notice_new":
+                mark, col = "!", GOLD_COLOR
+            else:
+                mark, col = "?", (150, 150, 160)
+            s = font_main.render(mark, True, col)
+            screen.blit(s, (sx - s.get_width() // 2, sy - 30))
         elif kind == "tavern":
             # Olutmuki
             pygame.draw.rect(screen, (0, 0, 0), (sx - 8, sy - 24, 18, 20), border_radius=3)

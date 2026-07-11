@@ -297,6 +297,7 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/races/swamp/frog/hurt{i}.wav` — sound_manager.py
 - `assets/races/swamp/frog/jump_{i}.wav` — sound_manager.py
 - `assets/races/swamp/frog/jump{i}.wav` — sound_manager.py
+- `assets/races/swamp/frog_smith/smith` — units/frog_smith.py
 - `assets/races/swamp/leech/attack_{i}.wav` — sound_manager.py
 - `assets/races/swamp/leech/attack{i}.wav` — sound_manager.py
 - `assets/races/swamp/leech/hurt_{i}.wav` — sound_manager.py

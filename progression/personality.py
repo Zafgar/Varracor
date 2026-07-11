@@ -58,6 +58,7 @@ RACE_WEIGHTS = {
     "Elf":    {"arrogant": 3, "grizzled": 1, "loyal": 1},
     "Dwarf":  {"grizzled": 3, "loyal": 2, "greedy": 1},
     "Human":  {"loyal": 2, "hothead": 1, "arrogant": 1, "greedy": 1, "grizzled": 1},
+    "Frogfolk": {"grizzled": 3, "loyal": 2},
 }
 
 # Taustatarinat (mistä gladiaattori tuli)

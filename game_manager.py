@@ -107,6 +107,9 @@ class GameManager:
         except Exception as e:
             print(f"Warning: VillageTaskManager failed to load: {e}")
             self.village_tasks = None
+
+        # Tiimin seppä (sammakko-seppä liittynyt) -> varusteperkit
+        self.has_smith = False
         self.current_enemy_team = None 
         self.match_mode = "1v1"
 
@@ -171,8 +174,8 @@ class GameManager:
         
         # --- NPC MEMORY ---
         self.npc_state = {
-            "global": { "reputation": self.reputation, "flags": {} }
-        } 
+            "global": { "reputation": self.reputation, "flags": {}, "deeds": [] }
+        }
 
         # --- HUB DATA ---
         self.recruit_options = []
@@ -308,6 +311,29 @@ class GameManager:
             self.reputations[faction_id] = 0
         self.reputations[faction_id] += int(amount)
         # Huom: self.reputation (Global Fame) voi olla summa näistä tai erillinen arvo
+
+    # =========================================================
+    # DEED MEMORY (kylä muistaa urotyöt)
+    # =========================================================
+    def record_deed(self, deed_id, text):
+        """Merkitsee urotyön kylän muistiin. deed_id estää duplikaatit."""
+        g = self.npc_state.setdefault("global", {})
+        deeds = g.setdefault("deeds", [])
+        if any(d.get("id") == deed_id for d in deeds):
+            return False
+        deeds.append({"id": deed_id, "text": text})
+        return True
+
+    def has_deed(self, deed_id):
+        deeds = self.npc_state.get("global", {}).get("deeds", [])
+        return any(d.get("id") == deed_id for d in deeds)
+
+    def get_deeds(self):
+        return list(self.npc_state.get("global", {}).get("deeds", []))
+
+    def latest_deed_text(self):
+        deeds = self.get_deeds()
+        return deeds[-1]["text"] if deeds else None
 
     # =========================================================
     # DIALOGUE SYSTEM

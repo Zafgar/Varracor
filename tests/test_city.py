@@ -246,3 +246,70 @@ def test_ambient_bard_event(manager):
     for _ in range(1300):
         city.update()
     assert city._event_state == "idle"
+
+
+def test_deed_memory(manager):
+    """Urotyöt muistetaan; tehtävän valmistuminen kirjaa urotyön."""
+    assert manager.record_deed("d1", "did a heroic thing")
+    assert manager.has_deed("d1")
+    assert not manager.record_deed("d1", "dup")  # ei duplikaattia
+
+    vt = manager.village_tasks
+    vt.accept("grain_haul")
+    manager.inventory["Grain Sack"] = 3
+    vt.notify_collect(manager, "grain_haul")
+    vt.try_deliver(manager, "grain_haul", "market")
+    vt.complete(manager, "grain_haul")
+    assert manager.has_deed("task_grain_haul")
+
+
+def test_frog_smith_recruit_and_fights(manager):
+    """Sammakko-seppä liittyy tehtävästä, asettaa has_smith, ja taistelee."""
+    from settings import PLAYER_TEAM, ENEMY_TEAM
+    from units.orc import Orc
+
+    vt = manager.village_tasks
+    manager.reputation = 30
+    assert vt.accept("marsh_smith")
+    manager.inventory["Void Iron"] = 2
+    assert vt.notify_collect(manager, "marsh_smith")
+    before = len(manager.my_team)
+    vt.complete(manager, "marsh_smith")
+    assert len(manager.my_team) == before + 1
+    assert manager.has_smith is True
+
+    smith = [u for u in manager.my_team if getattr(u, "is_smith", False)][0]
+    assert smith.race_name == "Frogfolk"
+    assert smith.ai_controller is not None
+
+    # Seppä taistelee liittolaisena
+    smith.rect.center = (300, 500)
+    foe = Orc("Foe", 360, 500, ENEMY_TEAM)
+    manager.match_in_progress = True
+    manager.all_units.add(smith, foe)
+    hp0 = foe.current_hp
+    for _ in range(600):
+        for u in (smith, foe):
+            if not u.is_dead:
+                u.run_combat_ai(manager.all_units, None, manager=manager)
+                u.update(None, manager=manager)
+        manager.vfx.update(obstacles=None)
+        if foe.current_hp < hp0:
+            break
+    assert foe.current_hp < hp0, "seppa ei tehnyt vahinkoa"
+
+
+def test_notice_board_in_city(manager):
+    """Ilmoitustaulu on kartalla ja E avaa sen."""
+    import pygame
+    from citys.mucford.muckford_city_menu import MuckfordCityMenu
+    from assets.tiles.muckford_objects import NoticeBoard
+
+    city = MuckfordCityMenu(manager)
+    board = next((p for p in city.arena.props if isinstance(p, NoticeBoard)), None)
+    assert board is not None
+    assert getattr(city, "notice_board", None) is board
+
+    city.player.rect.center = (board.rect.centerx, board.rect.bottom + 30)
+    city.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e))
+    assert city.next_state == "notice_board"

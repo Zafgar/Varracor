@@ -9,6 +9,7 @@ RACES = {
     'Dwarf':  {'hp_mult': 1.3, 'str_mult': 1.1, 'spd_mult': 0.7, 'defense': 3, 'resistance': 'Poison', 'weakness': 'Magic', 'desc': 'Sturdy', 'affinity': {'crossbow': 1.15, 'axe': 1.10}},
     'Undead': {'hp_mult': 1.5, 'str_mult': 0.9, 'spd_mult': 0.5, 'defense': 0, 'resistance': 'Ice', 'weakness': 'Fire', 'desc': 'Undying'},
     'Goblin': {'hp_mult': 0.6, 'str_mult': 0.8, 'spd_mult': 1.4, 'defense': 0, 'resistance': 'None', 'weakness': 'Physical', 'desc': 'Weak but fast', 'affinity': {'dagger': 1.15, 'crossbow': 1.10}},
+    'Frogfolk': {'hp_mult': 1.2, 'str_mult': 1.15, 'spd_mult': 0.95, 'defense': 2, 'resistance': 'Poison', 'weakness': 'Ice', 'desc': 'Marsh smith-warrior', 'affinity': {'mace': 1.15, 'spear': 1.10}},
     'Troll':  {'hp_mult': 2.2, 'str_mult': 1.6, 'spd_mult': 0.7, 'defense': 2, 'resistance': 'Physical', 'weakness': 'Magic', 'desc': 'Boss'},
 
 

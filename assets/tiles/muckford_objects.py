@@ -770,3 +770,39 @@ class TeamBarracks(Prop):
             # Kyltti
             pygame.draw.rect(surf, (150, 130, 90), (w // 2 - 50, 100, 100, 22))
             self.image = surf
+
+
+class NoticeBoard(Prop):
+    """
+    Ilmoitustaulu torilla. E avaa kylätehtävät (side-tasks): tarjolla
+    olevat (maineen mukaan), aktiiviset ja lunastettavat.
+    """
+    def __init__(self, x, y):
+        w, h = 120, 150
+        coll_rect = pygame.Rect(x + 10, y + h - 40, w - 20, 30)
+        super().__init__(x, y, w, h, img_path="assets/tiles/muckford/notice_board.png",
+                         color=(90, 70, 45), collision_rect=coll_rect)
+        self.door_offset = (w // 2, h - 10)
+        self.interaction_range = 90
+        self.interaction_label = "Notices"
+        self._draw_procedural(w, h)
+
+    def _draw_procedural(self, w, h):
+        if not self.image or self.image.get_at((0, 0)) == (90, 70, 45, 255):
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            post = (95, 70, 45); board = (140, 110, 70); paper = (235, 225, 200)
+            # Kaksi pylvästä
+            pygame.draw.rect(surf, post, (18, 50, 12, h - 50))
+            pygame.draw.rect(surf, post, (w - 30, 50, 12, h - 50))
+            # Taulu
+            pygame.draw.rect(surf, board, (10, 20, w - 20, 80))
+            pygame.draw.rect(surf, (70, 50, 30), (10, 20, w - 20, 80), 3)
+            # Katos
+            pygame.draw.polygon(surf, (110, 60, 45),
+                                [(4, 24), (w - 4, 24), (w - 18, 6), (18, 6)])
+            # Lappuja
+            for px, py in ((22, 34), (58, 30), (40, 60), (74, 58)):
+                pygame.draw.rect(surf, paper, (px, py, 22, 20))
+                pygame.draw.line(surf, (120, 120, 110), (px + 3, py + 6), (px + 18, py + 6), 1)
+                pygame.draw.line(surf, (120, 120, 110), (px + 3, py + 12), (px + 15, py + 12), 1)
+            self.image = surf

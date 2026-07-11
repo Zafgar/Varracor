@@ -27,6 +27,8 @@ class VillageTask:
         self.stages = data["stages"]
         self.rewards = data.get("rewards", {})
         self.rep_req = data.get("rep_req", 0)
+        # Miten kylä muistaa tämän urotyön (dialogeissa myöhemmin)
+        self.deed_text = data.get("deed_text", "")
         # Runtime
         self.status = "available"   # available, active, ready_turnin, done
         self.stage_index = 0
@@ -59,6 +61,7 @@ VILLAGE_TASKS = [
         "title": "Grain for the Mill",
         "giver": "Farmer Gus",
         "summary": "Carry 3 sacks of grain from the farm to the market stall.",
+        "deed_text": "hauled the mill's grain when Gus's back gave out",
         "rep_req": 0,
         "stages": [
             {"kind": "talk",
@@ -76,6 +79,7 @@ VILLAGE_TASKS = [
         "title": "Hospice Herbs",
         "giver": "Sister-Medic Rhea Ashford",
         "summary": "Gather 5 Bogwort from the forest for the hospice.",
+        "deed_text": "gathered healing herbs for the hospice",
         "rep_req": 0,
         "stages": [
             {"kind": "talk",
@@ -92,6 +96,7 @@ VILLAGE_TASKS = [
         "title": "The Lost Girl",
         "giver": "Marda Shant",
         "summary": "A tavern regular's daughter wandered toward the forest road.",
+        "deed_text": "found the lost girl on the forest road",
         "rep_req": 5,
         "stages": [
             {"kind": "talk",
@@ -106,10 +111,29 @@ VILLAGE_TASKS = [
                                 "name": "Wren"}},
     },
     {
+        "id": "marsh_smith",
+        "title": "The Marsh Smith",
+        "giver": "Notice Board",
+        "summary": "A Frogfolk smith is stranded in the swamp - bring back "
+                   "her lost hammer-head (Void Iron) and she'll join you.",
+        "deed_text": "brought the marsh smith Brekka into the fold",
+        "rep_req": 25,
+        "stages": [
+            {"kind": "talk",
+             "text": "Posted: Frogfolk smith seeks her stolen hammer-head. "
+                     "Reward: her services. She forges AND fights."},
+            {"kind": "collect", "item": "Void Iron", "count": 2,
+             "hint": "Void Iron is mined on the swamp road."},
+        ],
+        "rewards": {"gold": 0, "reputation": 15, "xp": 25,
+                    "fighter": {"race": "Frogfolk", "name": "Brekka"}},
+    },
+    {
         "id": "hamo_dispute",
         "title": "Broker's Quarrel",
         "giver": "Hamo",
         "summary": "Two goblin brokers are feuding over a rat-tail contract.",
+        "deed_text": "settled the brokers' feud without bloodshed",
         "rep_req": 10,
         "stages": [
             {"kind": "talk",

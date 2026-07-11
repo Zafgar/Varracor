@@ -95,6 +95,10 @@ class VillageTaskManager:
         r = t.rewards
         gained = self._grant_rewards(manager, r)
         t.status = "done"
+        # Kylä muistaa urotyön (näkyy myöhemmin dialogeissa)
+        if hasattr(manager, "record_deed"):
+            manager.record_deed(f"task_{t.id}",
+                                t.deed_text or f"completed '{t.title}'")
         return gained
 
     def _grant_rewards(self, manager, r):
@@ -137,6 +141,11 @@ class VillageTaskManager:
                     manager._restore_unit_ai(fighter)
                 manager.update_all_groups()
                 gained.append(f"New fighter: {fighter.name}")
+                # Seppä liittyi -> tiimi saa seppä-perkin
+                if getattr(fighter, "is_smith", False):
+                    manager.has_smith = True
+        if r.get("flag"):
+            setattr(manager, r["flag"], True)
         return gained
 
     def _create_fighter(self, spec):
@@ -156,6 +165,9 @@ class VillageTaskManager:
             if race == "Goblin":
                 from units.goblin import Goblin
                 return Goblin(name, 0, 0, PLAYER_TEAM)
+            if race == "Frogfolk":
+                from units.frog_smith import FrogSmith
+                return FrogSmith(name, 0, 0, PLAYER_TEAM)
         except Exception as e:
             print(f"[VillageTasks] fighter create failed: {e}")
         return None
