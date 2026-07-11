@@ -107,9 +107,13 @@ try:
     from citys.mucford.farming_expansion import install_farming_expansion
     from citys.mucford.farming_hardening import install_farming_hardening
     from citys.mucford.farming_content import install_farming_content
+    from citys.mucford.farming_content_hardening import (
+        install_farming_content_hardening,
+    )
 
     install_farming_expansion()
     install_farming_hardening()
     install_farming_content()
+    install_farming_content_hardening()
 except Exception as exc:
     print(f"[FarmingExpansion] Could not install: {exc}")
