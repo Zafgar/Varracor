@@ -8,6 +8,7 @@ on:
       - "items/tools/harvest_tools.py"
       - "lore/materials.py"
       - "quests/material_contracts.py"
+      - "quests/village_tasks.py"
       - "systems/material_integration.py"
       - "menus/barracks_menu.py"
       - "skills/commander_skills_data.py"
@@ -23,6 +24,7 @@ on:
       - "items/tools/harvest_tools.py"
       - "lore/materials.py"
       - "quests/material_contracts.py"
+      - "quests/village_tasks.py"
       - "systems/material_integration.py"
       - "menus/barracks_menu.py"
       - "skills/commander_skills_data.py"
@@ -66,6 +68,7 @@ jobs:
             items/tools/harvest_tools.py \
             lore/materials.py \
             quests/material_contracts.py \
+            quests/village_tasks.py \
             systems/material_integration.py \
             menus/barracks_menu.py \
             skills/commander_skills_data.py \
