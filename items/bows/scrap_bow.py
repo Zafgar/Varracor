@@ -87,6 +87,7 @@ class ScrapBow(Weapon):
             # Stats
             dmg = self.calculate_damage({"dex": owner.dexterity})
             final_dmg = int(dmg * (0.5 + power * 0.5)) # 50% - 100% vahinko
+            final_dmg = int(final_dmg * getattr(owner, 'weapon_affinities', {}).get('bow', 1.0))
             speed = 10 + power * 15 # Nopeus kasvaa latauksella
             
             # Luo ammus

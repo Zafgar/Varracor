@@ -263,3 +263,92 @@ def test_ranged_keeps_backline_distance(manager):
         a.update(None, manager=manager)
         b.rect.centerx = a.rect.centerx + 90  # pysy iholla
     assert a.rect.centerx < x0, "jousimies ei peraantynyt"
+
+
+def test_race_affinities_and_recruit_perks(manager):
+    """Roduilla on ase-affiniteetit, ne näkyvät traiteissa ja vaikuttavat
+    vahinkoon; rekryyteillä voi olla satunnaisia affinity-perkkejä."""
+    from units.orc import Orc
+    from units.elf import Elf
+    from items.axes.weak_axe import WeakAxe
+
+    orc = Orc("Grok", 300, 500, PLAYER_TEAM)
+    assert orc.weapon_affinities.get("axe", 1.0) > 1.0, "Orcilta puuttuu kirvesaffiniteetti"
+    assert any("Affinity" in t for t in orc.traits), "affiniteetti ei nay traiteissa"
+
+    elf = Elf("Lith", 300, 500, PLAYER_TEAM)
+    assert elf.weapon_affinities.get("bow", 1.0) > 1.0
+
+    # Affiniteetti kasvattaa osumavahinkoa: orc kirveellä vs ilman affiniteettia
+    from units.human import Human
+    target1 = Human("T1", 328, 500, ENEMY_TEAM)
+    target2 = Human("T2", 328, 500, ENEMY_TEAM)
+    manager.all_units.add(orc, target1)
+
+    orc.equipment["main_hand"] = WeakAxe(); orc.calculate_final_stats()
+    target1.rect.center = (orc.rect.centerx + 28, orc.rect.centery)
+    target2.rect.center = (orc.rect.centerx + 28, orc.rect.centery)
+    orc.attack_cooldown = 0; orc.current_stamina = 100
+    hp0 = target1.current_hp
+    target1.stun_immunity = 999  # deterministisyys
+    orc.crit_chance = 0
+    orc.perform_attack(target1, manager=manager)
+    dmg_with = hp0 - target1.current_hp
+
+    orc.weapon_affinities = {}
+    orc.attack_cooldown = 0; orc.current_stamina = 100
+    manager.all_units.add(target2)
+    hp0 = target2.current_hp
+    target2.stun_immunity = 999
+    orc.perform_attack(target2, manager=manager)
+    dmg_without = hp0 - target2.current_hp
+    assert dmg_with > dmg_without, (dmg_with, dmg_without)
+
+
+def test_heal_priority_and_mana_reserve(manager):
+    """AI castaa healin ennen damage-loitsua kun HP matala, ja säästää
+    manan healiin vaikka damage olisi halvempi."""
+    from units.human import Human
+    from spells.lvl_1.heal import MinorHeal
+    from spells.lvl_1.fireball import Fireball
+
+    mage = Human("Mage", 300, 500, PLAYER_TEAM)
+    mage.spell_slots_unlocked = {1, 2, 3}
+    mage.max_spell_tier = 99
+    mage.equipment["spell1"] = Fireball()   # halvempi damage ekassa slotissa
+    mage.equipment["spell2"] = MinorHeal()
+    foe = Human("Foe", 400, 500, ENEMY_TEAM)
+    manager.match_in_progress = True
+    manager.all_units.add(mage, foe)
+
+    heal_cost = mage.equipment["spell2"].mana_cost
+    fb_cost = mage.equipment["spell1"].mana_cost
+
+    # Haavoittuneena, mana riittää vain healiin+vähän: heal castataan ensin
+    mage.current_hp = mage.max_hp * 0.3
+    mage.current_mana = heal_cost + 1
+    ok = mage.try_cast_spells(foe, manager.all_units, manager)
+    assert ok, "mitaan ei castattu"
+    assert mage.spell_cooldowns.get("spell2", 0) > 0, "heal ei ollut prioriteetti"
+    assert mage.spell_cooldowns.get("spell1", 0) == 0, "fireball castattiin healin ohi"
+
+
+def test_cover_point_found(manager):
+    """_find_cover_point palauttaa pisteen esteen takaa uhkaan nähden."""
+    import pygame
+    from units.human import Human
+
+    u = Human("Unit", 300, 500, PLAYER_TEAM)
+    threat = Human("Threat", 700, 500, ENEMY_TEAM)
+
+    class Wall:
+        rect = pygame.Rect(450, 460, 80, 80)
+        blocks_projectiles = True
+
+    cover = u.ai_controller._find_cover_point(threat, [Wall()])
+    assert cover is not None
+    # Suojapiste on esteen takana = kauempana uhasta kuin esteen keskus
+    import math
+    d_cover = math.hypot(cover[0] - threat.rect.centerx, cover[1] - threat.rect.centery)
+    d_wall = math.hypot(490 - threat.rect.centerx, 500 - threat.rect.centery)
+    assert d_cover > d_wall

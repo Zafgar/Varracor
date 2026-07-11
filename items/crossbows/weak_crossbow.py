@@ -87,6 +87,7 @@ class WeakCrossbow(Weapon):
                 return
 
             dmg = self.calculate_damage({"dex": owner.dexterity, "str": owner.strength})
+            dmg = int(dmg * getattr(owner, 'weapon_affinities', {}).get('crossbow', 1.0))
             bolt = ArrowProjectile(owner.rect.centerx, owner.rect.centery, target_pos, 28, dmg, owner, manager, is_bolt=True, max_range=self.attack_range)
             manager.vfx.add_projectile(bolt)
             

@@ -3,12 +3,12 @@ import random
 # --- RODUT (Perustiedot) ---
 RACES = {
     # Pelaajan rodut ja perusviholliset
-    'Human':  {'hp_mult': 1.0, 'str_mult': 1.0, 'spd_mult': 1.0, 'defense': 0, 'resistance': 'None', 'weakness': 'None', 'desc': 'Basic'},
-    'Orc':    {'hp_mult': 1.4, 'str_mult': 1.2, 'spd_mult': 0.8, 'defense': 1, 'resistance': 'Physical', 'weakness': 'Magic', 'desc': 'Tough'},
-    'Elf':    {'hp_mult': 0.9, 'str_mult': 1.1, 'spd_mult': 1.3, 'defense': 0, 'resistance': 'Magic', 'weakness': 'Physical', 'desc': 'Fast'},
-    'Dwarf':  {'hp_mult': 1.3, 'str_mult': 1.1, 'spd_mult': 0.7, 'defense': 3, 'resistance': 'Poison', 'weakness': 'Magic', 'desc': 'Sturdy'},
+    'Human':  {'hp_mult': 1.0, 'str_mult': 1.0, 'spd_mult': 1.0, 'defense': 0, 'resistance': 'None', 'weakness': 'None', 'desc': 'Basic', 'affinity': {'sword': 1.10}},
+    'Orc':    {'hp_mult': 1.4, 'str_mult': 1.2, 'spd_mult': 0.8, 'defense': 1, 'resistance': 'Physical', 'weakness': 'Magic', 'desc': 'Tough', 'affinity': {'axe': 1.15, 'mace': 1.10}},
+    'Elf':    {'hp_mult': 0.9, 'str_mult': 1.1, 'spd_mult': 1.3, 'defense': 0, 'resistance': 'Magic', 'weakness': 'Physical', 'desc': 'Fast', 'affinity': {'bow': 1.15, 'staff': 1.10}},
+    'Dwarf':  {'hp_mult': 1.3, 'str_mult': 1.1, 'spd_mult': 0.7, 'defense': 3, 'resistance': 'Poison', 'weakness': 'Magic', 'desc': 'Sturdy', 'affinity': {'crossbow': 1.15, 'axe': 1.10}},
     'Undead': {'hp_mult': 1.5, 'str_mult': 0.9, 'spd_mult': 0.5, 'defense': 0, 'resistance': 'Ice', 'weakness': 'Fire', 'desc': 'Undying'},
-    'Goblin': {'hp_mult': 0.6, 'str_mult': 0.8, 'spd_mult': 1.4, 'defense': 0, 'resistance': 'None', 'weakness': 'Physical', 'desc': 'Weak but fast'},
+    'Goblin': {'hp_mult': 0.6, 'str_mult': 0.8, 'spd_mult': 1.4, 'defense': 0, 'resistance': 'None', 'weakness': 'Physical', 'desc': 'Weak but fast', 'affinity': {'dagger': 1.15, 'crossbow': 1.10}},
     'Troll':  {'hp_mult': 2.2, 'str_mult': 1.6, 'spd_mult': 0.7, 'defense': 2, 'resistance': 'Physical', 'weakness': 'Magic', 'desc': 'Boss'},
 
 

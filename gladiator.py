@@ -174,6 +174,13 @@ class Gladiator(pygame.sprite.Sprite):
         # Normalize key
         self.base_attributes.setdefault("max_hp", self.base_attributes.get("hp", 100))
 
+        # --- ASE-AFFINITEETIT (rotu + rekrytoinnin satunnaisperkit) ---
+        # {weapon_group: kerroin}, esim. {'axe': 1.15}. Näkyvät traits-listassa
+        # rekrytointikortilla.
+        self.weapon_affinities = dict(RACES.get(race_name, {}).get('affinity', {}))
+        for _g, _mult in self.weapon_affinities.items():
+            self.traits.append(f"{_g.capitalize()} Affinity +{int(round((_mult - 1) * 100))}%")
+
         # --- EQUIPMENT ---
         self.equipment = {
             "head": None,
@@ -1017,6 +1024,8 @@ class Gladiator(pygame.sprite.Sprite):
             dmg = 5
             if hasattr(w, "calculate_damage"):
                 dmg = w.calculate_damage(stats)
+            # Ase-affiniteetti (rotu/perkki)
+            dmg *= self.weapon_affinities.get(getattr(w, "weapon_group", ""), 1.0)
 
             is_crit = False
             if random.random() < self.crit_chance:
@@ -1544,7 +1553,40 @@ class Gladiator(pygame.sprite.Sprite):
         if self.has_status("Silence"):
             return False
 
+        # --- MANAN HALLINTA ---
+        # 1. Jos parannusloitsu on varusteissa ja joku tiimissä on pahasti
+        #    haavoittunut, castataan parannus ENSIN slottijärjestyksestä
+        #    riippumatta.
+        # 2. Jos parannus on varusteissa ja itse ollaan alle 70% HP,
+        #    varataan sen mana: halvempia damage-loitsuja ei spämmätä
+        #    manan loppuun.
+        heal_slots = []
+        offensive_slots = []
         for slot in ["spell1", "spell2", "spell3"]:
+            spell = self.equipment.get(slot)
+            if not spell:
+                continue
+            if "heal" in str(getattr(spell, "name", "")).lower():
+                heal_slots.append(slot)
+            else:
+                offensive_slots.append(slot)
+
+        reserve_mana = 0
+        heal_needed = False
+        if heal_slots:
+            cheapest_heal = min(int(getattr(self.equipment[s], "mana_cost", 0)) for s in heal_slots)
+            hurt_pct = self.current_hp / max(1, self.max_hp)
+            ally_hurt = any(
+                u.team_color == self.team_color and not u.is_dead
+                and u.current_hp < u.max_hp * 0.6
+                for u in all_units)
+            heal_needed = hurt_pct < 0.6 or ally_hurt
+            if hurt_pct < 0.7 or ally_hurt:
+                reserve_mana = cheapest_heal
+
+        slot_order = (heal_slots + offensive_slots) if heal_needed else (offensive_slots + heal_slots)
+
+        for slot in slot_order:
             idx = self._slot_index_from_name(slot)
             if not self._has_spell_slot(idx):
                 continue
@@ -1558,8 +1600,14 @@ class Gladiator(pygame.sprite.Sprite):
                 continue
 
             # Tarkistetaan resurssit ensin
-            if self.current_mana < getattr(spell, "mana_cost", 0) or self.spell_cooldowns.get(slot, 0) > 0:
+            cost = getattr(spell, "mana_cost", 0)
+            if self.current_mana < cost or self.spell_cooldowns.get(slot, 0) > 0:
                 continue
+            # Mana-varaus: älä polta parannukseen tarvittavaa manaa
+            # damage-loitsuun
+            if slot not in heal_slots and reserve_mana > 0:
+                if self.current_mana - cost < reserve_mana:
+                    continue
 
             rng = float(getattr(spell, "range", 0))
             real_target = t

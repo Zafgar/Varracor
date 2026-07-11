@@ -23,6 +23,11 @@ class BaseAI:
         self.current_path = [] # Lista pisteitä [(x,y), (x,y)...]
         self.path_timer = 0 # Kuinka usein reitti lasketaan uudelleen
 
+        # Cover & anti-stalemate
+        self.cover_timer = 0      # Kauanko nykyistä suojaa on käytetty
+        self.cover_cooldown = 0   # Estää ikuisen suojassa kyyhöttämisen
+        self.no_los_timer = 0     # Kauanko kohde on ollut piilossa
+
     def execute_ai(self, all_units, obstacles=None, manager=None):
         if self.unit.is_dead: return
         
@@ -60,14 +65,17 @@ class BaseAI:
             if target and not getattr(target, "is_dead", True):
                 dist_sq = (target.rect.centerx - self.unit.rect.centerx)**2 + (target.rect.centery - self.unit.rect.centery)**2
                 if dist_sq < 25000: # Alle 150px
-                    # Juokse poispäin
-                    dx = self.unit.rect.centerx - target.rect.centerx
-                    dy = self.unit.rect.centery - target.rect.centery
-                    
                     self.unit.set_sprinting(True)
                     self.state = "retreat"
-                    # Käytetään move_towards ilman pathfindingia pakenemiseen
-                    self._move_towards(dx, dy, math.hypot(dx, dy), obstacles, all_units, manager)
+                    # Yritä paeta suojapisteen taakse; muuten suoraan poispäin
+                    cover = self._find_cover_point(target, obstacles) if self.cover_timer < 120 else None
+                    if cover:
+                        self.cover_timer += 1
+                        self.navigate_to(cover, obstacles, all_units, manager)
+                    else:
+                        dx = self.unit.rect.centerx - target.rect.centerx
+                        dy = self.unit.rect.centery - target.rect.centery
+                        self._move_towards(dx, dy, math.hypot(dx, dy), obstacles, all_units, manager)
                     return
 
         # 2. SELF PRESERVATION (AoE & Kiting) - High Priority
@@ -169,6 +177,20 @@ class BaseAI:
             if abs(dx) > 0:
                 self.unit.facing_right = (dx > 0)
 
+            # --- ANTI-STALEMATE: FLUSH OUT ---
+            # Jos kohde on kantamalla mutta suojan takana (ei näköyhteyttä),
+            # älä jää odottamaan: etene kohti ~1s kuluttua.
+            if dist <= attack_range and obstacles and hasattr(self.unit, "has_line_of_sight"):
+                if not self.unit.has_line_of_sight(target, obstacles):
+                    self.no_los_timer += 1
+                    if self.no_los_timer > 60:
+                        self.state = "advance"
+                        self.charge_timer = 0
+                        self.navigate_to(target.rect.center, obstacles, all_units, manager)
+                        return
+                else:
+                    self.no_los_timer = 0
+
             # --- PREDICTED TARGET POSITION ---
             # Arvioidaan ammuksen lentoaika etäisyyden ja aseen tyypin perusteella
             proj_speed = 15.0 # Oletusnopeus
@@ -207,8 +229,20 @@ class BaseAI:
                         self.unit.temp_speed_mult = 0.0 # Pakota pysähtymään
                         weapon.update_charge(self.unit, manager)
                     else:
-                        # Palaudu paikallaan, älä yritä ampua lataamattomalla
+                        # Palautuessa haetaan suojaa uhalta - mutta vain
+                        # rajatun ajan (max 2s per käyttö, sitten 3s
+                        # cooldown), ettei synny ikuista kyyhöttämistä.
                         self.state = "recovering"
+                        if self.cover_cooldown > 0:
+                            self.cover_cooldown -= 1
+                        elif self.cover_timer < 120:
+                            cover = self._find_cover_point(target, obstacles)
+                            if cover:
+                                self.cover_timer += 1
+                                self.navigate_to(cover, obstacles, all_units, manager)
+                        else:
+                            self.cover_timer = 0
+                            self.cover_cooldown = 180
                     return
                 # Jos ladattu, jatka normaalisti ampumaan
 
@@ -392,6 +426,35 @@ class BaseAI:
                     self.unit.set_sprinting(True)
                 
                 self.navigate_to(target.rect.center, obstacles, all_units, manager)
+
+    def _find_cover_point(self, threat, obstacles, max_dist=300):
+        """Etsii pisteen lähimmän ammukset pysäyttävän esteen takaa
+        (uhkaan nähden vastakkaiselta puolelta). None jos ei sovi."""
+        if not threat or not obstacles:
+            return None
+        best = None
+        best_d = max_dist
+        mx, my = self.unit.rect.center
+        for obs in obstacles:
+            if obs is self.unit:
+                continue
+            if not getattr(obs, "blocks_projectiles", True):
+                continue
+            r = getattr(obs, "rect", obs)
+            if r.w < 30 and r.h < 30:
+                continue  # Liian pieni suojaksi
+            d = math.hypot(r.centerx - mx, r.centery - my)
+            if d < best_d:
+                best_d = d
+                best = r
+        if best is None:
+            return None
+        tdx = best.centerx - threat.rect.centerx
+        tdy = best.centery - threat.rect.centery
+        l = math.hypot(tdx, tdy) or 1
+        off = max(best.w, best.h) / 2 + 40
+        return (best.centerx + (tdx / l) * off,
+                best.centery + (tdy / l) * off)
 
     def _is_valid_target(self, t):
         return t and not getattr(t, "is_dead", True) and not getattr(t, "is_structure", False)

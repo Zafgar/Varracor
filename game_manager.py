@@ -1312,6 +1312,15 @@ class GameManager:
             else: 
                 u = UnitClass(name, 0, 0, GREEN)
             
+            # Random weapon affinity perk (35% chance) - näkyy kortilla
+            if random.random() < 0.35:
+                group = random.choice(["sword", "axe", "mace", "spear",
+                                       "dagger", "bow", "crossbow", "staff"])
+                bonus = random.choice([0.10, 0.15, 0.20])
+                u.weapon_affinities[group] = u.weapon_affinities.get(group, 1.0) * (1 + bonus)
+                u.traits.append(f"{group.capitalize()} Affinity +{int(bonus * 100)}%")
+                u.cost += int(bonus * 200)
+
             # Random Traits (30% chance for a trait)
             if random.random() < 0.3:
                 trait_name, stat, amount, cost_mod = random.choice(possible_traits)
