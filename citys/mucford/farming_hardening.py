@@ -57,7 +57,10 @@ def _advance_offscreen_growth(system):
     if elapsed_minutes <= 0 or MINUTES_PER_FRAME <= 0:
         return
 
-    elapsed_frames = int(elapsed_minutes / MINUTES_PER_FRAME)
+    # WorldClock uses floating-point minutes. Direct int() truncation can lose
+    # one whole frame because values such as 49.999999999 become 49. Round to
+    # the nearest simulated frame before applying growth.
+    elapsed_frames = max(0, int(round(elapsed_minutes / MINUTES_PER_FRAME)))
     if elapsed_frames <= 0:
         return
 
