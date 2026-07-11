@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import re
+
 import pygame
 
 from items.farm_potions import IronstemFortifier
 
 
 _INSTALLED = False
+MIN_FARM_WORKERS = 6
 
 
 # Four columns leave a clear corridor beside the farm's eastern apple trees.
@@ -35,6 +38,16 @@ SAFE_PLOT_LAYOUT = (
 )
 
 
+def _set_farmer_job(npc):
+    ai = getattr(npc, "ai_controller", None)
+    if ai is None:
+        return False
+    ai.job = "Farmer"
+    base_name = re.sub(r"\s*\([^)]*\)\s*$", "", str(getattr(npc, "name", "Villager")))
+    npc.name = f"{base_name} (Farmer)"
+    return True
+
+
 def install_farming_content_hardening():
     global _INSTALLED
     if _INSTALLED:
@@ -42,6 +55,7 @@ def install_farming_content_hardening():
 
     import citys.mucford.farming_expansion as farming
     import citys.mucford.farming_content as content
+    from ai.villager_ai import VillagerAI
 
     farming.PLOT_LAYOUT = SAFE_PLOT_LAYOUT
     content.EXPANDED_PLOT_LAYOUT = SAFE_PLOT_LAYOUT
@@ -52,6 +66,46 @@ def install_farming_content_hardening():
         "description": "Restores health and stamina for battered fighters.",
         "factory": IronstemFortifier,
     }
+
+    FarmingSystem = farming.FarmingSystem
+    if not getattr(FarmingSystem, "_minimum_farmers_installed", False):
+        previous_equip_farmers = FarmingSystem._equip_farmer_npcs
+
+        def _equip_farmer_npcs(self):
+            villagers = [
+                npc for npc in getattr(self.city, "npcs", [])
+                if isinstance(getattr(npc, "ai_controller", None), VillagerAI)
+                and not getattr(npc, "rival_info", None)
+                and npc is not getattr(self.city, "bram", None)
+                and npc is not getattr(self.city, "hamo", None)
+                and npc is not getattr(self.city, "farmer_gus", None)
+            ]
+            farmers = [npc for npc in villagers
+                       if getattr(npc.ai_controller, "job", None) == "Farmer"]
+            needed = max(0, MIN_FARM_WORKERS - len(farmers))
+            if needed:
+                candidates = [npc for npc in villagers if npc not in farmers]
+                candidates.sort(
+                    key=lambda npc: (
+                        getattr(npc.ai_controller, "work_ethic", 0.0),
+                        getattr(npc, "name", ""),
+                    ),
+                    reverse=True,
+                )
+                for npc in candidates[:needed]:
+                    if _set_farmer_job(npc):
+                        farmers.append(npc)
+
+            previous_equip_farmers(self)
+
+            state = self.manager.npc_state.setdefault("farming", {})
+            state["farm_worker_count"] = len([
+                npc for npc in villagers
+                if getattr(npc.ai_controller, "job", None) == "Farmer"
+            ])
+
+        FarmingSystem._equip_farmer_npcs = _equip_farmer_npcs
+        FarmingSystem._minimum_farmers_installed = True
 
     CropPlot = farming.CropPlot
 
