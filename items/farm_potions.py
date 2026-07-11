@@ -1,8 +1,9 @@
 """Potions brewed from Muckford farm herbs.
 
-The item registry discovers this module automatically.  The icons are
-procedural placeholders; dropping future art into ``assets/items/potions``
-can replace them without changing gameplay data.
+The item registry discovers this module automatically. The shared base class is
+named ``Potion`` so the existing registry base filter ignores it, while the
+concrete brews remain discoverable. Icons are procedural placeholders;
+future art can be dropped into ``assets/items/potions`` without code changes.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from items.base_item import Item
 from sound_manager import sound_system
 
 
-class FarmPotion(Item):
+class Potion(Item):
     """Shared consumable behaviour for farm-brewed potions."""
 
     display_name = "Farm Potion"
@@ -27,8 +28,8 @@ class FarmPotion(Item):
     cooldown_frames = 120
 
     def __init__(self):
-        if type(self) is FarmPotion:
-            raise TypeError("FarmPotion is an abstract potion base")
+        if type(self) is Potion:
+            raise TypeError("Potion is an abstract potion base")
         super().__init__()
         self.name = self.display_name
         self.description = self.description_text
@@ -69,7 +70,8 @@ class FarmPotion(Item):
         pygame.draw.rect(surface, (185, 205, 210),
                          (neck_x, neck_y + size // 10, neck_w, size // 4), 2,
                          border_radius=2)
-        pygame.draw.rect(surface, self.bottle_color, body, border_radius=max(3, size // 10))
+        pygame.draw.rect(surface, self.bottle_color, body,
+                         border_radius=max(3, size // 10))
         pygame.draw.rect(surface, (215, 230, 230), body, 2,
                          border_radius=max(3, size // 10))
         pygame.draw.line(surface, (255, 255, 255),
@@ -101,7 +103,7 @@ class FarmPotion(Item):
         return True
 
 
-class BitterleafTonic(FarmPotion):
+class BitterleafTonic(Potion):
     display_name = "Bitterleaf Tonic"
     description_text = "Restores 25% of maximum health."
     bottle_color = (82, 164, 78)
@@ -118,7 +120,7 @@ class BitterleafTonic(FarmPotion):
         return caster.current_hp > before
 
 
-class MarshmintDraught(FarmPotion):
+class MarshmintDraught(Potion):
     display_name = "Marshmint Draught"
     description_text = "Restores 55% of maximum stamina."
     bottle_color = (62, 184, 155)
@@ -132,7 +134,7 @@ class MarshmintDraught(FarmPotion):
         return caster.current_stamina > before
 
 
-class MoonpetalElixir(FarmPotion):
+class MoonpetalElixir(Potion):
     display_name = "Moonpetal Elixir"
     description_text = "Restores 45% of maximum mana."
     bottle_color = (105, 105, 225)
@@ -147,7 +149,7 @@ class MoonpetalElixir(FarmPotion):
         return caster.current_mana > before
 
 
-class SiltrootAntidote(FarmPotion):
+class SiltrootAntidote(Potion):
     display_name = "Siltroot Antidote"
     description_text = "Clears poison-like effects and restores 10% health."
     bottle_color = (184, 150, 70)
@@ -158,7 +160,8 @@ class SiltrootAntidote(FarmPotion):
         changed = False
         for attr in ("poisoned", "is_poisoned", "venom_stacks", "poison_stacks"):
             if hasattr(caster, attr) and getattr(caster, attr):
-                setattr(caster, attr, False if isinstance(getattr(caster, attr), bool) else 0)
+                current = getattr(caster, attr)
+                setattr(caster, attr, False if isinstance(current, bool) else 0)
                 changed = True
         effects = getattr(caster, "status_effects", None)
         if isinstance(effects, list):
@@ -172,7 +175,7 @@ class SiltrootAntidote(FarmPotion):
         return changed or caster.current_hp > before
 
 
-class SunleafRestorative(FarmPotion):
+class SunleafRestorative(Potion):
     display_name = "Sunleaf Restorative"
     description_text = "Restores 40% health and clears a minor injury."
     bottle_color = (232, 184, 66)
@@ -183,8 +186,9 @@ class SunleafRestorative(FarmPotion):
     def apply_effect(self, caster, manager):
         maximum = max(1, int(getattr(caster, "max_hp", 1)))
         before = float(getattr(caster, "current_hp", 0))
+        was_injured = bool(getattr(caster, "injured", False))
         caster.current_hp = min(maximum, before + max(1, int(maximum * 0.40)))
         if getattr(caster, "injury_severity", None) in (None, "Minor"):
             caster.injured = False
             caster.injury_severity = None
-        return caster.current_hp > before or not getattr(caster, "injured", False)
+        return caster.current_hp > before or (was_injured and not caster.injured)
