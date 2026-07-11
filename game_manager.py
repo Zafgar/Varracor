@@ -339,6 +339,7 @@ class GameManager:
             "reputation": self.reputation,
             "completed_quests": completed_ids,
             "innkeeper_debt": int(getattr(self, "innkeeper_debt", 0)),
+            "inventory": self.inventory,
         }
 
         NPC_Class = get_npc_class(npc_id)

@@ -466,6 +466,16 @@ class MuckfordCityMenu(BaseMenu):
             self.farmer_gus = gus
             self.npcs.append(gus) # Lisätään piirrettäviin ja päivitettäviin
 
+        # Hamo (goblin bounty broker) - kadun varrella, areenan liepeillä
+        hamo_x = self.arena.width // 2 + 200
+        hamo_y = self.arena.height // 2 + 120
+        hamo = Villager("Hamo", "Goblin", hamo_x, hamo_y, team_color=GREEN)
+        hamo.ai_controller = None  # Pysyy paikallaan kuten Gus
+        hamo.name = "Hamo"  # VillagerAI ehti lisätä job-liitteen; palautetaan
+        hamo.animation_state = "idle"
+        self.hamo = hamo
+        self.npcs.append(hamo)
+
     def _open_smelter_ui(self, smelter):
         self.active_smeltery = smelter
         self.smelter_buttons = []
@@ -625,6 +635,11 @@ class MuckfordCityMenu(BaseMenu):
                 for npc in self.npcs:
                     # YHDISTETTY TARKISTUS: Osuma JA logiikka
                     if self.player.rect.colliderect(npc.rect.inflate(60, 60)):
+                        # Hamo (bounty broker) - oma dialogi
+                        if npc is getattr(self, "hamo", None) or npc.name == "Hamo":
+                            self.next_state = "dialogue:hamo"
+                            return
+
                         # Farmer Gus interaction
                         if npc == self.farmer_gus or npc.name == "Farmer Gus":
                             self.manager.open_patron_dialogue(npc, return_state="muckford_city")

@@ -157,6 +157,18 @@ def generate_league_teams(tier):
         except Exception:
             teams = []
 
+    # 1.5) Lore-nimet: tiimit nimetään tierinsa kaanonin mukaan
+    # (lore/world_data.py ARENA_TEAMS; game tier 1 = lore tier 0)
+    try:
+        from lore.world_data import get_tier_teams
+        lore_teams = get_tier_teams(max(0, int(tier) - 1))
+        for team, lore in zip(teams, lore_teams):
+            team.name = lore["name"]
+            team.manager = lore.get("manager")
+            team.lore_desc = lore.get("desc", "")
+    except Exception as e:
+        print(f"[League] Lore team naming skipped: {e}")
+
     # 2) Fallback
     if not teams:
         print("WARNING: No premade teams found. Generating generic teams.")

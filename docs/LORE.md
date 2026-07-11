@@ -68,9 +68,22 @@ tiensä takaisin: Tier 0:sta Golden Leagueen, ja lopulta Vortexin ytimeen.
 
 ## Areenajoukkueet (esimerkkejä)
 
-- **Tier 0:** *Shanty Yard Saints* (Muckfordin työjuhta, kansan suosikki),
-  *Muckford Ratcatchers* (rottaswarmien raivaus viemäreistä),
-  *Saffron Oasis Runners* (aavikon karavaanien ja veden turvaajat).
+- **Tier 0** (managerit suluissa):
+  *Shanty Yard Saints* (Mara Pikestring) — Muckfordin työjuhta ja katsomon
+  suosikki; aina paikalla, ottaa kaikki pikkukeikat; epäillään väärien
+  boss-havaintojen myymisestä kilpailijoiden harhauttamiseksi.
+  *Muckford Ratcatchers* (Old Rinna "Net") — rottaongelmien erikoistiimi,
+  Hamon vahvistuspartio viemäreissä; epäillään rottamyrkyn laittomasta
+  myynnistä siviileille.
+  *The Unclaimed Five* ("No-Name" Pell) — tuntemattomat taustat, vain
+  riskikeikkoja; Bram inhoaa heitä, epäillään areenastatuksen käytöstä
+  rötöksiin.
+  *The Ragged Lanterns* (Toma Vale) — Heartlandsin pelastuskeikat; Saint
+  Lumen Field Hospice tukee, koska tuovat kadonneita elossa takaisin.
+  *Croak & Dagger* — sammakko-humanoidit: ansojen purku, tiedustelu,
+  tiedonmyynti; laittoman tarkkoja Vortex-karttoja.
+  *The Siltbound* — suo- ja mutabossien jäljittäjät; jatkuvat
+  temppelilaskut loistartunnoista ja infektioista.
 - **Tier 1:** *Rattlebridge Runners* (kurinalainen, helppo markkinoida),
   *Bolt Cage Bruisers* (raaka häkkitappeluvoima),
   *Timbercross Wardens* (metsän rajaturva).
@@ -132,6 +145,41 @@ Valuutat: **SP** (hopea) → **GP** (kulta) → **PL** (platina) →
 - **The Abyssal Vortex** — kartan ydin, repeämä (renkaat: Outer Shatterbelt → The Eye)
 - **Muckford** — mudan, velan ja aloittelijoiden kaupunki Heartlandsin
   laidalla; Tier 0 Shanty Yardin koti (= pelin aloituskaupunki)
+
+#### Muckfordin paikalliskaanon (Tier 0)
+
+**Hahmot:**
+- **Bram "Mudhand" Carrow** (kääpiö) — koko Tier 0 -verkoston manageri;
+  likaiset arpiset kädet, nahkaesiliina. Järjestelmän sisääntuloportti:
+  rekisteröintimaksut ja gladiaattorien kontrollointi velkojen avulla.
+- **Marda Shant** (ihminen) — The Sunk Caskin pitäjä ja Shanty Consortiumin
+  epävirallinen velkakirjuri. Äkäinen, laskelmoiva, pieni nuija
+  "rauhoitteluun". Velkakirjat kassakaapissa — voisi kiristää puolta
+  kaupunkia.
+- **Sister-Medic Rhea Ashford** (ihminen) — Saint Lumen Field Hospicen
+  johtaja Muckfordin laitamilla. Hoitaa areena- ja kenttäloukkaantuneet;
+  tiukka Vortex-altistuneiden eristämisessä tautien leviämisen estämiseksi.
+- **Hamo** (goblin bounty broker) — tietoa ja palkkiotehtäviä areenojen
+  liepeillä; maksaa rottien hännistä ja varhaisista boss-havainnoista.
+
+**Paikat:**
+- **Shanty Yard** — mutainen piha-areena, katsomot romusta ja tynnyreistä.
+  Haasteet: *Slick Mud Lanes* (liukkaat mutakaistat), *Rot Planks* (lahot
+  pettävät laudat), ja katsomo joka heittelee romua kentälle.
+- **The Sunk Cask** — tärkein majatalo ja värväyskeskus. Motto: *"Täällä
+  allekirjoitat sopimuksen, tai sinut allekirjoitetaan."* Tarjolla:
+  Mud-Stew, Sour Ale ja pahamaineinen Ratpot Pie.
+- **The Shanty Consortium** (Sponsor Tier 0) — majatalonpitäjien,
+  korjaamoiden ja pikkukauppiaiden liittouma; rahoittaa tiimejä ruoalla ja
+  majoituksella vastineeksi katujen turvaamisesta ja rottien tappamisesta.
+
+**Uhat:**
+- **Muckford Rat-Armies** (S2) — viemäreistä nousevat loputtomat
+  rottaswarmit; taudit ja ruokavarastojen tyhjennys. Rottien silmät
+  hohtavat nykyään violetteina — ne syövät Vortex-jätettä ja muuttuvat
+  vaarallisemmiksi.
+- **The Rat King of Muckford** (Abyssal Echo, Rank C) — laumojen johtaja;
+  kaupungin suurin jatkuva kriisi.
 
 ### Länsi/Luode — The Crown Dominion (ihmiset)
 - **Crownhold** — pääkaupunki, byrokratia ja propaganda

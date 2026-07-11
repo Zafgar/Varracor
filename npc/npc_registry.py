@@ -9,6 +9,7 @@ try:
     from npc.commander_npc import CommanderNPC
     from npc.marda_shant_npc import MardaShantNPC
     from npc.gambler_npc import GamblerNPC
+    from npc.hamo_npc import HamoNPC
 except ImportError as e:
     print(f"NPC Registry Import Error: {e}")
 
@@ -19,7 +20,8 @@ NPC_DB = {
     "mnemonic_devourer": MnemonicDevourerNPC if 'MnemonicDevourerNPC' in locals() else None,
     "commander_self": CommanderNPC if 'CommanderNPC' in locals() else None,
     "marda_shant": MardaShantNPC if 'MardaShantNPC' in locals() else None,
-    "gambler": GamblerNPC if 'GamblerNPC' in locals() else None
+    "gambler": GamblerNPC if 'GamblerNPC' in locals() else None,
+    "hamo": HamoNPC if 'HamoNPC' in locals() else None
 }
 
 def get_npc_class(npc_id):
