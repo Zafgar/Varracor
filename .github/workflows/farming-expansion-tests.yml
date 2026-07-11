@@ -11,6 +11,7 @@ on:
       - "quests/village_tasks.py"
       - "systems/material_integration.py"
       - "menus/barracks_menu.py"
+      - "menus/notice_board_menu.py"
       - "skills/commander_skills_data.py"
       - "tests/test_farming_*.py"
       - ".github/workflows/farming-expansion-tests.yml"
@@ -27,6 +28,7 @@ on:
       - "quests/village_tasks.py"
       - "systems/material_integration.py"
       - "menus/barracks_menu.py"
+      - "menus/notice_board_menu.py"
       - "skills/commander_skills_data.py"
       - "tests/test_farming_*.py"
       - ".github/workflows/farming-expansion-tests.yml"
@@ -71,6 +73,7 @@ jobs:
             quests/village_tasks.py \
             systems/material_integration.py \
             menus/barracks_menu.py \
+            menus/notice_board_menu.py \
             skills/commander_skills_data.py \
             tests/test_farming_*.py
 
