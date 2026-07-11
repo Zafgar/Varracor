@@ -1,8 +1,8 @@
 """Harvesting tools used by the Muckford farming expansion.
 
-The item registry discovers these classes automatically.  All three tools use
-one proficiency group (``harvest_tool``), while ``tool_tier`` controls which
-crops can be harvested and how much high-quality produce can be found.
+The item registry discovers these classes automatically. All three concrete
+items use one proficiency group (``harvest_tool``), while ``tool_tier``
+controls which crops can be harvested and the chance for better produce.
 """
 
 import math
@@ -15,6 +15,8 @@ from sound_manager import sound_system
 
 
 class _HarvestTool(Weapon):
+    """Shared implementation; intentionally not a creatable registry item."""
+
     display_name = "Harvest Tool"
     rarity_name = "Common"
     price = 40
@@ -24,6 +26,12 @@ class _HarvestTool(Weapon):
     image_path = ""
 
     def __init__(self):
+        # item_registry instantiates discovered classes to inspect metadata.
+        # Raising only for this abstract implementation prevents a generic
+        # "Harvest Tool" from leaking into shops while subclasses remain valid.
+        if type(self) is _HarvestTool:
+            raise TypeError("_HarvestTool is an abstract implementation")
+
         super().__init__()
         self.name = self.display_name
         self.rarity = self.rarity_name
@@ -64,14 +72,27 @@ class _HarvestTool(Weapon):
         # Procedural sickle fallback: wooden grip and a curved steel blade.
         grip = (118, 77, 42)
         blade = (190, 198, 205)
-        pygame.draw.line(surface, grip,
-                         (x + int(size * 0.35), y + int(size * 0.82)),
-                         (x + int(size * 0.55), y + int(size * 0.30)),
-                         max(3, size // 12))
-        arc = pygame.Rect(x + int(size * 0.35), y + int(size * 0.08),
-                          int(size * 0.48), int(size * 0.48))
-        pygame.draw.arc(surface, blade, arc, math.radians(195), math.radians(350),
-                        max(3, size // 14))
+        pygame.draw.line(
+            surface,
+            grip,
+            (x + int(size * 0.35), y + int(size * 0.82)),
+            (x + int(size * 0.55), y + int(size * 0.30)),
+            max(3, size // 12),
+        )
+        arc = pygame.Rect(
+            x + int(size * 0.35),
+            y + int(size * 0.08),
+            int(size * 0.48),
+            int(size * 0.48),
+        )
+        pygame.draw.arc(
+            surface,
+            blade,
+            arc,
+            math.radians(195),
+            math.radians(350),
+            max(3, size // 14),
+        )
 
     def draw_equipped(self, surface, unit_rect, facing_right, attack_cooldown):
         hand_x = unit_rect.centerx + (7 if facing_right else -7)
@@ -84,7 +105,9 @@ class _HarvestTool(Weapon):
         angle = base + (swing if facing_right else -swing)
 
         if self.image:
-            img = self.image if facing_right else pygame.transform.flip(self.image, True, False)
+            img = self.image if facing_right else pygame.transform.flip(
+                self.image, True, False
+            )
             img = pygame.transform.rotate(img, angle)
             rect = img.get_rect(center=(hand_x, hand_y - 8))
             surface.blit(img, rect)
@@ -95,10 +118,17 @@ class _HarvestTool(Weapon):
         rad = math.radians(angle)
         end_x = hand_x + math.cos(rad) * length
         end_y = hand_y - math.sin(rad) * length
-        pygame.draw.line(surface, (118, 77, 42), (hand_x, hand_y), (end_x, end_y), 3)
-        pygame.draw.arc(surface, (195, 202, 210),
-                        (int(end_x) - 9, int(end_y) - 9, 18, 18),
-                        math.radians(180), math.radians(350), 3)
+        pygame.draw.line(
+            surface, (118, 77, 42), (hand_x, hand_y), (end_x, end_y), 3
+        )
+        pygame.draw.arc(
+            surface,
+            (195, 202, 210),
+            (int(end_x) - 9, int(end_y) - 9, 18, 18),
+            math.radians(180),
+            math.radians(350),
+            3,
+        )
 
     def on_attack_start(self, attacker, target, manager):
         sound_system.play_sound("attack_melee")
@@ -120,7 +150,9 @@ class IronHarvestSickle(_HarvestTool):
     price = 140
     tier = 2
     damage_value = 6
-    description_text = "A balanced iron sickle for Tier 2 crops and better yields."
+    description_text = (
+        "A balanced iron sickle for Tier 2 crops and better yields."
+    )
     image_path = "assets/gear/tools/iron_harvest_sickle.png"
 
 
@@ -130,5 +162,7 @@ class GuildHarvestScythe(_HarvestTool):
     price = 420
     tier = 3
     damage_value = 10
-    description_text = "A guild-made scythe for master harvesters and prime produce."
+    description_text = (
+        "A guild-made scythe for master harvesters and prime produce."
+    )
     image_path = "assets/gear/tools/guild_harvest_scythe.png"
