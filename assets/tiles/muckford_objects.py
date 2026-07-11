@@ -697,3 +697,39 @@ class Well(Prop):
         super().__init__(x, y, w, h, img_path="assets/tiles/muckford/well.png", color=(60, 60, 70), collision_rect=coll_rect)
         self.is_structure = True
         self.name = "Well"
+
+class ShantyYardGate(Prop):
+    """
+    Shanty Yard -areenan sisäänkäynti (Tier 0, The Rookie Dust Circuit).
+    Romusta ja tynnyreistä kyhätty portti; E vie liigavalikkoon.
+    """
+    def __init__(self, x, y):
+        w, h = 340, 280
+        # Törmäys vain sivupylväissä, keskellä kulkuaukko oveen asti
+        coll_rect = pygame.Rect(x, y, w, h - 90)
+        super().__init__(x, y, w, h, img_path="assets/tiles/muckford/shanty_yard_gate.png",
+                         color=(90, 70, 50), collision_rect=coll_rect)
+        self.door_offset = (w // 2, h - 20)
+        self.interaction_range = 100
+        self.interaction_label = "Shanty Yard"
+        self._draw_procedural_gate(w, h)
+
+    def _draw_procedural_gate(self, w, h):
+        """Procedural fallback jos kuvaa ei ole (korvautuu automaattisesti
+        kun assets/tiles/muckford/shanty_yard_gate.png lisätään)."""
+        if not self.image or self.image.get_at((0, 0)) == (90, 70, 50, 255):
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            wood = (110, 85, 55); dark = (70, 55, 40)
+            # Pylväät
+            pygame.draw.rect(surf, wood, (10, 40, 50, h - 40))
+            pygame.draw.rect(surf, wood, (w - 60, 40, 50, h - 40))
+            # Kaari + banneri
+            pygame.draw.rect(surf, dark, (0, 20, w, 45))
+            pygame.draw.rect(surf, (150, 40, 40), (w // 2 - 70, 60, 140, 70))
+            pygame.draw.polygon(surf, (150, 40, 40),
+                                [(w // 2 - 70, 130), (w // 2 + 70, 130), (w // 2, 160)])
+            # Tynnyrit pylväiden juurella
+            for bx in (15, w - 55):
+                pygame.draw.ellipse(surf, (120, 90, 60), (bx, h - 70, 45, 60))
+                pygame.draw.ellipse(surf, dark, (bx, h - 70, 45, 60), 3)
+            self.image = surf

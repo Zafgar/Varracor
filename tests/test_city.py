@@ -117,3 +117,31 @@ def test_eggs_stay_bounded(manager):
             c.ai_controller._lay_egg(manager)
     eggs = sum(1 for p in city.arena.props if isinstance(p, Egg))
     assert eggs <= 20, f"munia kartalla {eggs} (katto 20)"
+
+
+def test_arena_gate_and_bram(manager):
+    """Shanty Yard -portti ja Bram ovat kaupungissa; E portilla avaa liigan."""
+    import pygame
+    from citys.mucford.muckford_city_menu import MuckfordCityMenu
+    from assets.tiles.muckford_objects import ShantyYardGate
+
+    city = MuckfordCityMenu(manager)
+    gate = next((p for p in city.arena.props if isinstance(p, ShantyYardGate)), None)
+    assert gate is not None, "Shanty Yard -portti puuttuu kartalta"
+    assert getattr(city, "bram", None) is not None, "Bram puuttuu"
+
+    city.player.rect.center = (gate.rect.centerx, gate.rect.bottom + 40)
+    city.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e))
+    assert city.next_state == "league"
+
+
+def test_poi_icons(manager):
+    """POI-ikonit kattavat questin, kaupan, liigan, tavernan ja sepän."""
+    from citys.mucford.muckford_city_menu import MuckfordCityMenu
+    city = MuckfordCityMenu(manager)
+    kinds = {k for _, _, k in city._poi_icon_list()}
+    assert "trade" in kinds       # Hamo
+    assert "league" in kinds      # Bram + portti
+    assert "tavern" in kinds
+    assert "smith" in kinds
+    assert any(k.startswith("quest") for k in kinds)  # Farmer Gus

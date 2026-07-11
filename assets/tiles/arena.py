@@ -130,6 +130,10 @@ class Arena:
         # Town Hall (Keskellä ylhäällä)
         self._add_prop(TownHall(w // 2 - 350, 50))
         
+        # Shanty Yard -areenan portti (kadun pohjoisreuna, Town Hallin oikealla)
+        from assets.tiles.muckford_objects import ShantyYardGate
+        self._add_prop(ShantyYardGate(w // 2 + 700, street_top - 300))
+
         # Blacksmith & Smeltery (Oikea ylä)
         self._add_prop(ScrapIronBuilding(w - 700, 100))
         self._add_prop(Smeltery(w - 800, 450)) # Lähellä katua

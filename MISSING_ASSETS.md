@@ -279,6 +279,7 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/portraits/dwarf_league_manager` — npc/dwarf_league_manager.py
 - `assets/portraits/goblin` — npc/gambler_npc.py
 - `assets/portraits/goblin/{emotion}.png` — npc/griznak_quest_giver.py
+- `assets/portraits/hamo` — npc/hamo_npc.py
 - `assets/portraits/mardashant` — npc/marda_shant_npc.py
 - `assets/portraits/mortarch` — npc/grand_mortarch.py
 - `assets/portraits/vortex/MnemonicDevourer` — npc/mnemonic_devourer_npc.py
@@ -324,6 +325,7 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/tiles/gambling/` — minigames/crown_knives.py, sound_manager.py
 - `assets/tiles/gamling/` — minigames/crown_knives.py, sound_manager.py
 - `assets/voices/dwarf_league_manager` — npc/dwarf_league_manager.py
+- `assets/voices/goblin/hamo` — npc/hamo_npc.py
 - `assets/voices/human/marda` — npc/marda_shant_npc.py
 - `assets/voices/mortarch` — npc/grand_mortarch.py
 - `assets/voices/vortex/MnemonicDevourer` — npc/mnemonic_devourer_npc.py

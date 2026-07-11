@@ -307,7 +307,7 @@ class MuckfordCityMenu(BaseMenu):
             pygame.draw.rect(screen, (110, 130, 85), fr, 2, border_radius=4)
 
         # Kohteet: (objekti/rect, väri, nimi)
-        from assets.tiles.muckford_objects import TownHall, MuckfordStall, Smeltery, Well, ChickenCoop
+        from assets.tiles.muckford_objects import TownHall, MuckfordStall, Smeltery, Well, ChickenCoop, ShantyYardGate
         from assets.tiles.farm_objects import FarmStorage, ManurePile
         markers = []
         if getattr(self, "tavern_house", None):
@@ -322,7 +322,8 @@ class MuckfordCityMenu(BaseMenu):
                                     (Well, (100, 200, 220), "Well"),
                                     (ChickenCoop, (200, 170, 120), "Chicken Coop"),
                                     (FarmStorage, (170, 140, 90), "Storage"),
-                                    (ManurePile, (130, 110, 70), "Compost")):
+                                    (ManurePile, (130, 110, 70), "Compost"),
+                                    (ShantyYardGate, (170, 45, 45), "Shanty Yard (League)")):
                 if isinstance(prop, cls) and label not in seen:
                     seen.add(label)
                     markers.append((prop.rect, col, label))
@@ -476,6 +477,25 @@ class MuckfordCityMenu(BaseMenu):
         self.hamo = hamo
         self.npcs.append(hamo)
 
+        # Bram "Mudhand" Carrow - Tier 0 -verkoston manageri areenaportilla
+        self.arena_gate = None
+        from assets.tiles.muckford_objects import ShantyYardGate
+        for prop in self.arena.props:
+            if isinstance(prop, ShantyYardGate):
+                self.arena_gate = prop
+                break
+        if self.arena_gate:
+            bx = self.arena_gate.rect.left - 60
+            by = self.arena_gate.rect.bottom + 20
+            bram = Villager("Bram", "Dwarf", bx, by, team_color=GREEN)
+            bram.ai_controller = None
+            bram.name = "Bram 'Mudhand' Carrow"
+            bram.animation_state = "idle"
+            self.bram = bram
+            self.npcs.append(bram)
+        else:
+            self.bram = None
+
     def _open_smelter_ui(self, smelter):
         self.active_smeltery = smelter
         self.smelter_buttons = []
@@ -582,6 +602,17 @@ class MuckfordCityMenu(BaseMenu):
                 self.manager.world_paused = not self.manager.world_paused
 
             if event.key == pygame.K_e:
+                # Shanty Yard -portti -> liigavalikko
+                gate = getattr(self, "arena_gate", None)
+                if gate:
+                    door_x = gate.rect.centerx
+                    door_y = gate.rect.bottom
+                    if math.hypot(self.player.rect.centerx - door_x,
+                                  self.player.rect.bottom - door_y) < 110:
+                        self.next_state = "league"
+                        sound_system.play_sound('click')
+                        return
+
                 # Tarkista ollaanko Tavernan ovella
                 if self.tavern_house:
                     # Ovi on vasemmalla alhaalla
@@ -638,6 +669,11 @@ class MuckfordCityMenu(BaseMenu):
                         # Hamo (bounty broker) - oma dialogi
                         if npc is getattr(self, "hamo", None) or npc.name == "Hamo":
                             self.next_state = "dialogue:hamo"
+                            return
+
+                        # Bram - Tier 0 -liigamanagerin dialogi
+                        if npc is getattr(self, "bram", None):
+                            self.next_state = "dialogue:dwarf_league_manager"
                             return
 
                         # Farmer Gus interaction
@@ -1124,6 +1160,9 @@ class MuckfordCityMenu(BaseMenu):
         # 3.5 SÄÄ JA VUOROKAUDENAIKA (maailman päälle, HUDin alle)
         self.manager.world_clock.draw_overlays(screen)
 
+        # --- POI ICONS (seurattavat merkit: quest, kauppa, areena) ---
+        self._draw_poi_icons(screen, offset)
+
         # Mouse Hover Logic
         mouse_pos = pygame.mouse.get_pos()
         self._draw_hover_info(screen, offset, mouse_pos)
@@ -1202,6 +1241,8 @@ class MuckfordCityMenu(BaseMenu):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Storage")
                 elif isinstance(prop, TownHall):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Town Hall")
+                elif prop is getattr(self, "arena_gate", None):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 30, "E", offset, "Enter Shanty Yard (League)")
                 elif isinstance(prop, MuckfordStall):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Trade")
                 elif isinstance(prop, AppleTree):
@@ -1889,6 +1930,96 @@ class MuckfordCityMenu(BaseMenu):
             return True
             
         return False
+
+    # =========================================================
+    # POI-IKONIT (kelluvat merkit tärkeiden hahmojen/paikkojen päällä)
+    # =========================================================
+    def _poi_icon_list(self):
+        """Palauttaa listan (world_x, world_y, kind). Quest-tila vaikuttaa
+        Farmer Gusin merkkiin: ! = tarjolla, harmaa ! = kesken, ? = palautus."""
+        pois = []
+
+        # Farmer Gus: quest-merkki tilan mukaan
+        gus = getattr(self, "farmer_gus", None)
+        if gus and quest_manager:
+            status = quest_manager.get_quest_status("quest_manure_cleanup")
+            if status == "available":
+                pois.append((gus.rect.centerx, gus.rect.top - 28, "quest_avail"))
+            elif status == "active":
+                pois.append((gus.rect.centerx, gus.rect.top - 28, "quest_active"))
+            elif status == "completed":
+                pois.append((gus.rect.centerx, gus.rect.top - 28, "quest_turnin"))
+
+        # Hamo: kolikko (ostaa saaliit)
+        hamo = getattr(self, "hamo", None)
+        if hamo:
+            pois.append((hamo.rect.centerx, hamo.rect.top - 28, "trade"))
+
+        # Bram + areenaportti: liigabanneri
+        bram = getattr(self, "bram", None)
+        if bram:
+            pois.append((bram.rect.centerx, bram.rect.top - 28, "league"))
+        gate = getattr(self, "arena_gate", None)
+        if gate:
+            pois.append((gate.rect.centerx, gate.rect.top - 20, "league"))
+
+        # Taverna (muki) ja seppä (alasin) ovien kohdalle
+        if getattr(self, "tavern_house", None):
+            th = self.tavern_house
+            off = getattr(th, "door_offset", (th.rect.w // 2, th.rect.h))
+            pois.append((th.image_pos[0] + off[0], th.image_pos[1] + off[1] - 120, "tavern"))
+        if getattr(self, "blacksmith_house", None):
+            bh = self.blacksmith_house
+            off = getattr(bh, "door_offset", (bh.rect.w // 2, bh.rect.h))
+            pois.append((bh.image_pos[0] + off[0], bh.image_pos[1] + off[1] - 120, "smith"))
+
+        return pois
+
+    def _draw_poi_icons(self, screen, offset):
+        """Piirtää POI-ikonit kaiken päälle, jotta ne ovat aina seurattavissa."""
+        bob = math.sin(pygame.time.get_ticks() * 0.004) * 4
+        sw, sh = screen.get_size()
+        for wx, wy, kind in self._poi_icon_list():
+            sx = int(wx - offset[0])
+            sy = int(wy - offset[1] + bob)
+            if not (-40 < sx < sw + 40 and -40 < sy < sh + 40):
+                continue
+            self._draw_poi_icon(screen, sx, sy, kind)
+
+    def _draw_poi_icon(self, screen, sx, sy, kind):
+        if kind in ("quest_avail", "quest_active", "quest_turnin"):
+            color = GOLD_COLOR if kind != "quest_active" else (150, 150, 150)
+            char = "?" if kind == "quest_turnin" else "!"
+            surf = font_title.render(char, True, color)
+            shadow = font_title.render(char, True, (0, 0, 0))
+            screen.blit(shadow, (sx - surf.get_width() // 2 + 2, sy - surf.get_height() + 2))
+            screen.blit(surf, (sx - surf.get_width() // 2, sy - surf.get_height()))
+        elif kind == "trade":
+            # Kultakolikko
+            pygame.draw.circle(screen, (0, 0, 0), (sx + 1, sy - 9), 12)
+            pygame.draw.circle(screen, GOLD_COLOR, (sx, sy - 10), 11)
+            pygame.draw.circle(screen, (180, 140, 0), (sx, sy - 10), 11, 2)
+            t = font_small.render("G", True, (110, 85, 0))
+            screen.blit(t, (sx - t.get_width() // 2, sy - 10 - t.get_height() // 2))
+        elif kind == "league":
+            # Punainen banneri (Rookie Dust Circuit)
+            pygame.draw.rect(screen, (0, 0, 0), (sx - 9, sy - 30, 20, 24))
+            pygame.draw.rect(screen, (170, 45, 45), (sx - 10, sy - 31, 20, 24))
+            pygame.draw.polygon(screen, (170, 45, 45),
+                                [(sx - 10, sy - 7), (sx + 10, sy - 7), (sx, sy + 3)])
+            pygame.draw.line(screen, (230, 200, 120), (sx - 10, sy - 31), (sx + 10, sy - 31), 3)
+        elif kind == "tavern":
+            # Olutmuki
+            pygame.draw.rect(screen, (0, 0, 0), (sx - 8, sy - 24, 18, 20), border_radius=3)
+            pygame.draw.rect(screen, (150, 100, 50), (sx - 9, sy - 25, 18, 20), border_radius=3)
+            pygame.draw.rect(screen, (240, 235, 210), (sx - 9, sy - 29, 18, 6), border_radius=3)
+            pygame.draw.arc(screen, (150, 100, 50), (sx + 6, sy - 22, 12, 14), -1.6, 1.6, 3)
+        elif kind == "smith":
+            # Alasin
+            pygame.draw.rect(screen, (0, 0, 0), (sx - 11, sy - 22, 24, 8))
+            pygame.draw.rect(screen, (90, 90, 100), (sx - 12, sy - 23, 24, 8))
+            pygame.draw.rect(screen, (90, 90, 100), (sx - 5, sy - 15, 10, 8))
+            pygame.draw.rect(screen, (70, 70, 80), (sx - 9, sy - 7, 18, 4))
 
     def _handle_combat_click(self, pos):
         mx, my = pos
