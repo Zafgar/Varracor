@@ -9,6 +9,8 @@ import pytest
 pygame.init()
 pygame.display.set_mode((1, 1))
 
+# Install the same farming and material layers used by the game.
+from menus.barracks_menu import BarracksMenu
 from citys.mucford.farming_expansion import CropPlot, harvesting_level
 from citys.mucford.farming_hardening import (
     _absolute_world_minutes,
@@ -28,6 +30,9 @@ class DummyVFX:
     def show_damage(self, *args, **kwargs):
         pass
 
+    def create_falling_leaves(self, *args, **kwargs):
+        pass
+
 
 class DummyClock:
     def __init__(self):
@@ -42,6 +47,7 @@ class DummyManager:
         self.inventory = {}
         self.city_storage = {}
         self.equipment_bag = []
+        self.npc_state = {"global": {"reputation": 0, "flags": {}}}
         self.vfx = DummyVFX()
         self.world_clock = DummyClock()
 
@@ -111,14 +117,14 @@ def test_crop_requires_matching_skill_and_tool_tier():
 
 def test_master_tool_harvest_resets_and_replants_plot():
     manager = DummyManager()
-    plot, state = make_ready_plot("Medicinal Herb")
+    plot, state = make_ready_plot("Bitterleaf")
     master = DummyHarvester(
         ["harvesting_1", "harvesting_2", "harvesting_3"],
         GuildHarvestScythe(),
     )
 
     assert plot.harvest(manager, master) is True
-    assert manager.inventory["Medicinal Herb"] >= 1
+    assert manager.inventory["Bitterleaf"] >= 1
     assert plot.growth_ticks == 0
     assert plot.watered is False
     assert state["harvest_count"] == 1
