@@ -204,3 +204,62 @@ def test_bow_draw_drains_stamina(manager):
         bow.update_charge(u, manager)
     skilled_cost = s0 - u.current_stamina
     assert skilled_cost < normal_cost * 0.6, (skilled_cost, normal_cost)
+
+
+def test_ai_bow_respects_stamina_gate(manager):
+    """AI ei aloita jousen jännitystä ellei stamina riitä täyteen vetoon."""
+    from units.human import Human
+    from items.bows.weak_bow import WeakBow
+
+    a = Human("Archer", 300, 500, PLAYER_TEAM)
+    bow = WeakBow()
+    a.equipment["main_hand"] = bow
+    a.calculate_final_stats()
+    b = Human("Foe", 480, 500, ENEMY_TEAM)  # kantaman sisällä
+    manager.match_in_progress = True
+    manager.all_units.add(a, b)
+
+    a.current_stamina = 5  # aivan liian vähän täyteen vetoon
+    for _ in range(30):
+        a.run_combat_ai(manager.all_units, None, manager=manager)
+        # ei saa jäädä charging-tilaan
+        assert a.ai_controller.charge_timer == 0, "aloitti vedon ilman staminaa"
+        a.current_stamina = 5
+
+
+def test_orc_rage(manager):
+    """Orc raivostuu alle 40% HP:lla: +STR, ei pakene."""
+    from units.orc import Orc
+    from units.human import Human
+
+    orc = Orc("Grok", 300, 500, ENEMY_TEAM)
+    foe = Human("Hero", 400, 500, PLAYER_TEAM)
+    manager.match_in_progress = True
+    manager.all_units.add(orc, foe)
+
+    str0 = orc.strength
+    orc.current_hp = orc.max_hp * 0.3
+    orc.run_combat_ai(manager.all_units, None, manager=manager)
+    assert orc.ai_controller.enraged is True
+    assert orc.strength == str0 + 4
+    assert orc.ai_controller.no_retreat is True
+
+
+def test_ranged_keeps_backline_distance(manager):
+    """Jousimies peruuttaa kun kohde tulee liian lähelle (backline)."""
+    from units.human import Human
+    from items.bows.weak_bow import WeakBow
+
+    a = Human("Archer", 500, 500, PLAYER_TEAM)
+    a.equipment["main_hand"] = WeakBow()
+    a.calculate_final_stats()
+    b = Human("Melee", 590, 500, ENEMY_TEAM)  # 90px: alle 40% kantamasta, yli panic-rajan
+    manager.match_in_progress = True
+    manager.all_units.add(a, b)
+
+    x0 = a.rect.centerx
+    for _ in range(40):
+        a.run_combat_ai(manager.all_units, None, manager=manager)
+        a.update(None, manager=manager)
+        b.rect.centerx = a.rect.centerx + 90  # pysy iholla
+    assert a.rect.centerx < x0, "jousimies ei peraantynyt"

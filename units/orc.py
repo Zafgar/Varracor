@@ -6,7 +6,7 @@ import random
 
 from settings import *
 from gladiator import Gladiator
-from ai.base_ai import BaseAI
+from ai.orc_ai import OrcAI
 
 class Orc(Gladiator):
     def __init__(self, name, x, y, team_color):
@@ -36,7 +36,7 @@ class Orc(Gladiator):
             self.big_image = pygame.transform.smoothscale(self.image, (w * 3, h * 3))
 
         # AI
-        self.ai_controller = BaseAI(self)
+        self.ai_controller = OrcAI(self)  # Rage-mekaniikka alle 40% HP
 
         # Varmistetaan statsit (HP mult 1.4, STR mult 1.2)
         self.calculate_final_stats()

@@ -53,7 +53,10 @@ class BaseAI:
         
         # 1.5 RETREAT LOGIC (Low HP) - Pakeneminen menee kaiken edelle
         # Jos HP < 20% ja staminaa on, yritä paeta hetkeksi
-        if self.unit.current_hp < self.unit.max_hp * 0.20 and self.unit.current_stamina > 40:
+        # (no_retreat-lippu ohittaa: esim. raivostunut Orc ei pakene)
+        if (not getattr(self, "no_retreat", False)
+                and self.unit.current_hp < self.unit.max_hp * 0.20
+                and self.unit.current_stamina > 40):
             if target and not getattr(target, "is_dead", True):
                 dist_sq = (target.rect.centerx - self.unit.rect.centerx)**2 + (target.rect.centery - self.unit.rect.centery)**2
                 if dist_sq < 25000: # Alle 150px
@@ -211,6 +214,21 @@ class BaseAI:
 
             # B) Bow/Staff: Lataa kun kantamalla
             if is_ranged_charge_weapon:
+                # BACKLINE SPACING: jos kohde tunkeutuu liian lähelle
+                # (alle 40% kantamasta), peräänny kävellen ja pidä linja.
+                # Panic shot (<60px) hoitaa hätätilanteen alempana.
+                safe_dist = attack_range * 0.4
+                if 60 <= dist < safe_dist and self.unit.current_stamina > 10:
+                    self.state = "reposition"
+                    back_x = self.unit.rect.centerx - dx
+                    back_y = self.unit.rect.centery - dy
+                    self.navigate_to((back_x, back_y), obstacles, all_units, manager)
+                    # Vapauta keskeneräinen veto heikkona laukauksena
+                    if self.charge_timer > 15:
+                        weapon.release_charge(self.unit, manager, predicted_pos)
+                        self.charge_timer = 0
+                    return
+
                 # PANIC SHOT: Jos vihollinen iholle, ammu heti ja peräänny
                 if dist < 60 and self.charge_timer > 0:
                     weapon.release_charge(self.unit, manager, target.rect.center)
@@ -222,11 +240,22 @@ class BaseAI:
                     return
 
                 if dist <= attack_range:
-                    # UUSI: Tarkista stamina jouselle (Sauva ei vie staminaa latauksessa)
+                    # Stamina-portti jouselle: aloita jännitys vain jos stamina
+                    # riittää täyteen vetoon (drain * max_charge, sama kaava
+                    # kuin aseessa). Käynnissä oleva veto saa jatkua loppuun.
                     stamina_ok = True
-                    if weapon_group == "bow" and self.unit.current_stamina < 15:
-                        stamina_ok = False
-                    
+                    if weapon_group == "bow":
+                        drawing = self.charge_timer > 0
+                        drain = max(0.15, 0.9 - self.unit.dexterity * 0.02)
+                        if getattr(self.unit, "has_steady_draw", False):
+                            drain *= 0.5
+                        need = drain * getattr(weapon, "max_charge", 60) + 3
+                        need = min(need, self.unit.max_stamina * 0.8)
+                        if drawing:
+                            stamina_ok = self.unit.current_stamina > 2
+                        else:
+                            stamina_ok = self.unit.current_stamina >= need
+
                     if stamina_ok:
                         self.state = "charging"
                         self.charge_timer += 1
