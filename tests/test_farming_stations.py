@@ -42,8 +42,6 @@ class DummyUnit:
         self._farming_meal_effects = {}
 
     def calculate_final_stats(self):
-        # The real Gladiator patch applies the stored effects. For these tests
-        # we only need the method to exist and preserve valid maximum values.
         self.max_hp = max(1, int(self.max_hp))
         self.max_stamina = max(1, int(self.max_stamina))
 
@@ -75,7 +73,7 @@ def test_station_defaults_preserve_existing_kitchen_and_herbalist():
 
 def test_building_workbench_consumes_resources_and_finishes_over_time():
     manager = DummyManager()
-    manager.inventory.update({"Swamp Wood": 10, "Scrap Iron": 6})
+    manager.inventory.update({"Rough Timber": 10, "Scrap Iron": 6})
     start = 1000.0
 
     ok, message = begin_station_upgrade(manager, "workbench", now=start)
@@ -102,9 +100,9 @@ def test_station_recipe_tier_lock_is_enforced():
     manager = DummyManager()
     station_node(manager, "workbench")["level"] = 1
     manager.inventory.update({
-        "Iron Bar": 2,
-        "Scrap Metal Bar": 2,
-        "Moonpetal": 1,
+        "Iron Ingot": 2,
+        "Silver Filigree Wire": 1,
+        "Focus Powder": 1,
     })
 
     ok, message = begin_station_recipe(
@@ -112,13 +110,13 @@ def test_station_recipe_tier_lock_is_enforced():
 
     assert not ok
     assert "tier 3" in message.lower()
-    assert manager.inventory["Iron Bar"] == 2
+    assert manager.inventory["Iron Ingot"] == 2
 
 
 def test_workbench_job_places_components_in_city_storage():
     manager = DummyManager()
     station_node(manager, "workbench")["level"] = 1
-    manager.inventory.update({"Yarrow": 1, "Spider Silk": 1})
+    manager.inventory.update({"Plant Fiber": 2, "Bitterleaf": 1})
 
     ok, message = begin_station_recipe(
         manager, "workbench", "Bandage Roll", now=500.0)
@@ -132,7 +130,7 @@ def test_workbench_job_places_components_in_city_storage():
 
 def test_herbalist_job_creates_real_equipment_bag_potion():
     manager = DummyManager()
-    manager.inventory.update({"Bitterleaf": 2, "Marsh Mint": 1})
+    manager.inventory.update({"Bitterleaf": 2, "Resin": 1})
 
     ok, message = begin_station_recipe(
         manager, "herbalist", "Bitterleaf Tonic", now=700.0)
@@ -185,7 +183,7 @@ def test_higher_station_tiers_reduce_recipe_duration():
     station_node(low, "herbalist")["level"] = 1
     station_node(high, "herbalist")["level"] = 3
     for manager in (low, high):
-        manager.inventory.update({"Bitterleaf": 2, "Marsh Mint": 1})
+        manager.inventory.update({"Bitterleaf": 2, "Resin": 1})
 
     assert begin_station_recipe(low, "herbalist", "Bitterleaf Tonic",
                                 now=2000.0)[0]
@@ -205,7 +203,7 @@ def test_different_stations_can_work_in_parallel():
         "Egg": 1,
         "Milk": 1,
         "Bitterleaf": 2,
-        "Marsh Mint": 1,
+        "Resin": 1,
     })
 
     assert begin_station_recipe(manager, "kitchen", "Farmhand Breakfast",
@@ -218,7 +216,7 @@ def test_different_stations_can_work_in_parallel():
 
 def test_failed_completion_refunds_recipe_inputs(monkeypatch):
     manager = DummyManager()
-    manager.inventory.update({"Bitterleaf": 2, "Marsh Mint": 1})
+    manager.inventory.update({"Bitterleaf": 2, "Resin": 1})
     assert begin_station_recipe(
         manager, "herbalist", "Bitterleaf Tonic", now=4000.0)[0]
     assert manager.inventory == {}
@@ -230,6 +228,6 @@ def test_failed_completion_refunds_recipe_inputs(monkeypatch):
     end = finish_time(manager, "herbalist")
     messages = process_station_jobs(manager, now=end + 0.1)
 
-    assert manager.inventory == {"Bitterleaf": 2, "Marsh Mint": 1}
+    assert manager.inventory == {"Bitterleaf": 2, "Resin": 1}
     assert station_node(manager, "herbalist")["job"] is None
     assert "refunded" in messages[-1].lower()
