@@ -70,8 +70,11 @@ class WeakBow(Weapon):
         owner.temp_speed_mult = 0.5
         owner.is_charging = True
         
-        # Kuluta staminaa ladatessa
-        drain = max(0.1, 0.5 - (owner.dexterity * 0.01)) # DEX vähentää kulutusta
+        # Kuluta staminaa ladatessa: jännitys on raskasta ilman harjoitusta.
+        # DEX keventää; Steady Draw -skill puolittaa.
+        drain = max(0.15, 0.9 - (owner.dexterity * 0.02))
+        if getattr(owner, "has_steady_draw", False):
+            drain *= 0.5
         if owner.current_stamina > drain:
             owner.current_stamina -= drain
         else:

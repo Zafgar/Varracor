@@ -116,6 +116,15 @@ SKILL_TREE = {
         "branch": "Dexterity",
         "effects": {"weapon_prof": ["bow", "crossbow"], "range_bonus": 40}
     },
+    "dex_steady_draw": {
+        "name": "Steady Draw",
+        "desc": "Melee hits no longer stagger your bow draw. -50% draw stamina.",
+        "cost": 2,
+        "requires": ["dex_ranger"],
+        "pos": (900, 380),
+        "branch": "Dexterity",
+        "effects": {"steady_draw": True}
+    },
     "dex_sniper": {
         "name": "Sniper",
         "desc": "+10% Crit & Double Shot Chance.",

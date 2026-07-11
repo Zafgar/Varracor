@@ -130,6 +130,8 @@ class Gladiator(pygame.sprite.Sprite):
         # --- SKILL FLAGS ---
         self.has_executioner = False
         self.has_second_wind = False
+        self.has_steady_draw = False
+        self.has_steady_draw = False # Estää jousen jännityksen staggeroinnin
         self.second_wind_triggered = False
 
         # --- PROGRESSION ---
@@ -623,6 +625,8 @@ class Gladiator(pygame.sprite.Sprite):
                 self.has_executioner = True
             if "second_wind" in effects:
                 self.has_second_wind = True
+            if "steady_draw" in effects:
+                self.has_steady_draw = True
 
         # No implicit spell tier: spell tier must be unlocked via skill tree.
 
@@ -1169,6 +1173,26 @@ class Gladiator(pygame.sprite.Sprite):
             stun_frames = 8 + int(final * 0.5) # Käytetään lopullista vahinkoa
             self.stun_timer = min(30, stun_frames) # Max 0.5s stun
             self.stun_immunity = 60 # 1 sekunnin suoja seuraavalta stunilta
+
+        # --- CHARGE INTERRUPT / STAGGER ---
+        # Melee-osuma keskeyttää aseen jännityksen/latauksen (esim. jousi):
+        # lataus menetetään ja tulee tavallista pidempi horjahdus.
+        # Steady Draw -skill estää tämän kokonaan.
+        if (damage_type == "Physical" and attacker is not None
+                and getattr(attacker, "weapon_type", "melee") == "melee"
+                and self.is_charging and not self.has_steady_draw):
+            w = self.equipment.get("main_hand")
+            if w is not None:
+                if getattr(w, "charge_time", 0) > 0:
+                    w.charge_time = 0
+                if getattr(w, "load_progress", 0) > 0:
+                    w.load_progress = 0
+            self.is_charging = False
+            self.temp_speed_mult = 1.0
+            self.stun_timer = max(self.stun_timer, 25) # Stagger ohittaa stun-immuniteetin
+            if manager:
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 35,
+                                        "STAGGERED!", color=(255, 160, 60))
 
         # Asetetaan osumaanimaatio
         self.animation_state = "hurt"

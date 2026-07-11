@@ -117,3 +117,90 @@ def test_stamina_never_negative(manager):
         manager.vfx.update(obstacles=None)
         assert a.current_stamina >= 0, "stamina meni negatiiviseksi"
         assert b.current_stamina >= 0, "stamina meni negatiiviseksi"
+
+
+def test_melee_hit_staggers_bow_draw(manager):
+    """Melee-osuma keskeyttää jousen jännityksen: lataus nollautuu ja
+    tulee pidempi horjahdus. Steady Draw -skill estää tämän."""
+    from units.human import Human
+    from items.bows.weak_bow import WeakBow
+    from items.swords.weak_sword import WeakSword
+
+    archer = Human("Archer", 500, 500, ENEMY_TEAM)
+    bow = WeakBow()
+    archer.equipment["main_hand"] = bow
+    archer.calculate_final_stats()
+
+    attacker = Human("Bruiser", 460, 500, PLAYER_TEAM)
+    attacker.equipment["main_hand"] = WeakSword()
+    attacker.calculate_final_stats()
+    manager.all_units.add(archer, attacker)
+
+    # Jännitä jousta
+    for _ in range(20):
+        bow.update_charge(archer, manager)
+    assert bow.charge_time > 0
+    assert archer.is_charging
+
+    # Melee-osuma -> stagger
+    archer.stun_immunity = 0
+    ok = attacker.perform_attack(archer, manager=manager)
+    assert ok, "hyokkays ei osunut"
+    assert bow.charge_time == 0, "lataus ei nollautunut"
+    assert archer.stun_timer >= 25, "stagger-stun puuttuu"
+
+    # Steady Draw estää
+    archer.current_hp = archer.max_hp
+    archer.is_dead = False
+    archer.stun_timer = 0
+    archer.has_steady_draw = True
+    for _ in range(20):
+        bow.update_charge(archer, manager)
+    attacker.attack_cooldown = 0
+    attacker.current_stamina = attacker.max_stamina
+    archer.stun_immunity = 0
+    attacker.perform_attack(archer, manager=manager)
+    assert bow.charge_time > 0, "steady_draw ei suojannut latausta"
+
+
+def test_bow_cannot_block(manager):
+    """Blockaus ei onnistu jousi kädessä (vaatii melee-aseen tai kilven)."""
+    from units.human import Human
+    from items.bows.weak_bow import WeakBow
+    from items.swords.weak_sword import WeakSword
+
+    u = Human("Archer", 0, 0, PLAYER_TEAM)
+    u.equipment["main_hand"] = WeakBow()
+    u.calculate_final_stats()
+    u.set_blocking(True)
+    assert u.is_blocking is False, "jousella ei saa voida blokata"
+
+    u.equipment["main_hand"] = WeakSword()
+    u.calculate_final_stats()
+    u.set_blocking(True)
+    assert u.is_blocking is True, "miekalla blockin pitaa toimia"
+
+
+def test_bow_draw_drains_stamina(manager):
+    """Jännitys kuluttaa staminaa selvästi; Steady Draw puolittaa."""
+    from units.human import Human
+    from items.bows.weak_bow import WeakBow
+
+    u = Human("Archer", 0, 0, PLAYER_TEAM)
+    bow = WeakBow()
+    u.equipment["main_hand"] = bow
+    u.calculate_final_stats()
+
+    s0 = u.current_stamina
+    for _ in range(60):
+        bow.update_charge(u, manager)
+    normal_cost = s0 - u.current_stamina
+    assert normal_cost > 20, f"jannitys liian halpaa: {normal_cost}"
+
+    u.current_stamina = s0
+    u.has_steady_draw = True
+    bow.charge_time = 0
+    for _ in range(60):
+        bow.update_charge(u, manager)
+    skilled_cost = s0 - u.current_stamina
+    assert skilled_cost < normal_cost * 0.6, (skilled_cost, normal_cost)
