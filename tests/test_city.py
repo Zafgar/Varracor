@@ -183,3 +183,66 @@ def test_barracks_menu_roster_and_equip(manager):
     bm.handle_event(ev)
     assert bm.next_state == "guild"
     assert manager.guild_return_state == "barracks"
+
+
+def test_village_task_full_flow(manager):
+    """Kylätehtävä: hyväksy, kerää, toimita, lunasta palkinnot."""
+    vt = manager.village_tasks
+    assert vt is not None
+    assert any(t.id == "grain_haul" for t in vt.available_for(0))
+
+    assert vt.accept("grain_haul")
+    manager.inventory["Grain Sack"] = 3
+    assert vt.notify_collect(manager, "grain_haul")
+    assert vt.try_deliver(manager, "grain_haul", "market")
+    t = vt.get("grain_haul")
+    assert t.status == "ready_turnin"
+    gold0 = manager.gold
+    gained = vt.complete(manager, "grain_haul")
+    assert gained and manager.gold > gold0
+    assert t.status == "done"
+
+
+def test_village_task_fighter_reward(manager):
+    """Tehtävä voi palkita taistelijalla."""
+    vt = manager.village_tasks
+    manager.reputation = 10
+    assert vt.accept("lost_girl")
+    assert vt.notify_reach("lost_girl", "forest_road")
+    before = len(manager.my_team)
+    vt.complete(manager, "lost_girl")
+    assert len(manager.my_team) == before + 1
+
+
+def test_village_tasks_persist(manager, tmp_path, monkeypatch):
+    """Kylätehtävien tila säilyy tallennuksessa."""
+    import save_manager
+    monkeypatch.setattr(save_manager, "SAVE_DIR", str(tmp_path))
+    monkeypatch.setattr(save_manager, "SAVE_FILE", str(tmp_path / "s.json"))
+
+    manager.village_tasks.accept("grain_haul")
+    assert save_manager.save_game(manager)
+
+    from game_manager import GameManager
+    m2 = GameManager()
+    assert save_manager.load_game(m2)
+    assert m2.village_tasks.get("grain_haul").status == "active"
+
+
+def test_ambient_bard_event(manager):
+    """Ambient-bardieventti käynnistyy ja päättyy siististi."""
+    from citys.mucford.muckford_city_menu import MuckfordCityMenu
+    city = MuckfordCityMenu(manager)
+    assert getattr(city, "stage", None) is not None
+    city._update_ambient_event()
+    city._event_timer = 2
+    seen = False
+    for _ in range(400):
+        city.update()
+        if city._event_state == "bard":
+            seen = True
+            break
+    assert seen, "bardieventti ei kaynnistynyt"
+    for _ in range(1300):
+        city.update()
+    assert city._event_state == "idle"

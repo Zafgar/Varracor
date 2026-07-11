@@ -259,6 +259,7 @@ def save_game(manager):
             "commander": _serialize_unit(manager.player_character) if manager.player_character else None,
             # --- Questit & NPC:t ---
             "quests": _serialize_quests(quest_manager),
+            "village_tasks": manager.village_tasks.to_dict() if getattr(manager, "village_tasks", None) else {},
             "quest_reputation": quest_manager.reputation if quest_manager else 0,
             "npc_state": _json_safe(manager.npc_state),
             # --- Liiga (perustiedot) ---
@@ -341,6 +342,9 @@ def load_game(manager):
             _apply_unit_state(manager.player_character, data["commander"])
 
         # --- Questit ---
+        if getattr(manager, "village_tasks", None) and data.get("village_tasks"):
+            manager.village_tasks.from_dict(data["village_tasks"])
+
         _apply_quests(quest_manager, data.get("quests", {}),
                       data.get("quest_reputation", 0))
         if quest_manager:

@@ -198,6 +198,7 @@ class MuckfordCityMenu(BaseMenu):
                  base_y = p.image_pos[1] + p.image.get_height() + 40
                  for ox in range(-200, 201, 50): # Leveämpi alue isommalle lavalle
                      self.gathering_spots.append((p.rect.centerx + ox, base_y + random.randint(-20, 40)))
+                 self.stage = p  # Talteen ambient-bardieventtiä varten
             
             elif isinstance(p, MuckfordStall):
                  # Kojun eteen
@@ -503,6 +504,13 @@ class MuckfordCityMenu(BaseMenu):
         for prop in self.arena.props:
             if isinstance(prop, TeamBarracks):
                 self.barracks = prop
+                break
+
+        # Esiintymislava talteen ambient-bardieventtiä varten
+        self.stage = None
+        for prop in self.arena.props:
+            if isinstance(prop, MuckfordStage):
+                self.stage = prop
                 break
 
         # Rivaalitiimien gladiaattoreita lorvimassa kaupungissa (liikkuvat,
@@ -895,6 +903,7 @@ class MuckfordCityMenu(BaseMenu):
         # Päivitä kaupunkisimulaatio (Kävely, juttelu, taloissa vierailu)
         if not self.manager.world_paused:
             self._update_simulation()
+            self._update_ambient_event()
 
         # 3. VFX
         self.vfx.update(self.manager)
@@ -974,6 +983,64 @@ class MuckfordCityMenu(BaseMenu):
         else:
             talk_id = self.rng.randint(1, 8)
             sound_system.play_sound(f"talking_loop_{talk_id}")
+
+    def _update_ambient_event(self):
+        """Satunnainen ambient-tapahtuma: bardi soittaa lavalla, kyläläiset
+        kokoontuvat. Tekee kaupungista elävän tuntuisen."""
+        if not hasattr(self, "_event_state"):
+            self._event_state = "idle"
+            self._event_timer = self.rng.randint(600, 1800)  # 10-30s ennen ekaa
+            self._event_bard = None
+            self._event_banner = 0
+
+        stage = getattr(self, "stage", None)
+        if stage is None:
+            return
+
+        self._event_timer -= 1
+        if self._event_banner > 0:
+            self._event_banner -= 1
+
+        if self._event_state == "idle":
+            if self._event_timer <= 0:
+                self._start_bard_performance(stage)
+        elif self._event_state == "bard":
+            if self._event_timer % 18 == 0:
+                sx = stage.rect.centerx + self.rng.randint(-40, 40)
+                sy = stage.image_pos[1] + 40
+                self.manager.vfx.create_musical_note(sx, sy)
+            if self._event_timer <= 0:
+                self._end_bard_performance()
+
+    def _start_bard_performance(self, stage):
+        candidates = [n for n in self.npcs if hasattr(n, "sim_state")
+                      and n is not getattr(self, "bram", None)
+                      and not getattr(n, "rival_info", None)]
+        if not candidates:
+            self._event_timer = self.rng.randint(600, 1800)
+            return
+        bard = self.rng.choice(candidates)
+        self._event_bard = bard
+        bard.sim_state = "PERFORMING"
+        bard.rect.centerx = stage.rect.centerx
+        bard.rect.bottom = stage.image_pos[1] + stage.image.get_height() - 20
+        bard.animation_state = "idle"
+        self._event_state = "bard"
+        self._event_timer = self.rng.randint(600, 1200)  # 10-20s esitys
+        self._event_banner = 240
+        try:
+            sound_system.play_sound("talking_loop_1")
+        except Exception:
+            pass
+
+    def _end_bard_performance(self):
+        if self._event_bard is not None:
+            if getattr(self._event_bard, "sim_state", None) == "PERFORMING":
+                self._event_bard.sim_state = "IDLE"
+                self._event_bard.sim_timer = 60
+            self._event_bard = None
+        self._event_state = "idle"
+        self._event_timer = self.rng.randint(1800, 3600)  # 30-60s taukoa
 
     def _update_simulation(self):
         """Hoitaa kaupungin elämän: kävelyn, juttelun ja taloissa vierailun."""
@@ -1205,6 +1272,15 @@ class MuckfordCityMenu(BaseMenu):
 
         # --- POI ICONS (seurattavat merkit: quest, kauppa, areena) ---
         self._draw_poi_icons(screen, offset)
+
+        # Ambient-eventin banneri (bardiesitys)
+        if getattr(self, "_event_banner", 0) > 0:
+            msg = "The bard takes the stage!"
+            surf = font_title.render(msg, True, (255, 220, 120))
+            sh = font_title.render(msg, True, (0, 0, 0))
+            x = SCREEN_WIDTH // 2 - surf.get_width() // 2
+            screen.blit(sh, (x + 2, 92))
+            screen.blit(surf, (x, 90))
 
         # Mouse Hover Logic
         mouse_pos = pygame.mouse.get_pos()

@@ -99,6 +99,14 @@ class GameManager:
 
         # --- LEAGUE SYSTEM ---
         self.league_engine = LeagueEngine()
+
+        # --- KYLÄTEHTÄVÄT (side-tasks) ---
+        try:
+            from systems.village_task_manager import VillageTaskManager
+            self.village_tasks = VillageTaskManager()
+        except Exception as e:
+            print(f"Warning: VillageTaskManager failed to load: {e}")
+            self.village_tasks = None
         self.current_enemy_team = None 
         self.match_mode = "1v1"
 
