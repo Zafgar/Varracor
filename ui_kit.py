@@ -34,20 +34,18 @@ def draw_text(text, font, color, surface, x, y):
 
 def format_money(amount):
     """
-    Formats integer amount (Silver Pieces) into HC/PL/GP/SP string.
-    1000 SP = 1 GP
-    1000 GP = 1 PL
-    1000 PL = 1 HC
+    Muotoilee määrän (hopeapaloina, SP) loren valuutoiksi.
+    100 SP = 1 GP, 100 GP = 1 PL, 100 PL = 1 HC (docs/LORE.md).
     """
     amount = int(amount)
     if amount == 0: return "0 SP"
-    
-    hc = amount // 1000000000
-    rem = amount % 1000000000
-    pl = rem // 1000000
-    rem = rem % 1000000
-    gp = rem // 1000
-    sp = rem % 1000
+
+    hc = amount // 1000000
+    rem = amount % 1000000
+    pl = rem // 10000
+    rem = rem % 10000
+    gp = rem // 100
+    sp = rem % 100
     
     parts = []
     if hc > 0: parts.append(f"{hc} HC")

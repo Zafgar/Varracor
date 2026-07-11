@@ -42,6 +42,7 @@ from citys.mucford.blacksmith_menu import BlacksmithMenu
 from menus.city_storage_menu import CityStorageMenu
 from citys.mucford.forest_road_menu import ForestRoadMenu
 from citys.mucford.mine_road_menu import MineRoadMenu
+from citys.mucford.mine_cave_menu import MineCaveMenu
 from menus.muckford_intro_screen import MuckfordIntroScreen
 from minigames.crown_knives import CrownKnivesMenu
 from menus.test_menu import TestMenu
@@ -107,6 +108,7 @@ def main():
         "city_storage": CityStorageMenu(manager),
         "forest_road": ForestRoadMenu(manager),
         "mine_road": None, # Luodaan tarvittaessa
+        "mine_cave": None, # Luodaan tarvittaessa
         "muckford_intro": MuckfordIntroScreen(manager),
         "test_arena": TestMenu(manager),
         "options": OptionsMenu(manager),
@@ -141,6 +143,7 @@ def main():
         "blacksmith_interior": BlacksmithMenu,
         "forest_road": ForestRoadMenu,
         "mine_road": MineRoadMenu,
+        "mine_cave": MineCaveMenu,
     }
 
     # Luodaan aina uusi instanssi tilaan tultaessa
@@ -157,12 +160,12 @@ def main():
     }
 
     # Luodaan vain jos instanssia ei vielä ole
-    CREATE_IF_MISSING = {"muckford_city", "blacksmith_interior", "forest_road", "mine_road"}
+    CREATE_IF_MISSING = {"muckford_city", "blacksmith_interior", "forest_road", "mine_road", "mine_cave"}
 
     # Tiloille kutsutaan on_enter() tultaessa
     CALL_ON_ENTER = {
         "muckford_city", "blacksmith_interior", "forest_road", "mine_road",
-        "test_arena", "crown_knives",
+        "mine_cave", "test_arena", "crown_knives",
     }
 
     # Näistä tiloista tultaessa EI tehdä alustusta lainkaan

@@ -424,11 +424,13 @@ MARKET_PRICES = {
         "Milk": 4, "Egg": 2, "Apple": 2, "Manure": 1,
         "Swamp Wood": 3, "Scrap Iron": 3, "Scrap": 2,
         "Rat Tail": 2, "Spirit Essence": 8, "Iron Ore": 3,
+        "Coal": 2, "Iron Bar": 8, "Chipped Ruby": 40, "Stone": 1,
     },
     # Mitä pelaaja voi ostaa kojulta
     "buy": {
         "Empty Bucket": {"price": 5, "kind": "item", "class": "BucketEmpty"},
         "Weak Pickaxe": {"price": 12, "kind": "item", "class": "WeakPickaxe"},
+        "Weak Health Potion": {"price": 30, "kind": "item", "class": "WeakHealthPotion"},
         "Apple": {"price": 4, "kind": "material"},
         "Egg": {"price": 4, "kind": "material"},
     },
