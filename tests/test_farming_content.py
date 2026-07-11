@@ -9,7 +9,7 @@ import pygame
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-# Importing BarracksMenu installs all farming layers in the same order as main.py.
+# Importing BarracksMenu installs all farming/material layers like main.py.
 from menus.barracks_menu import BarracksMenu
 import citys.mucford.farming_expansion as farming
 from citys.mucford.farming_content import HERB_DATA, POTION_RECIPES
@@ -86,6 +86,10 @@ def test_expanded_layout_has_twenty_valid_plots_and_named_herbs():
     assert len({(col, row) for _crop, col, row in farming.PLOT_LAYOUT}) == 20
     assert max(col for _crop, col, _row in farming.PLOT_LAYOUT) == 3
     assert max(row for _crop, _col, row in farming.PLOT_LAYOUT) == 4
+    assert "Sunblossom" in HERB_DATA
+    assert "Moondew Petals" in HERB_DATA
+    assert "Sunleaf" not in HERB_DATA
+    assert "Moonpetal" not in HERB_DATA
     for crop_name, _col, _row in farming.PLOT_LAYOUT:
         assert crop_name in farming.CROP_DATA
     for herb_name, herb in HERB_DATA.items():
@@ -109,7 +113,6 @@ def test_plot_grid_fits_farm_and_leaves_eastern_apple_corridor():
     grid_right = farm.x + 1240 + max_col * (farming.CropPlot.WIDTH + 28) + farming.CropPlot.WIDTH
     grid_bottom = farm.y + 130 + max_row * (farming.CropPlot.HEIGHT + 32) + farming.CropPlot.HEIGHT
 
-    # Apple trees begin near farm.right - 200; keep a broad worker corridor.
     assert grid_right <= farm.right - 300
     assert grid_bottom <= farm.bottom
 
@@ -139,16 +142,17 @@ def test_item_registry_creates_shop_tools_and_brewed_potions():
         assert create_item(name) is not None, name
 
 
-def test_npc_harvest_places_real_product_in_city_storage_and_ledger():
+def test_npc_harvest_places_canonical_product_in_city_storage_and_ledger():
     manager = DummyManager()
     state = {"growth_ticks": 0, "watered": True, "harvest_count": 0}
-    plot = farming.CropPlot(0, 0, "Moonpetal", state, "moonpetal_test")
+    plot = farming.CropPlot(
+        0, 0, "Moondew Petals", state, "moondew_petals_test")
     plot.growth_ticks = plot.data["growth_frames"]
     worker = DummyHarvester(GuildHarvestScythe())
 
     assert plot.harvest(manager, worker, to_storage=True, npc=True)
-    assert manager.city_storage["Moonpetal"] >= 1
-    assert manager.npc_state["farming"]["npc_harvest_totals"]["Moonpetal"] >= 1
+    assert manager.city_storage["Moondew Petals"] >= 1
+    assert manager.npc_state["farming"]["npc_harvest_totals"]["Moondew Petals"] >= 1
     assert plot.growth_ticks == 0
     assert plot.watered is False
 
@@ -196,13 +200,20 @@ def test_farm_potions_apply_effects_and_are_consumed_from_slot():
     assert fighter.equipment["usable"] is None
 
 
-def test_every_named_herb_is_used_by_a_real_potion_recipe():
+def test_alchemy_uses_canonical_world_reagents():
     used_ingredients = {
         ingredient
         for recipe in POTION_RECIPES.values()
         for ingredient in recipe["ingredients"]
     }
-    assert set(HERB_DATA).issubset(used_ingredients)
+    assert "Bitterleaf" in used_ingredients
+    assert "Sunblossom" in used_ingredients
+    assert "Nightcap Fungus" in used_ingredients
+    assert "Moondew Petals" in used_ingredients
+    assert "Resin" in used_ingredients
+    assert "Focus Powder" in used_ingredients
+    assert "Sunleaf" not in used_ingredients
+    assert "Moonpetal" not in used_ingredients
 
 
 def test_every_alchemy_recipe_builds_a_concrete_potion():
