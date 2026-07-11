@@ -286,6 +286,7 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/portraits/{self.npc_id}/{emotion}.png` — npc/base_npc.py
 - `assets/races/animals` — units/farm_animals.py
 - `assets/races/elf` — units/elf_bard.py
+- `assets/races/forest/troll/troll` — units/troll.py
 - `assets/races/goblin/goblin` — units/goblin.py
 - `assets/races/human/human` — units/human.py
 - `assets/races/human/mardashant` — units/marda_shant.py

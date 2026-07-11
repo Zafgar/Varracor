@@ -112,7 +112,52 @@ class ForestExcursionMenu(GameplayScreen):
             else:
                 mon = CorruptedCrow(f"Crow {i+1}", mx, my, ENEMY_TEAM)
             self.monsters.add(mon)
+
+        # --- SATUNNAISTAPAHTUMA (jokainen retki tuntuu erilaiselta) ---
+        self.event_banner = ""
+        self.event_banner_timer = 0
+        self.troll = None
+        self._roll_event(rng)
+
         self._update_camera()
+
+    def _roll_event(self, rng):
+        roll = rng.random()
+        if roll < 0.20:
+            # Harvinainen TROLLIKOHTAAMINEN (boss-haaste)
+            from units.troll import Troll
+            tx, ty = self.arena.width // 2, self.arena.height // 2
+            self.troll = Troll("Forest Troll", tx, ty, ENEMY_TEAM)
+            self.monsters.add(self.troll)
+            self._set_event("A FOREST TROLL blocks the path! (Fire stops its regeneration)")
+        elif roll < 0.40:
+            # Rikas yrttikasvusto
+            for _ in range(4):
+                hx = rng.randint(80, self.arena.width - 80)
+                hy = rng.randint(80, self.arena.height - 80)
+                herb = BogwortHerb(hx, hy)
+                self.arena.herbs.append(herb)
+                self.arena.props.append(herb)
+            self._set_event("The rains were kind - Bogwort grows thick today.")
+        elif roll < 0.58:
+            # Kadonnut matkalainen (pieni kultapalkkio kun löytää)
+            self.lost_traveler_pos = (rng.randint(200, self.arena.width - 200),
+                                      rng.randint(150, self.arena.height - 300))
+            self.lost_traveler_found = False
+            self._set_event("Someone cries for help deep in the trees...")
+        elif roll < 0.75:
+            # Ansa: ylimääräisiä petoja väijyy
+            for i in range(3):
+                mx = rng.randint(200, self.arena.width - 200)
+                my = rng.randint(150, self.arena.height - 400)
+                self.monsters.add(GiantRat(f"Ambush Rat {i+1}", mx, my, ENEMY_TEAM))
+            self._set_event("An ambush! The beasts are thick here today.")
+        else:
+            self._set_event("The forest is quiet. Gather what you can.")
+
+    def _set_event(self, text):
+        self.event_banner = text
+        self.event_banner_timer = 360
 
     def _flash(self, msg):
         self.feedback = msg
@@ -147,6 +192,18 @@ class ForestExcursionMenu(GameplayScreen):
         all_units = [self.player] + [m for m in self.monsters if not m.is_dead]
         self._update_gameplay(all_units)
 
+        # Kadonnut matkalainen: löydä kävelemällä lähelle -> kultapalkkio
+        if getattr(self, "lost_traveler_pos", None) and not self.lost_traveler_found:
+            import math
+            d = math.hypot(self.player.rect.centerx - self.lost_traveler_pos[0],
+                           self.player.rect.centery - self.lost_traveler_pos[1])
+            if d < 80:
+                self.lost_traveler_found = True
+                self.manager.gold += 30
+                self.manager.record_deed("forest_lost_traveler",
+                                         "guided a lost traveler home from the forest")
+                self._flash("Found the traveler! +30 Gold")
+
         # Poistu pohjoisreunasta (takaisin kaupunkiin)
         if self.player.rect.top < 20:
             self.manager.match_in_progress = False
@@ -154,6 +211,8 @@ class ForestExcursionMenu(GameplayScreen):
 
         if self.feedback_timer > 0:
             self.feedback_timer -= 1
+        if getattr(self, "event_banner_timer", 0) > 0:
+            self.event_banner_timer -= 1
 
     def draw(self, screen):
         all_units = [self.player] + [m for m in self.monsters if not m.is_dead]
@@ -171,6 +230,19 @@ class ForestExcursionMenu(GameplayScreen):
         draw_text(f"Forest Trail   Bogwort left: {remaining}   Beasts: {alive}",
                   font_small, WHITE, screen, 40, 40)
         draw_text("Head north to return to Muckford.", font_small, GRAY, screen, 40, 66)
+
+        # Kadonneen matkalaisen huutomerkki
+        if getattr(self, "lost_traveler_pos", None) and not getattr(self, "lost_traveler_found", True):
+            tx = self.lost_traveler_pos[0] - offset[0]
+            ty = self.lost_traveler_pos[1] - offset[1]
+            if 0 < tx < SCREEN_WIDTH and 0 < ty < SCREEN_HEIGHT:
+                draw_text("?", font_main, (255, 220, 120), screen, tx, ty - 40)
+
+        # Tapahtumabanneri
+        if getattr(self, "event_banner_timer", 0) > 0:
+            surf = font_main.render(self.event_banner, True, (255, 210, 130))
+            screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, 130))
+
         if self.feedback_timer > 0:
             draw_text(self.feedback, font_main, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 40, 100)
 

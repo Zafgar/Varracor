@@ -720,7 +720,11 @@ class GameManager:
             boss = RatKing("Rat King", 0, 0)
             boss.assign_manager(self)
             return boss
-            
+
+        if name in ("Troll", "Forest Troll"):
+            from units.troll import Troll
+            return Troll("Forest Troll", 0, 0)
+
         RED = ENEMY_TEAM
         if name == 'Giant Rat': return GiantRat(name, 0, 0)
         if name == 'Rat Rider': return RatRider(name, 0, 0, RED)
@@ -1267,6 +1271,7 @@ class GameManager:
         # 2) Perheet substringilla (spesifisin ensin)
         families = [
             ("Rat King", "Rat King"),
+            ("Troll", "Troll"),
             ("Rat Rider", "Rat Rider"),
             ("Skeleton Archer", "Skeleton Archer"),
             ("Archer", "Skeleton Archer"),
@@ -1514,8 +1519,13 @@ class GameManager:
             return True
         return False
 
+    def smith_discount(self):
+        """Tiimin seppä (Brekka) alentaa koulutus-/korjauskuluja 20%."""
+        return 0.8 if getattr(self, "has_smith", False) else 1.0
+
     def train_unit(self, unit, stat_name):
-        current_cost = getattr(unit, 'upgrade_cost', 100)
+        base_cost = getattr(unit, 'upgrade_cost', 100)
+        current_cost = int(base_cost * self.smith_discount())
         if self.gold >= current_cost:
             self.gold -= current_cost
             if stat_name == 'str':
@@ -1531,7 +1541,8 @@ class GameManager:
             unit.calculate_final_stats()
             unit.current_hp = unit.max_hp
             unit.current_mana = unit.max_mana
-            unit.upgrade_cost = int(current_cost * 1.2)
+            # Seuraavan tason perushinta kasvaa perushinnasta (ei alennetusta)
+            unit.upgrade_cost = int(base_cost * 1.2)
             return True
         return False
     

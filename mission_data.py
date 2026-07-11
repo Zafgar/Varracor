@@ -13,6 +13,16 @@ BOSS_HUNTS = {
         "enemies": [("Rat King", 1), ("Giant Rat", 4)],
         "reward_gold": 500,
         "reward_item": "Rat Tail"
+    },
+    "boss_forest_troll": {
+        "id": "boss_forest_troll",
+        "title": "The Forest Troll",
+        "desc": "A troll haunts the woods south of Muckford. It heals its wounds "
+                "unless you burn it — bring fire.",
+        "arena": "Bog",
+        "enemies": [("Forest Troll", 1), ("Giant Rat", 3)],
+        "reward_gold": 700,
+        "reward_item": "Troll Hide"
     }
 }
 
