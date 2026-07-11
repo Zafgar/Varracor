@@ -115,6 +115,9 @@ try:
         install_farming_stations_hardening,
     )
     from systems.material_integration import install_material_integration
+    from systems.material_integration_hardening import (
+        install_material_integration_hardening,
+    )
 
     install_farming_expansion()
     install_farming_hardening()
@@ -123,5 +126,6 @@ try:
     install_farming_stations()
     install_farming_stations_hardening()
     install_material_integration()
+    install_material_integration_hardening()
 except Exception as exc:
     print(f"[FarmingExpansion] Could not install: {exc}")
