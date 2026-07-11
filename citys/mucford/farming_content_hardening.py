@@ -55,7 +55,7 @@ def install_farming_content_hardening():
 
     import citys.mucford.farming_expansion as farming
     import citys.mucford.farming_content as content
-    from ai.villager_ai import VillagerAI
+    from ai.villager_ai import STATE_IDLE, VillagerAI
 
     farming.PLOT_LAYOUT = SAFE_PLOT_LAYOUT
     content.EXPANDED_PLOT_LAYOUT = SAFE_PLOT_LAYOUT
@@ -106,6 +106,26 @@ def install_farming_content_hardening():
 
         FarmingSystem._equip_farmer_npcs = _equip_farmer_npcs
         FarmingSystem._minimum_farmers_installed = True
+
+    # The base AI can abandon a path after repeated collision recovery. Release
+    # its crop reservation first, otherwise that plot remains unavailable to all
+    # other workers even though nobody is travelling to it anymore.
+    if not getattr(VillagerAI, "_stuck_crop_release_installed", False):
+        previous_handle_work = VillagerAI._handle_work
+
+        def _handle_work(self, obstacles, all_units, manager):
+            if self.work_target is not None and self.stuck_counter > 3:
+                self._clear_work_target()
+                self.work_type = None
+                self.state = STATE_IDLE
+                self.state_timer = 1
+                self.stuck_counter = 0
+                self.unit.animation_state = "idle"
+                return
+            return previous_handle_work(self, obstacles, all_units, manager)
+
+        VillagerAI._handle_work = _handle_work
+        VillagerAI._stuck_crop_release_installed = True
 
     CropPlot = farming.CropPlot
 
