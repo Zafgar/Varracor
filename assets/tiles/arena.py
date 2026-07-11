@@ -9,7 +9,7 @@ from assets.tiles.muckford_objects import (
 )
 from assets.tiles.muckford_floors import MuckfordFloor
 from crafting.swamp.scrap_pile import ScrapPile
-from assets.tiles.farm_objects import Barn, PastureFloor, FarmFenceHorizontal, FarmFenceVertical
+from assets.tiles.farm_objects import Barn, PastureFloor, FarmFenceHorizontal, FarmFenceVertical, FarmStorage, ManurePile
 from assets.tiles.forest_objects import ForestBush, ForestCart, ForestCrates, ForestGrass
 
 class Arena:
@@ -48,6 +48,11 @@ class Arena:
         self._add_prop(Barn(self.farm_area.x + 50, self.farm_area.y + 50))
         self._add_prop(ChickenCoop(self.farm_area.x + 400, self.farm_area.y + 100))
         self._add_prop(Well(self.farm_area.x + 600, self.farm_area.y + 200))
+        # Farm Shop (varasto) ja komposti (lantaquestin palautuspiste).
+        # HUOM: Nämä puuttuivat aiemmin kartalta kokonaan, jolloin lantaquestia
+        # ei voinut suorittaa (ei paikkaa mihin dumpata).
+        self._add_prop(FarmStorage(self.farm_area.x + 750, self.farm_area.y + 50))
+        self._add_prop(ManurePile(self.farm_area.x + 850, self.farm_area.bottom - 220))
         
         # Pellot (Fields)
         self._add_prop(MuckfordField(self.farm_area.x + 100, self.farm_area.bottom - 250))

@@ -75,3 +75,45 @@ def test_chicken_hatch_respects_population_cap(manager):
     after = sum(1 for a in city.animals if isinstance(a, Chicken))
     assert after == before, "muna kuoriutui vaikka populaatiokatto oli taynna"
     assert egg not in city.arena.props, "muna ei poistunut"
+
+
+def test_farm_has_storage_and_manure_pile(simulated_city):
+    """Regressio: nämä puuttuivat kartalta, jolloin lantaquest oli
+    mahdoton suorittaa (ei paikkaa mihin dumpata)."""
+    from assets.tiles.farm_objects import FarmStorage, ManurePile
+    _, city = simulated_city
+    assert any(isinstance(p, FarmStorage) for p in city.arena.props)
+    assert any(isinstance(p, ManurePile) for p in city.arena.props)
+
+
+def test_manure_quest_dump(manager):
+    """Lantaquest etenee ja valmistuu kun lanta dumpataan kompostiin."""
+    from citys.mucford.muckford_city_menu import MuckfordCityMenu
+    from assets.tiles.farm_objects import ManurePile
+    from quest_system import quest_manager
+
+    city = MuckfordCityMenu(manager)
+    q = quest_manager.get_quest("quest_manure_cleanup")
+    quest_manager.accept_quest("quest_manure_cleanup")
+    manager.inventory["Manure"] = 5
+
+    pile = next(p for p in city.arena.props if isinstance(p, ManurePile))
+    assert city._try_interact_prop(pile, check_collision=False)
+    assert q.progress == 5
+    assert q.status == "completed"
+
+
+def test_eggs_stay_bounded(manager):
+    """Munien määrä kartalla ei kasva rajatta (katto 20)."""
+    from citys.mucford.muckford_city_menu import MuckfordCityMenu
+    from assets.tiles.farm_objects import Egg
+    from units.farm_animals import Chicken
+
+    city = MuckfordCityMenu(manager)
+    chickens = [a for a in city.animals if isinstance(a, Chicken)]
+    for _ in range(40):
+        for c in chickens:
+            c.ai_controller.egg_timer = 0
+            c.ai_controller._lay_egg(manager)
+    eggs = sum(1 for p in city.arena.props if isinstance(p, Egg))
+    assert eggs <= 20, f"munia kartalla {eggs} (katto 20)"

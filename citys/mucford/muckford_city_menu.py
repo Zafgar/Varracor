@@ -548,11 +548,12 @@ class MuckfordCityMenu(BaseMenu):
                 self.next_state = "hub"
                 sound_system.play_sound('click')
             elif self.btn_save.is_clicked(event):
-                print("Save clicked (Not implemented)")
-                sound_system.play_sound('click')
+                self.manager.save_current_game()
+                self.show_pause_menu = False
             elif self.btn_load.is_clicked(event):
-                print("Load clicked (Not implemented)")
-                sound_system.play_sound('click')
+                if self.manager.load_saved_game():
+                    self.show_pause_menu = False
+                    self.next_state = "hub"
             elif self.btn_exit.is_clicked(event):
                 self.next_state = "exit"
                 sound_system.play_sound('click')
@@ -701,7 +702,12 @@ class MuckfordCityMenu(BaseMenu):
         speed = 4.0 # Pelaajan nopeus kaupungissa
         
         # Block
-        self.player.set_blocking(keys[pygame.K_LSHIFT])
+        # Shift = sprintti (sama kuin taistelussa; kuluttaa staminaa).
+        # Block ei ole hyödyllinen rauhallisessa kaupungissa.
+        wants_sprint = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+        self.player.set_sprinting(wants_sprint)
+        if self.player.is_sprinting and self.player.current_stamina > 0.5:
+            speed *= 1.5
         
         # Estä manuaalinen liike jos dash on käynnissä (Commander hoitaa sen itse)
         if not self.player.is_dashing:
@@ -774,7 +780,7 @@ class MuckfordCityMenu(BaseMenu):
                                          "You were dragged to safety...", color=(255, 120, 120))
             
         for p in self.arena.floor_props:
-            if hasattr(p, "update"): p.update(self.manager)
+            if hasattr(p, "update"): p.update(manager=self.manager)
             
         # Päivitä Sulatot (Prosessointi)
         for p in self.arena.props:
@@ -790,7 +796,7 @@ class MuckfordCityMenu(BaseMenu):
             
             # Päivitä Kanalat (Hautominen)
             if isinstance(p, ChickenCoop):
-                p.update(self.manager)
+                p.update(manager=self.manager)
 
         # Päivitä kaupunkisimulaatio (Kävely, juttelu, taloissa vierailu)
         if not self.manager.world_paused:
