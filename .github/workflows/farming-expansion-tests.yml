@@ -10,6 +10,7 @@ on:
       - "quests/material_contracts.py"
       - "quests/village_tasks.py"
       - "systems/material_integration.py"
+      - "systems/material_integration_hardening.py"
       - "menus/barracks_menu.py"
       - "menus/notice_board_menu.py"
       - "skills/commander_skills_data.py"
@@ -27,6 +28,7 @@ on:
       - "quests/material_contracts.py"
       - "quests/village_tasks.py"
       - "systems/material_integration.py"
+      - "systems/material_integration_hardening.py"
       - "menus/barracks_menu.py"
       - "menus/notice_board_menu.py"
       - "skills/commander_skills_data.py"
@@ -72,6 +74,7 @@ jobs:
             quests/material_contracts.py \
             quests/village_tasks.py \
             systems/material_integration.py \
+            systems/material_integration_hardening.py \
             menus/barracks_menu.py \
             menus/notice_board_menu.py \
             skills/commander_skills_data.py \
