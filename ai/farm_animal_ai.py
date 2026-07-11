@@ -151,6 +151,15 @@ class FarmAnimalAI(BaseAI):
 
     def _lay_egg(self, manager):
         if manager:
+            # Rajoita munien määrää kartalla (Max 20, kuten lannalla)
+            eggs = [p for p in manager.current_arena.props if isinstance(p, Egg)]
+            if len(eggs) >= 20:
+                oldest = eggs[0]
+                if oldest in manager.current_arena.props:
+                    manager.current_arena.props.remove(oldest)
+                if oldest in manager.all_units:
+                    manager.all_units.remove(oldest)
+
             egg = Egg(self.unit.rect.centerx, self.unit.rect.centery)
             manager.current_arena.props.append(egg)
             manager.all_units.add(egg)
