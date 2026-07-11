@@ -101,10 +101,13 @@ class BarracksMenu(BaseMenu):
 
 
 # Farming expansion is installed here because main.py imports BarracksMenu after
-# MuckfordCityMenu.  At this point both classes exist and can be extended
-# without adding more responsibilities to either large module.
+# MuckfordCityMenu. At this point both classes exist and can be extended without
+# adding more responsibilities to either large module.
 try:
     from citys.mucford.farming_expansion import install_farming_expansion
+    from citys.mucford.farming_hardening import install_farming_hardening
+
     install_farming_expansion()
+    install_farming_hardening()
 except Exception as exc:
     print(f"[FarmingExpansion] Could not install: {exc}")
