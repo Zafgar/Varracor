@@ -49,6 +49,7 @@ from menus.test_menu import TestMenu
 from menus.options_menu import OptionsMenu
 from menus.barracks_menu import BarracksMenu
 from menus.notice_board_menu import NoticeBoardMenu
+from citys.mucford.forest_excursion import ForestExcursionMenu
 from menus.market_menu import MarketMenu
 
 pygame.init()
@@ -116,6 +117,7 @@ def main():
         "options": OptionsMenu(manager),
         "barracks": BarracksMenu(manager),
         "notice_board": NoticeBoardMenu(manager),
+        "forest_excursion": None,  # luodaan tarvittaessa
         "market": MarketMenu(manager)
     }
     
@@ -143,6 +145,7 @@ def main():
         "options": OptionsMenu,
         "barracks": BarracksMenu,
         "notice_board": NoticeBoardMenu,
+        "forest_excursion": ForestExcursionMenu,
         "market": MarketMenu,
         "tavern_sunk_cask": TavernMenu,
         "muckford_city": MuckfordCityMenu,
@@ -166,12 +169,12 @@ def main():
     }
 
     # Luodaan vain jos instanssia ei vielä ole
-    CREATE_IF_MISSING = {"muckford_city", "blacksmith_interior", "forest_road", "mine_road", "mine_cave"}
+    CREATE_IF_MISSING = {"muckford_city", "blacksmith_interior", "forest_road", "mine_road", "mine_cave", "forest_excursion"}
 
     # Tiloille kutsutaan on_enter() tultaessa
     CALL_ON_ENTER = {
         "muckford_city", "blacksmith_interior", "forest_road", "mine_road",
-        "mine_cave", "test_arena", "crown_knives",
+        "mine_cave", "test_arena", "crown_knives", "forest_excursion",
     }
 
     # Näistä tiloista tultaessa EI tehdä alustusta lainkaan

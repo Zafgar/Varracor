@@ -3,7 +3,23 @@
 # --- LOOT DROPS (Hirviöt) ---
 LOOT_DROPS = {
     'Giant Rat': [{'item': 'Rat Tail', 'chance': 0.8, 'min': 1, 'max': 2}],
-    'Skeleton':  [{'item': 'Bone Dust', 'chance': 0.6, 'min': 1, 'max': 3}], 
+    'Rat Rider': [
+        {'item': 'Rat Tail', 'chance': 0.8, 'min': 1, 'max': 2},
+        {'item': 'Saddle Scrap', 'chance': 0.4, 'min': 1, 'max': 1},
+    ],
+    'Skeleton':  [{'item': 'Bone Dust', 'chance': 0.6, 'min': 1, 'max': 3}],
+    'Skeleton Archer': [
+        {'item': 'Bone Dust', 'chance': 0.6, 'min': 1, 'max': 2},
+        {'item': 'Cracked Arrow', 'chance': 0.4, 'min': 1, 'max': 3},
+    ],
+    'Zombie': [
+        {'item': 'Rotten Flesh', 'chance': 0.7, 'min': 1, 'max': 2},
+        {'item': 'Bone Dust', 'chance': 0.3, 'min': 1, 'max': 1},
+    ],
+    'Corrupted Crow': [
+        {'item': 'Black Feather', 'chance': 0.7, 'min': 1, 'max': 2},
+        {'item': 'Vortex Residue', 'chance': 0.1, 'min': 1, 'max': 1},
+    ],
     'Slime':     [{'item': 'Slime Goo', 'chance': 0.7, 'min': 1, 'max': 3}],
     'Goblin':    [{'item': 'Broken Tooth', 'chance': 0.5, 'min': 1, 'max': 1}],
     'Orc':       [{'item': 'Orc Skin', 'chance': 0.4, 'min': 1, 'max': 1}],

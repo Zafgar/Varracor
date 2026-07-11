@@ -364,6 +364,11 @@ class MuckfordCityMenu(BaseMenu):
         """Kaivostien portti kaupungin itäreunalla."""
         return pygame.Rect(self.arena.width - 70, self.arena.height // 2 - 120, 70, 240)
 
+    def _forest_gate_rect(self):
+        """Metsäpolun aukko kartan eteläreunalla (metsävyöhykkeen alapuolella)."""
+        gx = int(self.arena.width * 0.72)
+        return pygame.Rect(gx, self.arena.height - 70, 260, 70)
+
     def _spawn_guards(self):
         """Lisää vartijat (Human) jotka käyttävät Combat AI:ta (eivät pelkää)."""
         for i in range(6):
@@ -722,6 +727,13 @@ class MuckfordCityMenu(BaseMenu):
                                                      self.player.rect.top - 30,
                                                      msg, color=(255, 120, 120))
                         sound_system.play_sound('error')
+                    return
+
+                # --- METSÄPOLKU (eteläreuna, metsävyöhykkeen kohdalla) ---
+                fgate = self._forest_gate_rect()
+                if self.player.rect.colliderect(fgate):
+                    self.next_state = "forest_excursion"
+                    sound_system.play_sound('click')
                     return
 
                 # Tarkista NPC interaktio
@@ -1405,6 +1417,11 @@ class MuckfordCityMenu(BaseMenu):
         if self.player.rect.colliderect(gate.inflate(60, 60)):
             label = "Mine Road" if getattr(self.manager, "mine_key_owned", False) else "Mine Road (Locked)"
             self.manager._draw_floating_prompt(screen, gate.centerx, gate.top - 20, "E", offset, label)
+
+        # Metsäpolun aukon prompt
+        fgate = self._forest_gate_rect()
+        if self.player.rect.colliderect(fgate.inflate(60, 60)):
+            self.manager._draw_floating_prompt(screen, fgate.centerx, fgate.top - 20, "E", offset, "Forest Trail")
 
         # Kello, kalenteri ja sää (oikea yläkulma)
         self.manager.world_clock.draw_hud(screen, font_small)

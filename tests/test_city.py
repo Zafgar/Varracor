@@ -313,3 +313,60 @@ def test_notice_board_in_city(manager):
     city.player.rect.center = (board.rect.centerx, board.rect.bottom + 30)
     city.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e))
     assert city.next_state == "notice_board"
+
+
+def test_monster_loot_keys(manager):
+    """Kaikki spawnattavat hirviöt mäppäytyvät LOOT_DROPS-avaimeen."""
+    from settings import ENEMY_TEAM
+    from units.undead_zombie import UndeadZombie
+    from units.corrupted_crow import CorruptedCrow
+    from units.rat_rider import RatRider
+    from units.undead_skeleton_archer import UndeadSkeletonArcher
+    from loot_data import LOOT_DROPS
+
+    checks = [
+        (UndeadZombie, "Zombie 2", "Zombie"),
+        (CorruptedCrow, "Corrupted Crow", "Corrupted Crow"),
+        (RatRider, "Rat Rider 1", "Rat Rider"),
+        (UndeadSkeletonArcher, "Skeleton Archer 3", "Skeleton Archer"),
+    ]
+    for cls, nm, expected in checks:
+        try:
+            u = cls(nm, 0, 0, ENEMY_TEAM)
+        except TypeError:
+            u = cls(nm, 0, 0)
+        u.name = nm
+        key = manager._loot_key_for(u)
+        assert key == expected, f"{nm} -> {key} (want {expected})"
+        assert key in LOOT_DROPS, f"no drop table for {key}"
+
+
+def test_forest_excursion_forage_and_exit(manager):
+    """Metsäretki: foragointi antaa Bogwortia ja pohjoisreuna palauttaa kaupunkiin."""
+    from citys.mucford.forest_excursion import ForestExcursionMenu
+    fe = ForestExcursionMenu(manager)
+    fe.on_enter()
+    assert len(fe.monsters) > 0
+    assert len(fe.arena.herbs) > 0
+
+    herb = fe.arena.herbs[0]
+    manager.player_character.rect.center = herb.rect.center
+    fe._try_forage()
+    assert manager.inventory.get("Bogwort", 0) == 1
+    assert herb.harvested
+
+    # Pohjoisreuna palauttaa kaupunkiin
+    manager.player_character.rect.top = 5
+    fe.update()
+    assert fe.next_state == "muckford_city"
+
+
+def test_forest_gate_from_city(manager):
+    """Kylän eteläportti vie metsäretkelle."""
+    import pygame
+    from citys.mucford.muckford_city_menu import MuckfordCityMenu
+    city = MuckfordCityMenu(manager)
+    fg = city._forest_gate_rect()
+    city.player.rect.center = fg.center
+    city.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e))
+    assert city.next_state == "forest_excursion"

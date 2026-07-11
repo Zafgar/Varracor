@@ -1214,17 +1214,7 @@ class GameManager:
             # Käydään läpi kaikki viholliset (myös kuolleet)
             # Huom: enemy_team sisältää ne vielä tässä vaiheessa
             for enemy in self.enemy_team:
-                # Haetaan nimi ilman numeroita (esim "Giant Rat 1" -> "Giant Rat")
-                # Yksinkertainen tapa: poistetaan numerot lopusta tai käytetään luokan nimeä
-                # Mutta LOOT_DROPS käyttää tarkkoja nimiä (esim "Rat King", "Giant Rat")
-                # Yritetään tunnistaa nimi
-                base_name = enemy.name.split(" 1")[0].split(" 2")[0] # Hacky fix
-                if enemy.name in LOOT_DROPS: base_name = enemy.name
-                
-                # Jos nimi ei täsmää, kokeillaan "Giant Rat" jos se on rotta
-                if "Rat" in enemy.name and "King" not in enemy.name: base_name = "Giant Rat"
-                if "Rat King" in enemy.name: base_name = "Rat King"
-
+                base_name = self._loot_key_for(enemy)
                 drops = LOOT_DROPS.get(base_name)
                 if drops:
                     # Tuki listalle (uusi) tai dictille (vanha)
@@ -1262,6 +1252,35 @@ class GameManager:
         else:
             xp_total = 10 + enemy_level_sum * 3
         self.round_rewards["xp"] = int(max(0, xp_total))
+
+    def _loot_key_for(self, enemy):
+        """Mäppää vihollisen LOOT_DROPS-avaimeksi. Kestää numeroidut nimet
+        ('Skeleton 2') ja tunnistaa perheet substringilla."""
+        import re
+        raw = getattr(enemy, "name", "") or ""
+        # Poista mahdollinen numero lopusta ("Bandit 3" -> "Bandit")
+        stripped = re.sub(r"\s+\d+$", "", raw).strip()
+        # 1) Suora täsmäys (tarkin ensin)
+        for candidate in (raw, stripped):
+            if candidate in LOOT_DROPS:
+                return candidate
+        # 2) Perheet substringilla (spesifisin ensin)
+        families = [
+            ("Rat King", "Rat King"),
+            ("Rat Rider", "Rat Rider"),
+            ("Skeleton Archer", "Skeleton Archer"),
+            ("Archer", "Skeleton Archer"),
+            ("Skeleton", "Skeleton"),
+            ("Zombie", "Zombie"),
+            ("Crow", "Corrupted Crow"),
+            ("Rat", "Giant Rat"),
+            ("Frog", "Giant Frog"),
+            ("Leech", "Bog Leech"),
+        ]
+        for needle, key in families:
+            if needle in stripped and key in LOOT_DROPS:
+                return key
+        return stripped
 
     def _create_loot_item(self, name):
         """Luo esineen nimen perusteella. Tukee custom Rat-esineitä."""
