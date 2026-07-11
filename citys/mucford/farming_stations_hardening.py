@@ -1,8 +1,9 @@
 """Safety layer for the tiered Team Quarters crafting stations.
 
-Keeps construction/crafting transactional and limits recipe hit targets to the
-visible scroll viewport. Installed after ``farming_stations`` so its wrappers
-are seen by the station UI closures through normal module globals.
+Keeps construction/crafting transactional, prevents circular upgrade costs and
+limits recipe hit targets to the visible scroll viewport. Installed after
+``farming_stations`` so its wrappers are seen by the station UI closures through
+normal module globals.
 """
 
 from __future__ import annotations
@@ -33,6 +34,17 @@ def install_farming_stations_hardening():
         return
 
     import citys.mucford.farming_stations as stations
+
+    # Precision Components are produced by the tier-3 workbench. Requiring one
+    # to construct that same tier creates an impossible progression loop. The
+    # master workbench instead consumes tier-2 leather/cloth outputs and then
+    # becomes the source of precision parts for other tier-3 stations.
+    stations.STATION_DEFINITIONS["workbench"]["tiers"][3]["materials"] = {
+        "Iron Bar": 6,
+        "Reinforced Cloth": 2,
+        "Leather Straps": 2,
+        "Spirit Essence": 1,
+    }
 
     if not getattr(stations, "_transactional_jobs_installed", False):
         original_begin_recipe = stations.begin_station_recipe
