@@ -55,6 +55,7 @@ jobs:
             citys/mucford/farming_content.py \
             citys/mucford/farming_content_hardening.py \
             citys/mucford/farming_stations.py \
+            citys/mucford/farming_stations_hardening.py \
             items/farm_potions.py \
             items/tools/harvest_tools.py \
             menus/barracks_menu.py \
