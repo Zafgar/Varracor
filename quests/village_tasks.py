@@ -27,6 +27,8 @@ class VillageTask:
         self.stages = data["stages"]
         self.rewards = data.get("rewards", {})
         self.rep_req = data.get("rep_req", 0)
+        self.recommended_level = data.get("recommended_level")
+        self.material_family = data.get("material_family")
         # Miten kylä muistaa tämän urotyön (dialogeissa myöhemmin)
         self.deed_text = data.get("deed_text", "")
         # Runtime
@@ -63,6 +65,7 @@ VILLAGE_TASKS = [
         "summary": "Carry 3 sacks of grain from the farm to the market stall.",
         "deed_text": "hauled the mill's grain when Gus's back gave out",
         "rep_req": 0,
+        "recommended_level": (1, 5),
         "stages": [
             {"kind": "talk",
              "text": "The mill's out of grain and my back's out of commission. "
@@ -76,20 +79,23 @@ VILLAGE_TASKS = [
     },
     {
         "id": "forest_herbs",
-        "title": "Hospice Herbs",
+        "title": "Hospice Bitterleaf",
         "giver": "Sister-Medic Rhea Ashford",
-        "summary": "Gather 5 Bogwort from the forest for the hospice.",
-        "deed_text": "gathered healing herbs for the hospice",
+        "summary": "Gather 5 Bitterleaf from the farm or forest edge for the hospice.",
+        "deed_text": "gathered Bitterleaf medicine for the hospice",
         "rep_req": 0,
+        "recommended_level": (1, 6),
+        "material_family": "Herbs, Alchemy & Potions",
         "stages": [
             {"kind": "talk",
              "text": "The wounded keep coming and my herb stores are dry. "
-                     "Bring me 5 Bogwort from the forest edge - it stops bleeding."},
-            {"kind": "collect", "item": "Bogwort", "count": 5,
-             "hint": "Bogwort grows in the forest to the east."},
+                     "Bring me five healthy Bitterleaf plants. It slows bleeding "
+                     "and gives a field tonic something useful to work with."},
+            {"kind": "collect", "item": "Bitterleaf", "count": 5,
+             "hint": "Bitterleaf grows in Muckford's herb plots and along the forest edge."},
         ],
         "rewards": {"gold": 20, "reputation": 5, "xp": 8,
-                    "material": {"Weak Health Potion Recipe": 1}},
+                    "material": {"Resin": 1}},
     },
     {
         "id": "lost_girl",
@@ -98,6 +104,7 @@ VILLAGE_TASKS = [
         "summary": "A tavern regular's daughter wandered toward the forest road.",
         "deed_text": "found the lost girl on the forest road",
         "rep_req": 5,
+        "recommended_level": (1, 8),
         "stages": [
             {"kind": "talk",
              "text": "One of my regulars is beside herself - her girl ran off "
@@ -114,16 +121,19 @@ VILLAGE_TASKS = [
         "id": "marsh_smith",
         "title": "The Marsh Smith",
         "giver": "Notice Board",
-        "summary": "A Frogfolk smith is stranded in the swamp - bring back "
-                   "her lost hammer-head (Void Iron) and she'll join you.",
+        "summary": "A Frogfolk smith is stranded in the swamp. Bring two Iron Ingots "
+                   "so she can replace her ruined hammer-head and she'll join you.",
         "deed_text": "brought the marsh smith Brekka into the fold",
         "rep_req": 25,
+        "recommended_level": (6, 10),
+        "material_family": "Metals, Ores & Smithing",
         "stages": [
             {"kind": "talk",
-             "text": "Posted: Frogfolk smith seeks her stolen hammer-head. "
-                     "Reward: her services. She forges AND fights."},
-            {"kind": "collect", "item": "Void Iron", "count": 2,
-             "hint": "Void Iron is mined on the swamp road."},
+             "text": "Posted: Frogfolk smith seeks two clean Iron Ingots for a "
+                     "replacement hammer-head. Reward: her services. She forges "
+                     "and fights."},
+            {"kind": "collect", "item": "Iron Ingot", "count": 2,
+             "hint": "Smelt Iron Ore with Coal at Muckford's Smeltery."},
         ],
         "rewards": {"gold": 0, "reputation": 15, "xp": 25,
                     "fighter": {"race": "Frogfolk", "name": "Brekka"}},
@@ -135,6 +145,7 @@ VILLAGE_TASKS = [
         "summary": "Two goblin brokers are feuding over a rat-tail contract.",
         "deed_text": "settled the brokers' feud without bloodshed",
         "rep_req": 10,
+        "recommended_level": (1, 8),
         "stages": [
             {"kind": "talk",
              "text": "Psst. Me and Griznak both claim the same rat-tail contract. "
