@@ -115,3 +115,67 @@ def test_tier_promotion_advances(manager):
     start_tier = le.tier
     le.promote_player()
     assert le.tier == start_tier + 1
+
+
+def test_gladiator_personality_and_origin():
+    """Rekrytoitavat yksiköt saavat luonteen ja taustan; bossit eivät."""
+    import pygame
+    from units.orc import Orc
+    from units.goblin import Goblin
+    from progression.personality import PERSONALITIES, ORIGINS
+
+    orc = Orc("Grok", 0, 0, (50, 200, 50))
+    assert orc.personality in PERSONALITIES
+    assert orc.origin in ORIGINS
+
+    gob = Goblin("Snik", 0, 0, (50, 200, 50))
+    assert gob.personality in PERSONALITIES
+
+
+def test_roster_dialogue_evolves_with_relationship(manager):
+    """Roster-dialogi muuttuu suhteen mukaan; jutteleminen nostaa suhdetta."""
+    from units.orc import Orc
+    orc = Orc("Grok", 0, 0, (50, 200, 50))
+    orc.personality = "hothead"  # deterministinen
+
+    menu_neutral = manager.open_roster_dialogue(orc)
+    neutral_line = menu_neutral.nodes["start"].text
+
+    manager.npc_state["gladiator_Grok"]["relationship"] = 70
+    menu_devoted = manager.open_roster_dialogue(orc)
+    devoted_line = menu_devoted.nodes["start"].text
+    assert neutral_line != devoted_line, "dialogi ei muuttunut suhteen mukaan"
+
+    # "Good talk" nostaa suhdetta rep-efektin kautta
+    menu_neutral.apply_effect("rep:3")
+    assert manager.npc_state["gladiator_Grok"]["relationship"] >= 70
+
+
+def test_rival_gladiator_dialogue_by_reputation(manager):
+    """Rivaalin dialogi muuttuu pelaajan maineen mukaan."""
+    info = ("Vane Kestrel", "Shanty Yard Saints", "arrogant")
+    manager.reputation = 0
+    low = manager.open_rival_dialogue(info).nodes["start"].text
+    manager.reputation = 500
+    high = manager.open_rival_dialogue(info).nodes["start"].text
+    assert low != high
+
+
+def test_personality_persists_through_save(manager, tmp_path, monkeypatch):
+    """Luonne ja tausta säilyvät tallennuksessa."""
+    import save_manager
+    monkeypatch.setattr(save_manager, "SAVE_DIR", str(tmp_path))
+    monkeypatch.setattr(save_manager, "SAVE_FILE", str(tmp_path / "s.json"))
+
+    manager.recruit_initial_hero()
+    hero = list(manager.my_team)[0]
+    hero.personality = "loyal"
+    hero.origin = "Deserter"
+    assert save_manager.save_game(manager)
+
+    from game_manager import GameManager
+    m2 = GameManager()
+    assert save_manager.load_game(m2)
+    h2 = list(m2.my_team)[0]
+    assert h2.personality == "loyal"
+    assert h2.origin == "Deserter"

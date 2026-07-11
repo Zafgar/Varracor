@@ -505,6 +505,22 @@ class MuckfordCityMenu(BaseMenu):
                 self.barracks = prop
                 break
 
+        # Rivaalitiimien gladiaattoreita lorvimassa kaupungissa (liikkuvat,
+        # asenteellinen dialogi). Merkitään ne rival_infolla.
+        self.rival_units = []
+        from npc.rival_gladiator_npc import RIVAL_GLADIATORS
+        races_for = {"arrogant": "Elf", "gruff": "Dwarf", "cagey": "Goblin", "warm": "Human"}
+        street_y = self.arena.height // 2
+        for i, (rname, team, attitude) in enumerate(RIVAL_GLADIATORS):
+            rx = self.arena.width // 2 - 400 + i * 220
+            ry = street_y + 40
+            race = races_for.get(attitude, "Human")
+            rv = Villager(rname, race, rx, ry, team_color=GREEN)
+            rv.name = rname  # VillagerAI lisää job-liitteen; palautetaan
+            rv.rival_info = (rname, team, attitude)
+            self.npcs.append(rv)
+            self.rival_units.append(rv)
+
     def _open_smelter_ui(self, smelter):
         self.active_smeltery = smelter
         self.smelter_buttons = []
@@ -694,6 +710,13 @@ class MuckfordCityMenu(BaseMenu):
                         # Bram - Tier 0 -liigamanagerin dialogi
                         if npc is getattr(self, "bram", None):
                             self.next_state = "dialogue:dwarf_league_manager"
+                            return
+
+                        # Rivaalitiimin gladiaattori - asenteellinen dialogi
+                        if getattr(npc, "rival_info", None):
+                            self.manager.open_rival_dialogue(npc.rival_info,
+                                                             return_state="muckford_city")
+                            self.next_state = "dialogue_active"
                             return
 
                         # Farmer Gus interaction

@@ -356,13 +356,35 @@ class GameManager:
             print(f"Error: NPC ID '{npc_id}' not found.")
             return None
 
+    def open_rival_dialogue(self, rival_info, return_state="muckford_city"):
+        """Avaa asenteellisen dialogin rivaalitiimin gladiaattorin kanssa."""
+        from npc.rival_gladiator_npc import RivalGladiatorNPC
+        name, team, attitude = rival_info
+        npc = RivalGladiatorNPC(name, team, attitude)
+        if npc.npc_id not in self.npc_state:
+            self.npc_state[npc.npc_id] = {"relationship": 0, "flags": {}, "history": []}
+        context = {
+            "player": {"name": "Commander", "gold": self.gold},
+            "reputation": self.reputation,
+            "my_data": self.npc_state[npc.npc_id],
+        }
+        menu = ChatMenu(self, npc, context, return_state=return_state)
+        self.pending_dialogue_menu = menu
+        return menu
+
     def open_roster_dialogue(self, unit, return_state="barracks"):
-        """Avaa dialogin oman joukkueen jäsenen kanssa (Barracks)."""
-        npc = RecruitNPC(unit)
+        """Avaa dialogin oman joukkueen jäsenen kanssa (Barracks).
+        Dialogi muuttuu luonteen, suhteen ja urotöiden mukaan."""
+        from npc.roster_npc import RosterNPC
+        npc = RosterNPC(unit)
+        # Varmista NPC-muisti (suhde säilyy yli dialogien ja tallennuksen)
+        if npc.npc_id not in self.npc_state:
+            self.npc_state[npc.npc_id] = {"relationship": 0, "flags": {}, "history": []}
         context = {
             "player": {"name": "Commander", "gold": self.gold},
             "reputation": self.reputation,
             "matches_played": self.matches_played,
+            "my_data": self.npc_state[npc.npc_id],
             "unit": unit,
             "owned": True,
         }

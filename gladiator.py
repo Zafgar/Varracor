@@ -127,6 +127,17 @@ class Gladiator(pygame.sprite.Sprite):
         self.status_effects = []
         self.traits = []
 
+        # --- IDENTITY (luonne + tausta) ---
+        # Vain rekrytoitavilla roduilla; bosseille/eläimille jää None.
+        self.personality = None
+        self.origin = None
+        try:
+            from progression.personality import assign_personality, RACE_WEIGHTS
+            if race_name in RACE_WEIGHTS:
+                self.personality, self.origin = assign_personality(race_name)
+        except Exception:
+            pass
+
         # --- RACIAL ABILITIES ---
         self.is_invisible = False      # Goblin Shadowstep
         self.invis_timer = 0
@@ -321,9 +332,20 @@ class Gladiator(pygame.sprite.Sprite):
         surface.blit(font_small.render(f"SPD: {self.speed:.1f}", True, (220, 220, 220)), (col1, start_y + row_h*2))
         surface.blit(font_small.render(f"CRI: {int(self.crit_chance*100)}%", True, (220, 220, 0)), (col2, start_y + row_h*2))
         
-        # 5. Traits
+        # 5. Personality + Traits
+        row_i = 3
+        if self.personality:
+            try:
+                from progression.personality import PERSONALITIES
+                pname = PERSONALITIES.get(self.personality, {}).get("name", self.personality)
+                p_y = start_y + row_h * row_i + 5
+                origin = f" ({self.origin})" if self.origin else ""
+                surface.blit(font_small.render(f"{pname}{origin}", True, (150, 220, 255)), (col1, p_y))
+                row_i += 1
+            except Exception:
+                pass
         if self.traits:
-            t_y = start_y + row_h * 3 + 5
+            t_y = start_y + row_h * row_i + 5
             t_str = ", ".join(self.traits[:3])
             surface.blit(font_small.render(f"Traits: {t_str}", True, (255, 215, 0)), (col1, t_y))
             

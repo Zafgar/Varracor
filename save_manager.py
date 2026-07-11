@@ -76,6 +76,8 @@ def _serialize_unit(u):
         "skill_points": int(getattr(u, "skill_points", 0)),
         "unlocked_skills": sorted(getattr(u, "unlocked_skills", [])),
         "traits": list(getattr(u, "traits", [])),
+        "personality": getattr(u, "personality", None),
+        "origin": getattr(u, "origin", None),
         "weapon_affinities": dict(getattr(u, "weapon_affinities", {})),
         "base_attributes": dict(getattr(u, "base_attributes", {})),
         "cost": int(getattr(u, "cost", 0)),
@@ -116,6 +118,10 @@ def _apply_unit_state(unit, data):
     unit.skill_points = data.get("skill_points", 0)
     unit.unlocked_skills = set(data.get("unlocked_skills", []))
     unit.traits = list(data.get("traits", []))
+    if data.get("personality"):
+        unit.personality = data["personality"]
+    if data.get("origin"):
+        unit.origin = data["origin"]
     if data.get("weapon_affinities"):
         unit.weapon_affinities = dict(data["weapon_affinities"])
     if data.get("base_attributes"):
