@@ -725,6 +725,13 @@ class GameManager:
             from units.troll import Troll
             return Troll("Forest Troll", 0, 0)
 
+        if name in ("Cave Broodmother", "Broodmother"):
+            from units.cave_spider import CaveBroodmother
+            return CaveBroodmother("Cave Broodmother", 0, 0)
+        if name == "Spiderling":
+            from units.cave_spider import Spiderling
+            return Spiderling("Spiderling", 0, 0)
+
         RED = ENEMY_TEAM
         if name == 'Giant Rat': return GiantRat(name, 0, 0)
         if name == 'Rat Rider': return RatRider(name, 0, 0, RED)
@@ -1272,6 +1279,8 @@ class GameManager:
         families = [
             ("Rat King", "Rat King"),
             ("Troll", "Troll"),
+            ("Broodmother", "Cave Broodmother"),
+            ("Spiderling", "Spiderling"),
             ("Rat Rider", "Rat Rider"),
             ("Skeleton Archer", "Skeleton Archer"),
             ("Archer", "Skeleton Archer"),

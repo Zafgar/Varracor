@@ -285,6 +285,7 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/portraits/vortex/MnemonicDevourer` — npc/mnemonic_devourer_npc.py
 - `assets/portraits/{self.npc_id}/{emotion}.png` — npc/base_npc.py
 - `assets/races/animals` — units/farm_animals.py
+- `assets/races/cave/broodmother/broodmother` — units/cave_spider.py
 - `assets/races/elf` — units/elf_bard.py
 - `assets/races/forest/troll/troll` — units/troll.py
 - `assets/races/goblin/goblin` — units/goblin.py

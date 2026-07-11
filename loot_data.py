@@ -26,6 +26,11 @@ LOOT_DROPS = {
     'Dragon':    [{'item': 'Dragon Scale', 'chance': 1.0, 'min': 1, 'max': 2}],
     'Troll':     [{'item': 'Troll Hide', 'chance': 1.0, 'min': 1, 'max': 2}],
     'Spider Queen': [{'item': 'Spider Silk', 'chance': 1.0, 'min': 2, 'max': 4}],
+    'Cave Broodmother': [
+        {'item': 'Spider Silk', 'chance': 1.0, 'min': 2, 'max': 4},
+        {'item': 'Venom Gland', 'chance': 0.9, 'min': 1, 'max': 2},
+        {'item': 'Chipped Ruby', 'chance': 0.5, 'min': 1, 'max': 1},
+    ],
     'Spiderling':   [{'item': 'Spider Silk', 'chance': 0.3, 'min': 1, 'max': 1}],
     
     # --- SWAMP ENEMIES ---

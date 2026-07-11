@@ -36,7 +36,15 @@ class GriznakQuestGiver(BaseNPC):
 
     def get_nodes(self, context):
         nodes = {}
-        
+
+        # Urotekojen tunnustus: Griznak kuulee kylän juoruista mitä olet tehnyt
+        deeds = context.get("global_data", {}).get("deeds", [])
+        if deeds:
+            normal_text = (f"Word travels, hero. Heard you {deeds[-1]['text']}. "
+                           f"Heh. Now pick a contract or get out of my sight.")
+        else:
+            normal_text = "Back again? Pick a contract or get out of my sight."
+
         # --- 1. LATAA QUEST-DIALOGIT (Dynaaminen) ---
         # Hakee dialogit suoraan quest-tiedostosta (esim. hunt_rat_king.py)
         # Jos Rat King on voitettu, sieltä tulee nodeja, jotka lisätään tähän listaan.
@@ -126,7 +134,7 @@ class GriznakQuestGiver(BaseNPC):
 
         nodes["root_normal"] = DialogueNode(
             id="root_normal",
-            text="Back again? Pick a contract or get out of my sight.",
+            text=normal_text,
             speaker="Griznak",
             emotion="neutral",
             choices=[DialogueChoice("Just looking.", None, effects=["close_chat"])]

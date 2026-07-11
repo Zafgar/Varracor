@@ -1425,6 +1425,10 @@ class Gladiator(pygame.sprite.Sprite):
         current_speed *= self.temp_speed_mult
         self.temp_speed_mult = 1.0 # Reset for next frame
 
+        # Web/Slow-status hidastaa liikettä (esim. hämähäkin verkko)
+        if any(e.get("type") in ("Web", "Slow") for e in self.status_effects):
+            current_speed *= 0.5
+
         # Salli täysi pysähdys (esim. lataus tai stun), muuten pidä miniminopeus
         if current_speed < 0.05:
             self.speed = 0.0
@@ -1779,7 +1783,7 @@ class Gladiator(pygame.sprite.Sprite):
             self.stoneform_timer = 240  # 4s
             self.stun_timer = 0
             self.status_effects = [e for e in self.status_effects
-                                   if e.get("type") not in ("Burn", "Bleed", "Poison", "Slow")]
+                                   if e.get("type") not in ("Burn", "Bleed", "Poison", "Slow", "Web")]
             self.racial_cooldown = 1800  # 30s
             if manager:
                 manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30,

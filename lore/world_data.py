@@ -456,6 +456,7 @@ MARKET_PRICES = {
         "Swamp Wood": 3, "Scrap Iron": 3, "Scrap": 2,
         "Rat Tail": 2, "Spirit Essence": 8, "Iron Ore": 3,
         "Coal": 2, "Iron Bar": 8, "Chipped Ruby": 40, "Stone": 1,
+        "Spider Silk": 6, "Venom Gland": 12, "Silver Ore": 25,
     },
     # Mitä pelaaja voi ostaa kojulta
     "buy": {

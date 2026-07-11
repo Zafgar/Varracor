@@ -11,6 +11,7 @@ RACES = {
     'Goblin': {'hp_mult': 0.6, 'str_mult': 0.8, 'spd_mult': 1.4, 'defense': 0, 'resistance': 'None', 'weakness': 'Physical', 'desc': 'Weak but fast', 'affinity': {'dagger': 1.15, 'crossbow': 1.10}},
     'Frogfolk': {'hp_mult': 1.2, 'str_mult': 1.15, 'spd_mult': 0.95, 'defense': 2, 'resistance': 'Poison', 'weakness': 'Ice', 'desc': 'Marsh smith-warrior', 'affinity': {'mace': 1.15, 'spear': 1.10}},
     'Troll':  {'hp_mult': 2.2, 'str_mult': 1.6, 'spd_mult': 0.7, 'defense': 2, 'resistance': 'Physical', 'weakness': 'Magic', 'desc': 'Boss'},
+    'Spider': {'hp_mult': 1.0, 'str_mult': 1.0, 'spd_mult': 1.2, 'defense': 1, 'resistance': 'None', 'weakness': 'Fire', 'desc': 'Cave dweller'},
 
 
     # Boss Rodut

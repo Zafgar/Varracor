@@ -66,6 +66,65 @@ class RubyVein(IronOre):
         self.image = self.sprites["full"]
 
 
+class SilverVein(IronOre):
+    """Hopeasuoni syvässä kammiossa: aukeaa vasta kun Broodmother on
+    kaadettu. Arvokkain kaivoksen perusresurssi (Silver Ore)."""
+
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.name = "Silver Vein"
+        self.resource_name = "Silver Ore"
+        self.max_hits = 3
+        self.current_hits = self.max_hits
+        self._make_images()
+
+    def _make_images(self):
+        for key in ("full", "hit", "empty"):
+            s = pygame.Surface((60, 60), pygame.SRCALPHA)
+            pygame.draw.polygon(s, (58, 60, 66), [
+                (8, 50), (4, 28), (20, 10), (44, 8), (56, 32), (48, 52)])
+            if key != "empty":
+                for cx, cy, r in [(22, 30, 5), (38, 22, 6), (34, 42, 4)]:
+                    pygame.draw.circle(s, (210, 215, 230), (cx, cy), r)
+                    pygame.draw.circle(s, (245, 248, 255), (cx - 1, cy - 1), max(1, r - 3))
+            self.sprites[key] = s
+        self.image = self.sprites["full"]
+
+
+class WebBarrier(pygame.sprite.Sprite):
+    """Broodmotherin verkkoseinä: estää pääsyn syvään kammioon kunnes
+    boss kaadetaan. Täyskorkea este."""
+
+    def __init__(self, x, height):
+        super().__init__()
+        self.is_structure = True
+        self.type = "wall"
+        self.name = "Web Barrier"
+        self.has_shadow = False
+        self.width_px = 34
+        self.image_pos = (x, 0)
+        self.rect = pygame.Rect(x, 0, self.width_px, height)
+        self.image = pygame.Surface((self.width_px, height), pygame.SRCALPHA)
+        self._draw_web(height)
+
+    def _draw_web(self, height):
+        col = (225, 225, 240, 180)
+        w = self.width_px
+        # Pystylangat
+        for gx in (4, w // 2, w - 4):
+            pygame.draw.line(self.image, col, (gx, 0), (gx, height), 2)
+        # Poikittaislangat + vinot langat (verkkomainen)
+        step = 46
+        for gy in range(0, height, step):
+            pygame.draw.line(self.image, col, (0, gy), (w, gy), 1)
+            pygame.draw.line(self.image, (255, 255, 255, 90), (0, gy), (w, gy + step // 2), 1)
+            pygame.draw.line(self.image, (255, 255, 255, 90), (w, gy), (0, gy + step // 2), 1)
+
+    def draw_on_screen(self, surface, offset=(0, 0)):
+        surface.blit(self.image, (self.image_pos[0] - offset[0],
+                                  self.image_pos[1] - offset[1]))
+
+
 class _CavePillar(pygame.sprite.Sprite):
     """Luolan kivipylväs (este)."""
 
@@ -100,9 +159,59 @@ class MineCaveArena:
         self.vfx = VFXManager()
         self.ore_nodes = []
 
+        # Syvän kammion portti (Broodmotherin verkko)
+        self.wall_x = int(self.width * 0.66)
+        self.web_barrier = None
+        self.deep_spawned = False
+
         self.floor_image = pygame.Surface((self.width, self.height))
         self._generate_floor()
         self._build_level()
+
+    def add_web_barrier(self):
+        """Pystyttää verkkoseinän syvän kammion eteen (jos ei jo ole)."""
+        if self.web_barrier is not None:
+            return
+        self.web_barrier = WebBarrier(self.wall_x, self.height)
+        self.props.append(self.web_barrier)
+        self.obstacles.append(self.web_barrier)
+
+    def remove_web_barrier(self):
+        """Repii verkon (boss kaatui) — syvä kammio aukeaa."""
+        wb = self.web_barrier
+        if wb is None:
+            return
+        if wb in self.props:
+            self.props.remove(wb)
+        if wb in self.obstacles:
+            self.obstacles.remove(wb)
+        self.web_barrier = None
+
+    def spawn_deep_ores(self):
+        """Rikkaammat malmit syvässä kammiossa (verkon takana). Aukeaa vasta
+        kun Broodmother on kaadettu."""
+        if self.deep_spawned:
+            return
+        self.deep_spawned = True
+        w, h = self.width, self.height
+        x_min, x_max = self.wall_x + 80, w - 130
+
+        def place(cls, count):
+            for _ in range(count):
+                for _attempt in range(12):
+                    x = random.randint(x_min, x_max)
+                    y = random.randint(120, h - 160)
+                    if all(abs(x - n.rect.x) > 80 or abs(y - n.rect.y) > 80
+                           for n in self.ore_nodes):
+                        break
+                node = cls(x, y)
+                self.ore_nodes.append(node)
+                self.props.append(node)
+
+        place(SilverVein, 3)   # uusi arvokkain resurssi
+        place(RubyVein, 3)     # runsaammin rubiineja
+        place(IronOre, 4)
+        place(CoalDeposit, 2)
 
     def _generate_floor(self):
         # Tumma luolan lattia
@@ -157,9 +266,12 @@ class MineCaveArena:
                 self.ore_nodes.append(node)
                 self.props.append(node)
 
-        place(IronOre, 8, 400, w - 500)       # rautaa ympäri luolaa
-        place(CoalDeposit, 4, 500, w - 400)   # hiiltä sulattoa varten
-        place(RubyVein, 2, w - 450, w - 150)  # rubiinit syvimmällä
+        # Pidä perusmalmit verkkoseinän etupuolella (syvä kammio aukeaa
+        # vasta Broodmotherin jälkeen -> spawn_deep_ores).
+        near_max = self.wall_x - 80
+        place(IronOre, 8, 400, near_max)          # rautaa ympäri luolaa
+        place(CoalDeposit, 4, 500, near_max)      # hiiltä sulattoa varten
+        place(RubyVein, 2, near_max - 300, near_max)  # pari rubiinia seinän edessä
 
     def _add_prop(self, prop):
         self.props.append(prop)

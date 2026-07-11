@@ -19,9 +19,12 @@ class MineCaveMenu(GameplayScreen):
         super().__init__(manager)
         self.arena = MineCaveArena()
         self.undead = []
+        self.boss = None
         self.exit_rect = pygame.Rect(0, self.arena.height // 2 - 200, 70, 400)
         self._spawned_day = -1
         self._dark_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        self.banner = ""
+        self.banner_timer = 0
 
     def on_enter(self):
         super().on_enter()
@@ -40,11 +43,41 @@ class MineCaveMenu(GameplayScreen):
             self.arena.spawn_ores()
             self._spawn_undead()
 
+        # --- SYVÄN KAMMION PORTTI (Broodmother) ---
+        self._setup_deep_gate()
+
         sound_system.play_music('assets/music/crypt_theme.mp3')
+
+    def _setup_deep_gate(self):
+        """Verkkoseinä + Broodmother, kunnes boss on kaadettu (deed).
+        Kaadon jälkeen verkko poissa ja syvä kammio auki pysyvästi."""
+        deep_open = self.manager.has_deed("mine_broodmother")
+        if deep_open:
+            self.arena.remove_web_barrier()
+            self.arena.spawn_deep_ores()
+            self.boss = None
+            return
+
+        # Ei vielä kaadettu: pystytä verkko ja bossi sen eteen
+        self.arena.add_web_barrier()
+        if self.boss is None or self.boss.is_dead:
+            from units.cave_spider import CaveBroodmother
+            bx = self.arena.wall_x - 150
+            by = self.arena.height // 2
+            self.boss = CaveBroodmother("Cave Broodmother", bx, by, ENEMY_TEAM)
+            self.manager.enemy_team.add(self.boss)
+            self.manager.all_units.add(self.boss)
 
     def on_exit(self):
         super().on_exit()
         sound_system.stop_music()
+        # Siivoa boss + Spiderlingit enemy_teamista, etteivät vuoda muihin
+        # tiloihin. Jos bossia ei kaadettu, se palaa tuoreena ensi käynnillä.
+        for e in list(self.manager.enemy_team):
+            self.manager.enemy_team.remove(e)
+            if e in self.manager.all_units:
+                self.manager.all_units.remove(e)
+        self.boss = None
 
     def _spawn_undead(self):
         """Syvyyksien vartijat: vahvempia kuin tien saarto."""
@@ -91,6 +124,10 @@ class MineCaveMenu(GameplayScreen):
     def _all_units(self):
         units = [self.player]
         units.extend(self._leashed_undead())
+        # Broodmother + sen kutsumat Spiderlingit (enemy_teamissa)
+        for e in self.manager.enemy_team:
+            if not e.is_dead:
+                units.append(e)
         units.extend(n for n in self.arena.ore_nodes if not n.is_empty)
         return units
 
@@ -100,6 +137,22 @@ class MineCaveMenu(GameplayScreen):
 
         all_units = self._all_units()
         self._update_gameplay(all_units)
+
+        # Broodmotherin kaato aukaisee syvän kammion pysyvästi
+        if self.boss is not None and self.boss.is_dead:
+            self.manager.record_deed(
+                "mine_broodmother",
+                "slew the Cave Broodmother and opened the deep mine")
+            self.arena.remove_web_barrier()
+            self.arena.spawn_deep_ores()
+            self.boss = None
+            self.banner = "The web tears away — the deep mine is open!"
+            self.banner_timer = 360
+            self.manager.vfx.show_damage(self.player.rect.centerx, self.player.rect.top - 40,
+                                         "DEEP MINE UNLOCKED", color=(210, 215, 255))
+
+        if self.banner_timer > 0:
+            self.banner_timer -= 1
 
         # Saalis suoraan reppuun (ks. mine_road_menu, sama syy)
         loot = self.manager.round_rewards.get('loot')
@@ -148,3 +201,11 @@ class MineCaveMenu(GameplayScreen):
         if alive > 0:
             draw_text(f"Something stirs in the dark... ({alive})", font_small,
                       (255, 120, 120), screen, SCREEN_WIDTH // 2 - 150, 90)
+
+        if self.boss is not None and not self.boss.is_dead:
+            draw_text("A CAVE BROODMOTHER guards the deep chamber. (Fire burns spiders)",
+                      font_small, (200, 160, 220), screen, SCREEN_WIDTH // 2 - 260, 60)
+
+        if self.banner_timer > 0:
+            surf = font_main.render(self.banner, True, (210, 215, 255))
+            screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, 120))
