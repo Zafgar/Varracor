@@ -4,14 +4,24 @@ on:
   pull_request:
     paths:
       - "citys/mucford/farming_*.py"
+      - "items/farm_potions.py"
       - "items/tools/harvest_tools.py"
       - "menus/barracks_menu.py"
       - "skills/commander_skills_data.py"
-      - "tests/test_farming_expansion.py"
+      - "tests/test_farming_*.py"
       - ".github/workflows/farming-expansion-tests.yml"
   push:
     branches:
+      - "main"
       - "agent/farming-expansion"
+    paths:
+      - "citys/mucford/farming_*.py"
+      - "items/farm_potions.py"
+      - "items/tools/harvest_tools.py"
+      - "menus/barracks_menu.py"
+      - "skills/commander_skills_data.py"
+      - "tests/test_farming_*.py"
+      - ".github/workflows/farming-expansion-tests.yml"
 
 jobs:
   farming-tests:
@@ -42,10 +52,13 @@ jobs:
           python -m py_compile \
             citys/mucford/farming_expansion.py \
             citys/mucford/farming_hardening.py \
+            citys/mucford/farming_content.py \
+            items/farm_potions.py \
             items/tools/harvest_tools.py \
             menus/barracks_menu.py \
             skills/commander_skills_data.py \
-            tests/test_farming_expansion.py
+            tests/test_farming_expansion.py \
+            tests/test_farming_content.py
 
       - name: Run farming tests
-        run: python -m pytest -q tests/test_farming_expansion.py
+        run: python -m pytest -q tests/test_farming_expansion.py tests/test_farming_content.py
