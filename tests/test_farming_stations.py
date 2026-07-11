@@ -12,6 +12,7 @@ pygame.display.set_mode((1, 1))
 
 # Import order matches the real game and installs all Barracks extensions.
 from menus.barracks_menu import BarracksMenu
+import citys.mucford.farming_stations as stations
 from citys.mucford.farming_stations import (
     REAL_SECONDS_PER_GAME_MINUTE,
     begin_station_recipe,
@@ -213,3 +214,22 @@ def test_different_stations_can_work_in_parallel():
                                 now=3000.0)[0]
     assert station_node(manager, "kitchen")["job"]
     assert station_node(manager, "herbalist")["job"]
+
+
+def test_failed_completion_refunds_recipe_inputs(monkeypatch):
+    manager = DummyManager()
+    manager.inventory.update({"Bitterleaf": 2, "Marsh Mint": 1})
+    assert begin_station_recipe(
+        manager, "herbalist", "Bitterleaf Tonic", now=4000.0)[0]
+    assert manager.inventory == {}
+
+    def fail_output(*_args, **_kwargs):
+        raise RuntimeError("simulated output failure")
+
+    monkeypatch.setattr(stations, "_complete_recipe", fail_output)
+    end = finish_time(manager, "herbalist")
+    messages = process_station_jobs(manager, now=end + 0.1)
+
+    assert manager.inventory == {"Bitterleaf": 2, "Marsh Mint": 1}
+    assert station_node(manager, "herbalist")["job"] is None
+    assert "refunded" in messages[-1].lower()
