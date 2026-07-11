@@ -53,9 +53,32 @@ def install_farming_content_hardening():
         "factory": IronstemFortifier,
     }
 
+    CropPlot = farming.CropPlot
+
+    # Harvest tracking is optional bookkeeping. The actual crop reward must not
+    # depend on a fully initialized GameManager, because tests, editor previews
+    # and future map tools may use lightweight manager objects.
+    if not getattr(CropPlot, "_safe_harvest_ledger_installed", False):
+        previous_harvest = CropPlot.harvest
+
+        def harvest(self, manager, harvester, to_storage=False, npc=False):
+            if not hasattr(manager, "npc_state") or manager.npc_state is None:
+                manager.npc_state = {
+                    "global": {"reputation": 0, "flags": {}},
+                }
+            return previous_harvest(
+                self,
+                manager,
+                harvester,
+                to_storage=to_storage,
+                npc=npc,
+            )
+
+        CropPlot.harvest = harvest
+        CropPlot._safe_harvest_ledger_installed = True
+
     # The animated/official crop layer is drawn after the first-pass progress
     # bar. Draw the bar once more so future full-size art cannot hide growth.
-    CropPlot = farming.CropPlot
     if not getattr(CropPlot, "_progress_bar_hardening_installed", False):
         previous_draw = CropPlot.draw_on_screen
 
