@@ -26,6 +26,12 @@ except ImportError:
     print("Notice: OasisRuins not found, using BasicArena.")
     OasisRuins = BasicArena
 
+try:
+    from arenas.tier_1.scrapring_arena import ScrapringArena
+except ImportError:
+    print("Notice: ScrapringArena not found, using BasicArena.")
+    ScrapringArena = BasicArena
+
 # ---- Tier 2+ ----
 try:
     from arenas.tier_2.storm_arena import StormArena
@@ -38,6 +44,23 @@ try:
 except ImportError:
     print("Notice: SpikeArena not found, using BasicArena.")
     SpikeArena = BasicArena
+
+
+# Sijaintikohtaiset tunnusareenat (lore-signature). Näillä on oma
+# mekaniikkansa, joka ajetaan sijainnin liigassa tierin sijaan.
+LOCATION_ARENAS = {
+    "rattlebridge": ScrapringArena,
+}
+
+
+def get_arena_for(tier, location_id=None):
+    """Sijaintitietoinen valinta: jos sijainnilla on tunnusareena, käytä
+    sitä; muuten kaadu takaisin tier-pohjaiseen satunnaisvalintaan."""
+    if location_id:
+        cls = LOCATION_ARENAS.get(str(location_id))
+        if cls is not None:
+            return cls()
+    return get_random_arena(tier)
 
 
 def get_random_arena(tier):

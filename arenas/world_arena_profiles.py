@@ -29,8 +29,8 @@ ARENA_PROFILES = {
     },
     "rattlebridge": {
         "biome": "bridge scrapyard",
-        "hazards": ("moving scrap gates", "narrow bridge lanes", "fall zones"),
-        "combat_focus": "lane control and sponsor-ready spectacle",
+        "hazards": ("crushing gears", "steam bursts", "magnet plates (slow metal armor)"),
+        "combat_focus": "hazard timing and sponsor-ready spectacle",
     },
     "rivet_row": {
         "biome": "industrial cage",

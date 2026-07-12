@@ -18,7 +18,7 @@ from vfx import VFXManager
 
 # --- REGISTRIES ---
 from items.item_registry import get_random_shop_items, create_item, get_available_item_classes
-from arenas.arena_registry import get_random_arena
+from arenas.arena_registry import get_random_arena, get_arena_for
 from spells.spell_registry import get_spell_shop_items, get_all_spells_for_shop
 from npc.npc_registry import get_npc_class
 from missions.boss_registry import load_mission_package
@@ -737,7 +737,9 @@ class GameManager:
                     try: e.kill()
                     except Exception: pass
                     self.enemy_team.add(e)
-                self.current_arena = get_random_arena(self._get_league_tier())
+                self.current_arena = get_arena_for(
+                    self._get_league_tier(),
+                    getattr(self, "current_arena_location", None))
 
         elif self.mode == "Arena":
             tier = 1 if self.league_level < 3 else 2
