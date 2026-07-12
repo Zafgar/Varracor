@@ -15,8 +15,55 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 os.chdir(ROOT)
 
+import copy
 import pygame
 import pytest
+
+# Tilannekuva maailmankartan PUHTAASTA perusdatasta OTETAAN heti (ennen kuin
+# mikaan testimoduuli importtaa barracks_menun, joka asentaa Rattlebridge-
+# integraation ja muokkaa LOCATIONS["rattlebridge"]-dictia). Nain per-testi-
+# eristys voi palauttaa aidon perustilan.
+try:
+    from lore import world_map_data as _wmd
+    _PRISTINE_LOCATIONS = copy.deepcopy(_wmd.LOCATIONS)
+except Exception:
+    _wmd = None
+    _PRISTINE_LOCATIONS = None
+
+
+@pytest.fixture(autouse=True)
+def _isolate_world_map(request):
+    """Eristaa maailmankartan globaali data testien valilta.
+
+    Rattlebridge-integraatio patchaa LOCATIONS["rattlebridge"]:n playable-tilaan
+    (target_state -> rattlebridge_city). Progression/UI-testit odottavat
+    perustilaa (regional_staging), rattlebridge-testit patchattua. Ilman
+    eristysta importin sivuvaikutus vuoti ja aiheutti jarjestysriippuvaisen
+    hajoamisen. Palautetaan puhdas perustila, ja patchataan vain jos testi
+    kuuluu rattlebridge-moduuliin."""
+    if _wmd is None or _PRISTINE_LOCATIONS is None:
+        yield
+        return
+    try:
+        import systems.rattlebridge_integration as rbi
+    except Exception:
+        rbi = None
+
+    def _restore_pristine():
+        _wmd.LOCATIONS.clear()
+        _wmd.LOCATIONS.update(copy.deepcopy(_PRISTINE_LOCATIONS))
+        if rbi is not None:
+            rbi._INSTALLED = False
+
+    _restore_pristine()
+    modname = getattr(getattr(request, "module", None), "__name__", "")
+    if rbi is not None and "rattlebridge" in modname:
+        try:
+            rbi.install_rattlebridge_integration()
+        except Exception:
+            pass
+    yield
+    _restore_pristine()
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -93,6 +93,11 @@ def build_team(name, color, tier, style, reputation, roster, motto=""):
         races.update({"Werewolf": Werewolf, "Tortle": Tortle})
     except Exception:
         pass
+    try:
+        from units.dwarf import Dwarf
+        races["Dwarf"] = Dwarf
+    except Exception:
+        pass
 
     t = Team(name, color, tier)
     t.motto = motto

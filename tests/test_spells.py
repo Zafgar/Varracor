@@ -30,13 +30,14 @@ def test_tier2_has_a_caster():
     assert 1 in lysa.spell_slots_unlocked
 
 
-def test_tier0_and_tier1_are_spell_free():
+def test_tier0_is_spell_free():
+    """Muckford (Tier 0) on loitsuton; Tier 1:sta alkaen Pure Magic -noviisit
+    (esim. Miri Vale/Enna Reed) voivat kayttaa perusloitsuja."""
     from leagues.league_data import generate_league_teams
-    for engine_tier in (1, 2):  # lore Tier 0 and 1
-        for t in generate_league_teams(engine_tier):
-            for u in t.members:
-                assert not _has_any_spell(u), \
-                    f"Tier {engine_tier-1} unit {u.name} unexpectedly has a spell"
+    for t in generate_league_teams(1):  # engine tier 1 = lore Tier 0
+        for u in t.members:
+            assert not _has_any_spell(u), \
+                f"Tier 0 unit {u.name} unexpectedly has a spell"
 
 
 def test_minor_heal_heals_ally():
