@@ -1276,6 +1276,15 @@ class GameManager:
                 )
             except Exception: pass
 
+            # Rattlebridge sponsors settle on every Tier 1 league match.
+            if getattr(self, "current_arena_location", None) == "rattlebridge":
+                try:
+                    from systems import sponsors
+                    result = sponsors.build_match_result(win, list(self.last_fighters))
+                    self.last_sponsor_settlement = sponsors.on_league_match_end(self, result)
+                except Exception:
+                    self.last_sponsor_settlement = None
+
         self.calculate_rewards(win)
         self.loot_gained = dict(self.round_rewards.get("loot", {}))
         

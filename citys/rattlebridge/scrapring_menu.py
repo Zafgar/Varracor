@@ -38,6 +38,8 @@ class ScrapringMenu(BaseMenu):
                 None,
                 (105, 91, 75),
             )
+        self.btn_sponsors = UIButton(350, SCREEN_HEIGHT - 130, 310, 60,
+                                     "SPONSOR GALLERY", None, (170, 90, 120))
         self.btn_briefing = UIButton(680, SCREEN_HEIGHT - 130, 310, 60,
                                      "SERA’S BRIEFING", None, (175, 105, 75))
         self.btn_teams = UIButton(1020, SCREEN_HEIGHT - 130, 280, 60,
@@ -114,7 +116,10 @@ class ScrapringMenu(BaseMenu):
             if button.is_clicked(event):
                 self._inspect_hazard(hazard_id)
                 return
-        if self.btn_briefing.is_clicked(event):
+        if self.btn_sponsors.is_clicked(event):
+            self.next_state = "rattlebridge_sponsors"
+            sound_system.play_sound("click")
+        elif self.btn_briefing.is_clicked(event):
             self._briefing()
         elif self.btn_teams.is_clicked(event):
             self.show_teams = not self.show_teams
@@ -130,7 +135,7 @@ class ScrapringMenu(BaseMenu):
         mouse = pygame.mouse.get_pos()
         for button in self.hazard_buttons.values():
             button.update_hover(mouse)
-        for button in (self.btn_briefing, self.btn_teams,
+        for button in (self.btn_sponsors, self.btn_briefing, self.btn_teams,
                        self.btn_league, self.btn_leave):
             button.update_hover(mouse)
         if self.feedback_timer > 0:
@@ -263,6 +268,6 @@ class ScrapringMenu(BaseMenu):
             draw_text(self.feedback, font_main, WHITE,
                       screen, box.x + 20, box.y + 13)
 
-        for button in (self.btn_briefing, self.btn_teams,
+        for button in (self.btn_sponsors, self.btn_briefing, self.btn_teams,
                        self.btn_league, self.btn_leave):
             button.draw(screen)

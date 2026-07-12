@@ -57,6 +57,7 @@ from citys.rattlebridge.the_span_menu import TheSpanMenu
 from citys.rattlebridge.bridgeward_hospital_menu import BridgewardHospitalMenu
 from citys.rattlebridge.scrapring_menu import ScrapringMenu
 from citys.rattlebridge.rattlebridge_contracts_menu import RattlebridgeContractsMenu
+from citys.rattlebridge.sponsor_gallery_menu import SponsorGalleryMenu
 from citys.rattlebridge.canalworks_menu import CanalworksMenu
 from minigames.crown_knives import CrownKnivesMenu
 
@@ -134,6 +135,7 @@ def main():
         "rattlebridge_scrapring": ScrapringMenu(manager),
         "rattlebridge_contracts": RattlebridgeContractsMenu(manager),
         "rattlebridge_canalworks": CanalworksMenu(manager),
+        "rattlebridge_sponsors": SponsorGalleryMenu(manager),
     }
 
     MENU_FACTORIES = {
@@ -170,6 +172,7 @@ def main():
         "rattlebridge_scrapring": ScrapringMenu,
         "rattlebridge_contracts": RattlebridgeContractsMenu,
         "rattlebridge_canalworks": CanalworksMenu,
+        "rattlebridge_sponsors": SponsorGalleryMenu,
     }
 
     RECREATE_ALWAYS = {
@@ -180,7 +183,7 @@ def main():
         "notice_board", "world_map", "regional_staging",
         "rattlebridge_span", "rattlebridge_hospital",
         "rattlebridge_scrapring", "rattlebridge_contracts",
-        "rattlebridge_canalworks",
+        "rattlebridge_canalworks", "rattlebridge_sponsors",
     }
 
     RECREATE_UNLESS_FROM = {
@@ -198,7 +201,7 @@ def main():
         "world_map", "regional_staging", "rattlebridge_city",
         "rattlebridge_span", "rattlebridge_hospital",
         "rattlebridge_scrapring", "rattlebridge_contracts",
-        "rattlebridge_canalworks",
+        "rattlebridge_canalworks", "rattlebridge_sponsors",
     }
 
     SKIP_INIT_FROM = {
