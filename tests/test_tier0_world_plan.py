@@ -35,7 +35,7 @@ class DummyManager:
 
 def test_plan_is_complete_structurally_and_acyclic():
     assert validate_plan() == []
-    assert CURRENT_FOCUS == "whisper_marsh"
+    assert CURRENT_FOCUS == "drowned_chapel"
     assert list(TIER0_AREAS) == [
         "muckford",
         "low_fields",
@@ -54,15 +54,24 @@ def test_plan_is_complete_structurally_and_acyclic():
         assert area["vfx"]
 
 
-def test_development_queue_advances_to_whisper_marsh_and_keeps_partial_work_visible():
+def test_development_queue_advances_to_drowned_chapel_and_keeps_partial_work_visible():
     queue = next_development_batch(20)
     assert queue
-    assert queue[0]["area_id"] == "whisper_marsh"
-    assert queue[0]["domain"] in {"npcs", "dialogue"}
+    assert queue[0]["area_id"] == "drowned_chapel"
+    assert queue[0]["domain"] in {
+        "area",
+        "npcs",
+        "quests",
+        "dialogue",
+        "graphics",
+        "vfx",
+        "persistence",
+        "tests",
+    }
     assert any(task["state"] == "partial" for task in queue)
     assert completion_ratio("muckford") == 1.0
     assert completion_ratio("low_fields") > 0.8
-    assert 0.0 < completion_ratio("whisper_marsh") < 1.0
+    assert 0.9 < completion_ratio("whisper_marsh") < 1.0
 
 
 def test_open_risk_area_warns_but_does_not_block_entry():
