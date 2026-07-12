@@ -194,8 +194,20 @@ class GrandMortarch(BaseNPC):
             choices=[
                 DialogueChoice(text="I have Spirit Essence to offer.", next_node_id=None), # Tämä sulkee chatin ja pelaaja on menussa
                 DialogueChoice(text="Tell me about the Vortex.", next_node_id="lore_vortex"),
+                DialogueChoice(text="[Seek admission to the Ossuary - offer 5 Spirit Essence]",
+                               next_node_id="necro_admit",
+                               effects=["unlock_school:necromancy"]),
                 DialogueChoice(text="[Leave]", next_node_id=None)
             ]
+        )
+
+        nodes["necro_admit"] = DialogueNode(
+            id="necro_admit",
+            speaker="Zharok the Quiet",
+            text="The Essence-signatures check out. The Ashen Ossuary opens its "
+                 "archives to you. Do not squander what death has lent you.",
+            emotion="pleased",
+            choices=[DialogueChoice(text="[Continue]", next_node_id="root_neutral")]
         )
 
         nodes["root_respected"] = DialogueNode(

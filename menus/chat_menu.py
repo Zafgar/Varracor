@@ -138,6 +138,16 @@ class ChatMenu(BaseMenu):
                 global_data["reputation"] = self.manager.reputation
             except Exception: pass
 
+        # "unlock_school:necromancy" -> maksaa resurssit ja avaa koulun.
+        # Asettaa lipun onnistumisesta/epaonnistumisesta dialogin haaraa varten.
+        elif command == "unlock_school" and value:
+            try:
+                ok, _msg = self.manager.try_unlock_school_with_resources(value)
+                key = f"school_{value}_" + ("open" if ok else "denied")
+                global_data.setdefault("flags", {})[key] = True
+            except Exception:
+                pass
+
         # --- QUEST KOMENNOT ---
 
         # "quest_unlock:hunt_01" -> Pakottaa tehtävän auki (Locked -> Available)

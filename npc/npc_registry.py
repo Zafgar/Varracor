@@ -10,6 +10,7 @@ try:
     from npc.marda_shant_npc import MardaShantNPC
     from npc.gambler_npc import GamblerNPC
     from npc.hamo_npc import HamoNPC
+    from npc.school_keeper import KeeperPure, KeeperHoly, KeeperDruid, KeeperManip
 except ImportError as e:
     print(f"NPC Registry Import Error: {e}")
 
@@ -21,7 +22,11 @@ NPC_DB = {
     "commander_self": CommanderNPC if 'CommanderNPC' in locals() else None,
     "marda_shant": MardaShantNPC if 'MardaShantNPC' in locals() else None,
     "gambler": GamblerNPC if 'GamblerNPC' in locals() else None,
-    "hamo": HamoNPC if 'HamoNPC' in locals() else None
+    "hamo": HamoNPC if 'HamoNPC' in locals() else None,
+    "keeper_pure": KeeperPure if 'KeeperPure' in locals() else None,
+    "keeper_holy": KeeperHoly if 'KeeperHoly' in locals() else None,
+    "keeper_druid": KeeperDruid if 'KeeperDruid' in locals() else None,
+    "keeper_manip": KeeperManip if 'KeeperManip' in locals() else None,
 }
 
 def get_npc_class(npc_id):
