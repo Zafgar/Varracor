@@ -111,3 +111,9 @@ def install_muckford_outskirts_integration() -> None:
     _patch_forest_excursion()
     _patch_muckford_return_spawn()
     _INSTALLED = True
+
+
+# World-map metadata is pure data and safe to patch immediately. Doing this at
+# module import makes the description deterministic even when another runtime
+# extension installed the broader Muckford hooks earlier in the import graph.
+_patch_world_map_data()
