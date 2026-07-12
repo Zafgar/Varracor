@@ -1,4 +1,4 @@
-name: Muckford opening, outskirts and monsters
+name: Muckford opening, outskirts, monsters and world plan
 
 on:
   pull_request:
@@ -9,6 +9,10 @@ on:
       - "systems/muckford_outskirts_integration.py"
       - "systems/procedural_water.py"
       - "systems/tier0_monster_*.py"
+      - "systems/tier0_world_*.py"
+      - "lore/tier0_world_plan.py"
+      - "tools/tier0_content_report.py"
+      - "docs/TIER0_*.md"
       - "ai/tier0_monster_ai.py"
       - "units/tier0_monsters.py"
       - "citys/mucford/forest_road_*.py"
@@ -21,6 +25,7 @@ on:
       - "tests/test_muckford_opening.py"
       - "tests/test_muckford_water_outskirts.py"
       - "tests/test_tier0_monsters.py"
+      - "tests/test_tier0_world_plan.py"
       - ".github/workflows/muckford-opening-tests.yml"
   push:
     branches:
@@ -32,6 +37,10 @@ on:
       - "systems/muckford_outskirts_integration.py"
       - "systems/procedural_water.py"
       - "systems/tier0_monster_*.py"
+      - "systems/tier0_world_*.py"
+      - "lore/tier0_world_plan.py"
+      - "tools/tier0_content_report.py"
+      - "docs/TIER0_*.md"
       - "ai/tier0_monster_ai.py"
       - "units/tier0_monsters.py"
       - "citys/mucford/forest_excursion.py"
@@ -39,6 +48,7 @@ on:
       - "tests/test_muckford_opening.py"
       - "tests/test_muckford_water_outskirts.py"
       - "tests/test_tier0_monsters.py"
+      - "tests/test_tier0_world_plan.py"
       - ".github/workflows/muckford-opening-tests.yml"
 
 permissions:
@@ -85,6 +95,10 @@ jobs:
               systems/procedural_water.py \
               systems/tier0_monster_ecology.py \
               systems/tier0_monster_integration.py \
+              systems/tier0_world_tracker.py \
+              systems/tier0_world_integration.py \
+              lore/tier0_world_plan.py \
+              tools/tier0_content_report.py \
               ai/tier0_monster_ai.py \
               units/tier0_monsters.py \
               citys/mucford/forest_road_arena.py \
@@ -97,12 +111,15 @@ jobs:
               main.py \
               tests/test_muckford_opening.py \
               tests/test_muckford_water_outskirts.py \
-              tests/test_tier0_monsters.py
+              tests/test_tier0_monsters.py \
+              tests/test_tier0_world_plan.py
+            python tools/tier0_content_report.py --next 12
             python -c "import main; print(\"main import ok\")"
             python -m pytest -q --tb=short \
               tests/test_muckford_opening.py \
               tests/test_muckford_water_outskirts.py \
-              tests/test_tier0_monsters.py
+              tests/test_tier0_monsters.py \
+              tests/test_tier0_world_plan.py
           ' 2>&1 | tee muckford-opening-test-output.txt
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
@@ -123,10 +140,10 @@ jobs:
           TEST_EXIT_CODE: ${{ steps.opening_validation.outputs.exit_code }}
         run: |
           state="success"
-          description="Muckford opening, water and Tier 0 monsters passed"
+          description="Muckford world plan, water and Tier 0 content passed"
           if [ "${TEST_EXIT_CODE}" != "0" ]; then
             state="failure"
-            description="Muckford opening, water or Tier 0 monster checks failed"
+            description="Muckford world plan or Tier 0 content checks failed"
           fi
           curl --fail-with-body --silent --show-error \
             --request POST \
