@@ -27,6 +27,7 @@ from lore.world_map_data import LOCATIONS, get_route
 from loot_data import LOOT_DROPS
 from menus.regional_staging_menu import RegionalStagingMenu
 from settings import ENEMY_TEAM, PLAYER_TEAM
+from systems.drowned_chapel_integration import _patch_world_map_data
 from systems.tier0_world_tracker import tier0_area_advice
 from units.drowned_chapel_monsters import (
     BellDrownedPilgrim,
@@ -97,7 +98,6 @@ class PulseTarget:
         self.statuses.append((name, duration, damage))
 
 
-
 def test_drowned_chapel_story_progresses_through_all_field_objectives():
     manager = DummyManager()
     state = drowned_chapel_state(manager)
@@ -128,7 +128,6 @@ def test_drowned_chapel_story_progresses_through_all_field_objectives():
     assert state["completed"] is True
 
 
-
 def test_area_contains_flooded_chapel_graveyard_camp_resources_and_collisions():
     manager = DummyManager()
     arena = DrownedChapelArena(manager)
@@ -141,14 +140,21 @@ def test_area_contains_flooded_chapel_graveyard_camp_resources_and_collisions():
     assert arena.land_obstacles
     assert arena.quarantine_zone.collidepoint((350, 1000))
     assert arena.bell_zone.collidepoint((2600, 450))
-    assert sum(isinstance(prop, ChapelStone) and prop.style == "grave" for prop in arena.props) >= 20
-    assert any(isinstance(prop, ChapelStone) and prop.style == "tower" for prop in arena.props)
+    # Submerged graves are represented by Gravewater itself. Sixteen readable
+    # headstones remain on dry islands and the graveyard rim.
+    assert sum(
+        isinstance(prop, ChapelStone) and prop.style == "grave"
+        for prop in arena.props
+    ) >= 16
+    assert any(
+        isinstance(prop, ChapelStone) and prop.style == "tower"
+        for prop in arena.props
+    )
 
     surface = pygame.Surface((1280, 720))
     arena.draw_background(surface, (900, 500))
     arena.draw_foreground(surface, (900, 500))
     assert surface.get_bounding_rect().width == 1280
-
 
 
 def test_chapel_resources_persist_for_the_current_world_day_and_reset_next_day():
@@ -168,7 +174,6 @@ def test_chapel_resources_persist_for_the_current_world_day_and_reset_next_day()
     next_day = DrownedChapelArena(manager)
     refreshed = next(item for item in next_day.resources if item.node_id == node.node_id)
     assert refreshed.harvested is False
-
 
 
 def test_story_props_show_rhea_trapped_pilgrims_samples_and_wards_by_stage():
@@ -200,7 +205,6 @@ def test_story_props_show_rhea_trapped_pilgrims_samples_and_wards_by_stage():
     }
 
 
-
 def test_tainted_water_builds_exposure_and_quarantine_camp_clears_it():
     manager = DummyManager()
     menu = DrownedChapelMenu(manager)
@@ -217,7 +221,6 @@ def test_tainted_water_builds_exposure_and_quarantine_camp_clears_it():
     assert recovering < 50.0
 
 
-
 def test_new_monsters_have_generated_art_ai_levels_and_registered_loot():
     assert [monster.THREAT_LEVEL for monster in DROWNED_CHAPEL_MONSTER_CLASSES] == [3, 4, 5]
     for index, monster_class in enumerate(DROWNED_CHAPEL_MONSTER_CLASSES):
@@ -230,12 +233,10 @@ def test_new_monsters_have_generated_art_ai_levels_and_registered_loot():
     assert WaterRisenPilgrim.SPECIES != FloodedAcolyte.SPECIES != BellWraith.SPECIES
 
 
-
 def test_bell_drowned_pilgrim_second_phase_summons_and_bell_wave_hits_targets():
     manager = DummyManager()
     boss = BellDrownedPilgrim("The Bell-Drowned Pilgrim", 500, 500, ENEMY_TEAM)
     target = PulseTarget(boss.rect.centerx + 40, boss.rect.centery)
-    manager.all_units = pygame.sprite.Group(boss)
     # PulseTarget is intentionally a minimal non-Sprite combat target.
     manager.all_units = [boss, target]
 
@@ -255,8 +256,10 @@ def test_bell_drowned_pilgrim_second_phase_summons_and_bell_wave_hits_targets():
     assert "Bell-Drowned Pilgrim" in LOOT_DROPS
 
 
-
 def test_world_map_route_is_open_risk_and_factory_builds_playable_menu():
+    # Focused tests share the mutable world registry. Reapply the pure patch so
+    # this assertion is independent of pytest collection and import order.
+    _patch_world_map_data()
     manager = DummyManager()
     location = LOCATIONS["drowned_chapel"]
     route = get_route("whisper_marsh", "drowned_chapel")
