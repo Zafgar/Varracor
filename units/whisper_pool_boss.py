@@ -34,16 +34,17 @@ class WhisperPoolMaw(CodeMonster):
     XP_REWARD, BOUNTY_VALUE = 95, 16
 
     def __init__(self, name, x, y, team_color):
+        # CodeMonster generates animation frames inside super().__init__, so the
+        # phase must already exist when the custom frame drawer is called.
+        self.phase = 1
         super().__init__(name, x, y, team_color)
         self.is_boss = True
-        self.phase = 1
         self.pending_spawn = []
         self.pool_ripple_timer = 0
         self.boss_id = "whisper_pool_maw"
 
     def _draw_pool_maw(self, surface, body, accent, bob, stretch, state, frame):
         cy = 49 + bob
-        # Broad tail and fin silhouette.
         pygame.draw.polygon(
             surface,
             _shade(body, -18),
@@ -52,7 +53,6 @@ class WhisperPoolMaw(CodeMonster):
         pygame.draw.ellipse(surface, body, (26 - stretch, cy - 25, 66 + stretch * 2, 47))
         pygame.draw.ellipse(surface, accent, (61, cy - 28, 49 + stretch, 39))
 
-        # Reed-grown dorsal ridges.
         for index, x in enumerate((37, 52, 67, 82)):
             height = 14 + index % 2 * 6
             pygame.draw.polygon(
@@ -61,14 +61,12 @@ class WhisperPoolMaw(CodeMonster):
                 [(x, cy - 18), (x + 7, cy - 18 - height), (x + 13, cy - 15)],
             )
 
-        # Heavy forelimbs and hooked claws.
         kick = 7 if state == "attack" and frame else 0
         pygame.draw.line(surface, body, (53, cy + 10), (39 - kick, cy + 32), 10)
         pygame.draw.line(surface, body, (84, cy + 10), (96 + kick, cy + 31), 10)
         pygame.draw.arc(surface, accent, (25 - kick, cy + 23, 24, 18), 0.2, math.pi * 1.25, 4)
         pygame.draw.arc(surface, accent, (91 + kick, cy + 22, 22, 18), math.pi * 0.1, math.pi * 1.2, 4)
 
-        # Lantern mouth and four pale eyes make the boss readable in dark water.
         mouth = pygame.Rect(75, cy - 5, 34 + stretch, 22)
         pygame.draw.ellipse(surface, (24, 38, 35), mouth)
         pygame.draw.arc(surface, (157, 214, 181), mouth, 0, math.pi, 3)
@@ -76,7 +74,7 @@ class WhisperPoolMaw(CodeMonster):
             pygame.draw.circle(surface, (28, 45, 40), (x, y), 5)
             pygame.draw.circle(surface, self.EYE if state != "dead" else (45, 42, 38), (x, y), 2)
 
-        if self.phase >= 2 and state != "dead":
+        if getattr(self, "phase", 1) >= 2 and state != "dead":
             pygame.draw.arc(surface, (162, 236, 221), (31, cy - 30, 75, 59), 0.2, 2.9, 2)
 
     def _enter_second_phase(self, manager=None):
@@ -89,7 +87,12 @@ class WhisperPoolMaw(CodeMonster):
         self.strength += 5
         self.defense += 2
         self.pending_spawn = [
-            MireLurkerSpawn(f"Pool Spawn {index + 1}", self.rect.centerx + (index - 1) * 70, self.rect.centery + 95, self.team_color)
+            MireLurkerSpawn(
+                f"Pool Spawn {index + 1}",
+                self.rect.centerx + (index - 1) * 70,
+                self.rect.centery + 95,
+                self.team_color,
+            )
             for index in range(3)
         ]
         _vfx_text(manager, self, "THE POOL ANSWERS", (150, 235, 221))
