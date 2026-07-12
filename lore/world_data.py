@@ -457,6 +457,7 @@ MARKET_PRICES = {
         "Rat Tail": 2, "Spirit Essence": 8, "Iron Ore": 3,
         "Coal": 2, "Iron Bar": 8, "Chipped Ruby": 40, "Stone": 1,
         "Spider Silk": 6, "Venom Gland": 12, "Silver Ore": 25,
+        "Blacksteel Ore": 18, "Ironbark": 14, "Direhide": 16,
     },
     # Mitä pelaaja voi ostaa kojulta
     "buy": {

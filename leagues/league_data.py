@@ -42,19 +42,37 @@ IRON_WEAPONS = {
     "spear": "Bent Spear", "dagger": "Iron Dagger", "bow": "Short Bow",
     "crossbow": "Light Crossbow", "staff": "Apprentice Staff",
 }
+# Blacksteel = lore Uncommon (Tier 2 / The Iron Circle). Ks. items/blacksteel/.
+BLACKSTEEL_WEAPONS = {
+    "sword": "Blacksteel Sword", "axe": "Blacksteel Axe", "mace": "Blacksteel Maul",
+    "spear": "Blacksteel Pike", "dagger": "Blacksteel Dirk", "bow": "Yew Longbow",
+    "crossbow": "Steel Crossbow", "staff": "Runed Staff",
+}
 SCRAP_SHIELD = "Pot Lid"
 IRON_SHIELD = "Wooden Buckler"
+BLACKSTEEL_SHIELD = "Blacksteel Shield"
 
 
 def weapon_for(group, tier, elite=False):
-    """Ryhman ase: scrap Tier 0:ssa, iron eliitille tai korkeammilla
-    tiereilla. Pitaa aseistuksen aina oikeana (ei nyrkkeja)."""
-    table = IRON_WEAPONS if (elite or int(tier) >= 2) else SCRAP_WEAPONS
+    """Ryhman ase tierin mukaan (elite nostaa yhden pykalan):
+    engine tier 1 = scrap, 2 = iron, >=3 = blacksteel."""
+    t = int(tier) + (1 if elite else 0)
+    if t >= 3:
+        table = BLACKSTEEL_WEAPONS
+    elif t == 2:
+        table = IRON_WEAPONS
+    else:
+        table = SCRAP_WEAPONS
     return table.get(group, SCRAP_WEAPONS.get(group, "Scrap Blade"))
 
 
 def shield_for(tier, elite=False):
-    return IRON_SHIELD if (elite or int(tier) >= 2) else SCRAP_SHIELD
+    t = int(tier) + (1 if elite else 0)
+    if t >= 3:
+        return BLACKSTEEL_SHIELD
+    if t == 2:
+        return IRON_SHIELD
+    return SCRAP_SHIELD
 
 
 def build_team(name, color, tier, style, reputation, roster, motto=""):
