@@ -21,6 +21,7 @@ from minigames.marsh_fishing import MarshFishingMenu, choose_fish
 from settings import ENEMY_TEAM
 from systems.procedural_water import FishingAnchor
 from systems.whisper_marsh_story import (
+    _patch_world_map_metadata,
     _refresh_story_props,
     marsh_objective,
     sync_whisper_marsh_story,
@@ -52,7 +53,6 @@ class FakeMarshMenu:
         self.marsh_story_props = []
         self.marsh_npcs = []
         self.marsh_markers = []
-
 
 
 def test_story_progression_tracks_camp_ferryman_map_fishing_and_boss_gate():
@@ -91,7 +91,6 @@ def test_story_progression_tracks_camp_ferryman_map_fishing_and_boss_gate():
     assert state["completed"] is True
 
 
-
 def test_named_marsh_npcs_and_pool_survey_markers_are_stable_props():
     manager = DummyManager()
     state = whisper_marsh_story_state(manager)
@@ -119,7 +118,6 @@ def test_named_marsh_npcs_and_pool_survey_markers_are_stable_props():
     }
 
 
-
 def test_fish_tables_are_different_for_channel_and_whisper_pool():
     channel = FishingAnchor(10, 10, "left", "Greywash Channel", 1)
     pool = FishingAnchor(20, 20, "right", "Whisper Pool", 2)
@@ -132,7 +130,6 @@ def test_fish_tables_are_different_for_channel_and_whisper_pool():
     assert "Whisper Koi" in pool_names
     assert "Echo Eel" in pool_names
     assert channel_names.isdisjoint(pool_names)
-
 
 
 def test_successful_reel_awards_fish_and_unlocks_pool_boss():
@@ -165,7 +162,6 @@ def test_successful_reel_awards_fish_and_unlocks_pool_boss():
     assert state["boss_unlocked"] is True
 
 
-
 def test_over_tension_breaks_the_line_without_awarding_inventory():
     manager = DummyManager()
     anchor = FishingAnchor(100, 100, "left", "Greywash Channel", 1)
@@ -187,7 +183,6 @@ def test_over_tension_breaks_the_line_without_awarding_inventory():
     assert manager.inventory == {}
 
 
-
 def test_regional_staging_factory_opens_fishing_without_a_new_main_state():
     manager = DummyManager()
     manager.pending_local_area = "marsh_fishing"
@@ -197,7 +192,6 @@ def test_regional_staging_factory_opens_fishing_without_a_new_main_state():
 
     assert isinstance(menu, MarshFishingMenu)
     assert manager.pending_local_area is None
-
 
 
 def test_whisper_pool_maw_has_generated_boss_art_and_second_phase_spawn():
@@ -217,8 +211,11 @@ def test_whisper_pool_maw_has_generated_boss_art_and_second_phase_spawn():
     assert all(spawn.SPECIES == "Mire-Lurker Spawn" for spawn in boss.pending_spawn)
 
 
-
 def test_world_map_exposes_fishing_story_and_named_pool_boss():
+    # Other focused world-map tests intentionally mutate the shared registry.
+    # Reapply the pure story metadata patch so this assertion verifies the current
+    # canonical mutation instead of depending on pytest collection order.
+    _patch_world_map_metadata()
     location = LOCATIONS["whisper_marsh"]
 
     assert "fishing" in location["services"]
