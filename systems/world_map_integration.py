@@ -23,6 +23,42 @@ from systems.world_progression import (
 _INSTALLED = False
 
 
+def _patch_progression_context():
+    """Attach travel destinations to the existing menu/league state machine."""
+    import systems.world_progression as progression
+
+    if getattr(progression, "_world_map_context_installed", False):
+        return
+
+    previous_travel = progression.travel_to
+    previous_arena_access = progression.arena_access_status
+
+    def travel_to(manager, location_id):
+        result = previous_travel(manager, location_id)
+        ok, _message, target_state = result
+        if not ok:
+            return result
+
+        manager.pending_world_location = str(location_id)
+        if target_state == "league":
+            manager.current_arena_location = str(location_id)
+            manager.league_return_state = "world_map"
+        elif target_state == "regional_staging":
+            manager.world_map_return_state = "regional_staging"
+        return result
+
+    def arena_access_status(manager, location_id):
+        ok, reason = previous_arena_access(manager, location_id)
+        if ok:
+            manager.current_arena_location = str(location_id)
+            manager.league_return_state = "regional_staging"
+        return ok, reason
+
+    progression.travel_to = travel_to
+    progression.arena_access_status = arena_access_status
+    progression._world_map_context_installed = True
+
+
 def _patch_game_manager():
     from game_manager import GameManager
 
@@ -31,6 +67,8 @@ def _patch_game_manager():
 
     previous_init = GameManager.__init__
     previous_start_match = GameManager.start_match
+    previous_handle_ui = GameManager.handle_ui_event
+    previous_draw_ui = GameManager.draw_ui_overlay
 
     def __init__(self, *args, **kwargs):
         previous_init(self, *args, **kwargs)
@@ -51,6 +89,16 @@ def _patch_game_manager():
             apply_arena_profile(self.current_arena, location_id)
         return result
 
+    def handle_ui_event(self, event, current_state_key):
+        if current_state_key in ("world_map", "regional_staging"):
+            return None
+        return previous_handle_ui(self, event, current_state_key)
+
+    def draw_ui_overlay(self, screen, current_state_key):
+        if current_state_key in ("world_map", "regional_staging"):
+            return None
+        return previous_draw_ui(self, screen, current_state_key)
+
     def open_world_map(self, return_state="hub"):
         self.world_map_return_state = return_state
         return "world_map"
@@ -60,6 +108,8 @@ def _patch_game_manager():
 
     GameManager.__init__ = __init__
     GameManager.start_match = start_match
+    GameManager.handle_ui_event = handle_ui_event
+    GameManager.draw_ui_overlay = draw_ui_overlay
     GameManager.open_world_map = open_world_map
     GameManager.get_world_location = get_world_location
     GameManager._world_map_installed = True
@@ -216,6 +266,7 @@ def install_world_map_integration():
     global _INSTALLED
     if _INSTALLED:
         return
+    _patch_progression_context()
     _patch_game_manager()
     _patch_save_load()
     _patch_muckford()
