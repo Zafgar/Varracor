@@ -1793,6 +1793,7 @@ class Gladiator(pygame.sprite.Sprite):
         "Dwarf": ("Stoneform", "-50% vahinko 4s; puhdistaa stunit ja efektit"),
         "Human": ("Adrenaline Rush", "Palauttaa staminaa ja hyökkäys heti valmis"),
         "Elf": ("Wind Dance", "+40% nopeus 4s ja syöksyt takaisin"),
+        "Gnome": ("Spark Snare", "Kipinäansat lähelle: Slow + pieni Burn vihollisille"),
     }
 
     def get_racial_info(self):
@@ -1857,6 +1858,25 @@ class Gladiator(pygame.sprite.Sprite):
             if manager:
                 manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
                                         "BLOODMOON FRENZY!", color=(200, 40, 40))
+            return True
+
+        if race == "Gnome":
+            # Spark Snare: levittää kipinäansat lähelle -> Slow + pieni Burn
+            # vihollisiin (tinker/skirmisher-kontrolli). Toimii ilman manageria
+            # (ei kohteita), jolloin vain cooldown kuluu.
+            if manager is not None:
+                cx, cy = self.rect.center
+                for u in list(getattr(manager, "all_units", []) or []):
+                    if getattr(u, "is_dead", False) or u is self:
+                        continue
+                    if getattr(u, "team_color", None) == self.team_color:
+                        continue
+                    if math.hypot(u.rect.centerx - cx, u.rect.centery - cy) < 140:
+                        u.apply_status("Slow", 150)
+                        u.apply_status("Burn", 90, 3)
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
+                                        "SPARK SNARE!", color=(255, 200, 90))
+            self.racial_cooldown = 1500  # 25s
             return True
 
         if race == "Tortle":

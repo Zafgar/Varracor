@@ -102,6 +102,7 @@ def _unit_class_map():
         ("units.werewolf", "Werewolf"),
         ("units.tortle", "Tortle"),
         ("units.dwarf", "Dwarf"),
+        ("units.gnome", "Gnome"),
     ]
     import importlib
     for mod_name, cls_name in optional:

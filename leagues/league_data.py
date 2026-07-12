@@ -98,6 +98,11 @@ def build_team(name, color, tier, style, reputation, roster, motto=""):
         races["Dwarf"] = Dwarf
     except Exception:
         pass
+    try:
+        from units.gnome import Gnome
+        races["Gnome"] = Gnome
+    except Exception:
+        pass
 
     t = Team(name, color, tier)
     t.motto = motto

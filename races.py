@@ -9,6 +9,7 @@ RACES = {
     'Dwarf':  {'hp_mult': 1.3, 'str_mult': 1.1, 'spd_mult': 0.7, 'defense': 3, 'resistance': 'Poison', 'weakness': 'Magic', 'desc': 'Sturdy', 'affinity': {'crossbow': 1.15, 'axe': 1.10}},
     'Undead': {'hp_mult': 1.5, 'str_mult': 0.9, 'spd_mult': 0.5, 'defense': 0, 'resistance': 'Ice', 'weakness': 'Fire', 'desc': 'Undying'},
     'Goblin': {'hp_mult': 0.6, 'str_mult': 0.8, 'spd_mult': 1.4, 'defense': 0, 'resistance': 'None', 'weakness': 'Physical', 'desc': 'Weak but fast', 'affinity': {'dagger': 1.15, 'crossbow': 1.10}},
+    'Gnome':  {'hp_mult': 0.7, 'str_mult': 0.85, 'spd_mult': 1.2, 'defense': 1, 'resistance': 'Fire', 'weakness': 'Ice', 'desc': 'Forge-tinker', 'affinity': {'crossbow': 1.20, 'dagger': 1.10}},
     'Frogfolk': {'hp_mult': 1.2, 'str_mult': 1.15, 'spd_mult': 0.95, 'defense': 2, 'resistance': 'Poison', 'weakness': 'Ice', 'desc': 'Marsh smith-warrior', 'affinity': {'mace': 1.15, 'spear': 1.10}},
     'Werewolf': {'hp_mult': 1.25, 'str_mult': 1.35, 'spd_mult': 1.25, 'defense': 1, 'resistance': 'Physical', 'weakness': 'Fire', 'desc': 'Frenzied lycan', 'affinity': {'axe': 1.15, 'dagger': 1.10}},
     'Tortle': {'hp_mult': 1.5, 'str_mult': 1.0, 'spd_mult': 0.6, 'defense': 5, 'resistance': 'Physical', 'weakness': 'Magic', 'desc': 'Shelled bulwark', 'affinity': {'mace': 1.15, 'spear': 1.10}},
@@ -91,6 +92,14 @@ RACE_NAMES = {
     "Goblin": {
         "first": ["Zik", "Rix", "Tok", "Mik", "Nax", "Pox", "Vix", "Kax", "Lax", "Dax"],
         "last": ["Ratchewer", "Toebiter", "Shinbreaker", "Kneecapper", "Anklebiter", "Fingergnawer", "Nosepicker", "Earchewer", "Eyegouger", "Tonguebiter"]
+    },
+    "Gnome": {
+        "first": ["Fizzwick", "Bimble", "Cogsley", "Nix", "Pib", "Wren", "Torvi", "Sprocket", "Dabby", "Kesk"],
+        "last": ["Sparkspanner", "Cogwhistle", "Ironscrew", "Boltwright", "Gearloose", "Tinkertop", "Coppervalve", "Steamcog", "Rivetson", "Brasspin"]
+    },
+    "Dwarf": {
+        "first": ["Olek", "Bruni", "Durgan", "Hilda", "Korrin", "Sel", "Thora", "Vask", "Grimna", "Baldur"],
+        "last": ["Ironside", "Stonehand", "Deepdelver", "Copperbeard", "Anvilborn", "Oremonger", "Hammerfell", "Steelbraid", "Rockfist", "Coalvein"]
     },
     "Werewolf": {
         "first": ["Fenrir", "Greymane", "Rurik", "Vael", "Skoll", "Hati", "Bran", "Lupa", "Garou", "Rhen"],

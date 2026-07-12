@@ -176,11 +176,14 @@ class CaveBroodmother(Gladiator):
         for _ in range(2):
             sx = self.rect.centerx + random.randint(-90, 90)
             sy = self.rect.centery + random.randint(-90, 90)
-            if 0 < sx < aw and 0 < sy < ah:
-                ling = Spiderling("Spiderling", sx, sy, team_color=self.team_color)
-                manager.enemy_team.add(ling)
-                manager.all_units.add(ling)
-                manager.vfx.create_spawn_fog(sx, sy)
+            # Pidä spawn areenan sisällä, jotta reunalle ajautunut boss
+            # kutsuu silti parvensa (ei hiljaista epäonnistumista).
+            sx = max(20, min(aw - 20, sx))
+            sy = max(20, min(ah - 20, sy))
+            ling = Spiderling("Spiderling", sx, sy, team_color=self.team_color)
+            manager.enemy_team.add(ling)
+            manager.all_units.add(ling)
+            manager.vfx.create_spawn_fog(sx, sy)
 
     def _venom_spit(self, target, manager):
         self.spit_cooldown = 210

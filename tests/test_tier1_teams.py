@@ -1,6 +1,6 @@
 # tests/test_tier1_teams.py
 """
-Tier 1 (The Scrapring Circuit) omat joukkueet: 8 distinct lore-tiimia, ei
+Tier 1 (The Scrapring Circuit) omat joukkueet: 9 distinct lore-tiimia, ei
 enaa Tier 0:n kierratysta. Varmistaa myos etta Tier 1 on kovempi kuin Tier 0
 (ylennetty Tier 0 -mestari tippuisi takaisin).
 """
@@ -27,13 +27,14 @@ def _avg_power(teams):
     return sum(ps) / len(ps) if ps else 0
 
 
-def test_tier1_has_eight_distinct_teams():
+def test_tier1_has_nine_distinct_teams():
     teams = _teams(2)  # engine tier 2 = lore Tier 1
-    assert len(teams) == 8
+    assert len(teams) == 9
     names = {t.name for t in teams}
-    assert len(names) == 8  # kaikki eri nimia
+    assert len(names) == 9  # kaikki eri nimia
     assert "Bridgeguard Five" in names
     assert "Bolt Cage Bruisers" in names
+    assert "Cog Wardens" in names  # gnomi-nikkarit
 
 
 def test_tier1_teams_are_authored_not_renamed():
