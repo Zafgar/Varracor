@@ -1,4 +1,4 @@
-name: Muckford opening, Low Fields, outskirts, monsters and world plan
+name: Muckford opening, Low Fields, Whisper Marsh and Tier 0 plan
 
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
       - "systems/muckford_city_opening.py"
       - "systems/muckford_outskirts_integration.py"
       - "systems/muckford_low_fields_integration.py"
+      - "systems/whisper_marsh_story.py"
       - "systems/procedural_water.py"
       - "systems/tier0_monster_*.py"
       - "systems/tier0_world_*.py"
@@ -16,6 +17,8 @@ on:
       - "docs/TIER0_*.md"
       - "ai/tier0_monster_ai.py"
       - "units/tier0_monsters.py"
+      - "units/whisper_pool_boss.py"
+      - "minigames/marsh_fishing.py"
       - "citys/mucford/forest_road_*.py"
       - "citys/mucford/forest_excursion.py"
       - "citys/mucford/low_fields.py"
@@ -28,6 +31,7 @@ on:
       - "tests/test_muckford_opening.py"
       - "tests/test_muckford_water_outskirts.py"
       - "tests/test_muckford_low_fields.py"
+      - "tests/test_whisper_marsh_story_fishing.py"
       - "tests/test_tier0_monsters.py"
       - "tests/test_tier0_world_plan.py"
       - ".github/workflows/muckford-opening-tests.yml"
@@ -40,6 +44,7 @@ on:
       - "systems/muckford_city_opening.py"
       - "systems/muckford_outskirts_integration.py"
       - "systems/muckford_low_fields_integration.py"
+      - "systems/whisper_marsh_story.py"
       - "systems/procedural_water.py"
       - "systems/tier0_monster_*.py"
       - "systems/tier0_world_*.py"
@@ -48,6 +53,8 @@ on:
       - "docs/TIER0_*.md"
       - "ai/tier0_monster_ai.py"
       - "units/tier0_monsters.py"
+      - "units/whisper_pool_boss.py"
+      - "minigames/marsh_fishing.py"
       - "citys/mucford/forest_excursion.py"
       - "citys/mucford/low_fields.py"
       - "menus/barracks_menu.py"
@@ -55,6 +62,7 @@ on:
       - "tests/test_muckford_opening.py"
       - "tests/test_muckford_water_outskirts.py"
       - "tests/test_muckford_low_fields.py"
+      - "tests/test_whisper_marsh_story_fishing.py"
       - "tests/test_tier0_monsters.py"
       - "tests/test_tier0_world_plan.py"
       - ".github/workflows/muckford-opening-tests.yml"
@@ -101,6 +109,7 @@ jobs:
               systems/muckford_city_opening.py \
               systems/muckford_outskirts_integration.py \
               systems/muckford_low_fields_integration.py \
+              systems/whisper_marsh_story.py \
               systems/procedural_water.py \
               systems/tier0_monster_ecology.py \
               systems/tier0_monster_integration.py \
@@ -110,6 +119,8 @@ jobs:
               tools/tier0_content_report.py \
               ai/tier0_monster_ai.py \
               units/tier0_monsters.py \
+              units/whisper_pool_boss.py \
+              minigames/marsh_fishing.py \
               citys/mucford/forest_road_arena.py \
               citys/mucford/forest_road_menu.py \
               citys/mucford/forest_excursion.py \
@@ -123,6 +134,7 @@ jobs:
               tests/test_muckford_opening.py \
               tests/test_muckford_water_outskirts.py \
               tests/test_muckford_low_fields.py \
+              tests/test_whisper_marsh_story_fishing.py \
               tests/test_tier0_monsters.py \
               tests/test_tier0_world_plan.py
             python tools/tier0_content_report.py --next 12
@@ -131,6 +143,7 @@ jobs:
               tests/test_muckford_opening.py \
               tests/test_muckford_water_outskirts.py \
               tests/test_muckford_low_fields.py \
+              tests/test_whisper_marsh_story_fishing.py \
               tests/test_tier0_monsters.py \
               tests/test_tier0_world_plan.py
           ' 2>&1 | tee muckford-opening-test-output.txt
@@ -153,10 +166,10 @@ jobs:
           TEST_EXIT_CODE: ${{ steps.opening_validation.outputs.exit_code }}
         run: |
           state="success"
-          description="Muckford Low Fields, world plan and Tier 0 content passed"
+          description="Whisper Marsh story, fishing and Tier 0 content passed"
           if [ "${TEST_EXIT_CODE}" != "0" ]; then
             state="failure"
-            description="Muckford Low Fields or Tier 0 content checks failed"
+            description="Whisper Marsh or Tier 0 content checks failed"
           fi
           curl --fail-with-body --silent --show-error \
             --request POST \
