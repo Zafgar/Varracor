@@ -24,14 +24,11 @@ from systems.tier0_monster_ecology import (
 )
 from units.human import Human
 from units.tier0_monsters import (
-    BogTick,
     FenStalker,
     MarshbackBrute,
     MireLurkerSpawn,
     MudMite,
-    ReedSkitter,
     RotcapShambler,
-    SporeToad,
     TIER0_MONSTER_CLASSES,
     WhisperMoth,
 )
@@ -109,8 +106,11 @@ def test_every_monster_has_generated_animation_frames_and_readable_art():
 def test_every_monster_can_damage_a_target_and_apply_species_effects():
     for monster_class in TIER0_MONSTER_CLASSES:
         monster = monster_class(monster_class.SPECIES, 200, 200, ENEMY_TEAM)
-        target_x = 200 + min(100, max(20, monster.attack_range - 8))
-        target = make_target(target_x, 200)
+        target = make_target()
+        target.rect.center = (
+            monster.rect.centerx + min(100, max(18, monster.attack_range - 8)),
+            monster.rect.centery,
+        )
         manager = CombatManager((monster, target))
         manager.player_character = target
         hp_before = target.current_hp
