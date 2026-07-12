@@ -25,6 +25,11 @@ def _unique_strings(values: Iterable | None) -> list[str]:
     return result
 
 
+def _append_once(values: list[str], value: str) -> None:
+    if value not in values:
+        values.append(value)
+
+
 def ensure_tier0_state(manager) -> dict:
     npc_state = getattr(manager, "npc_state", None)
     if not isinstance(npc_state, dict):
@@ -44,8 +49,28 @@ def ensure_tier0_state(manager) -> dict:
     state["risk_warnings_seen"] = _unique_strings(state.get("risk_warnings_seen"))
     state["story_flags"] = dict(state.get("story_flags") or {})
     state["area_counters"] = dict(state.get("area_counters") or {})
-    if "muckford" not in state["visited_areas"]:
-        state["visited_areas"].append("muckford")
+    _append_once(state["visited_areas"], "muckford")
+
+    # Migrate facts already stored by earlier Muckford systems. This avoids
+    # resetting progress when the tracker is added to an existing save.
+    global_state = npc_state.setdefault("global", {})
+    opening = global_state.get("muckford_opening", {})
+    if opening.get("team_registered"):
+        state["story_flags"]["team_registered"] = True
+    if opening.get("intro_complete"):
+        state["story_flags"]["forest_road_complete"] = True
+
+    outskirts = global_state.get("muckford_outskirts", {})
+    if int(outskirts.get("visits", 0)) > 0:
+        _append_once(state["visited_areas"], "whisper_marsh")
+    camp_stage = int(outskirts.get("camp_stage", 0))
+    for stage in range(1, camp_stage + 1):
+        _append_once(state["built_projects"], f"survey_post_stage_{stage}")
+    if outskirts.get("fishing_ready"):
+        state["story_flags"]["whisper_marsh_fishing_ready"] = True
+
+    if getattr(manager, "mine_key_owned", False):
+        state["story_flags"]["mine_key_owned"] = True
     return state
 
 
@@ -60,9 +85,7 @@ def mark_tier0_event(manager, event_type: str, value: str, *, amount: int = 1) -
         "risk_seen": "risk_warnings_seen",
     }
     if event_type in mapping:
-        bucket = state[mapping[event_type]]
-        if value not in bucket:
-            bucket.append(value)
+        _append_once(state[mapping[event_type]], value)
     elif event_type == "flag":
         state["story_flags"][value] = True
     elif event_type == "counter":
@@ -99,12 +122,28 @@ def tier0_area_advice(manager, area_id: str) -> dict:
     else:
         warning = f"Below your current level; recommended Lv {low}-{high}."
 
+    state = ensure_tier0_state(manager)
+    policy = area["access_policy"]
     blocked = False
     reason = warning
-    policy = area["access_policy"]
-    if policy in {"physical_gate", "formal_gate", "tier1_gate"}:
-        blocked = True
-        reason = area["physical_gate"] or "A specific progression obstacle blocks entry."
+    if policy == "physical_gate":
+        if area_id == "old_muckford_mine":
+            blocked = not bool(
+                getattr(manager, "mine_key_owned", False)
+                or state["story_flags"].get("mine_key_owned")
+            )
+        else:
+            blocked = True
+        if blocked:
+            reason = area["physical_gate"] or "A physical obstacle blocks entry."
+    elif policy == "formal_gate":
+        blocked = not bool(state["story_flags"].get("kingsreach_access"))
+        if blocked:
+            reason = area["physical_gate"] or "Formal travel access is required."
+    elif policy == "tier1_gate":
+        blocked = not bool(state["story_flags"].get("tier1_promoted"))
+        if blocked:
+            reason = area["physical_gate"] or "Tier 1 promotion is required."
 
     return {
         "area_id": area_id,
@@ -147,7 +186,6 @@ def tier0_phase(manager) -> int:
 
 
 def next_player_objectives(manager, limit: int = 4) -> list[str]:
-    state = ensure_tier0_state(manager)
     phase = tier0_phase(manager)
     objectives = {
         0: (
@@ -188,10 +226,4 @@ def next_player_objectives(manager, limit: int = 4) -> list[str]:
         8: ("Travel through Kingsreach Toll and enter Rattlebridge.",),
         9: ("Register with the Tier 1 Scrapring Circuit.",),
     }
-    completed = set(state["completed_quests"])
-    result = []
-    for objective in objectives.get(phase, ()):
-        key = objective.lower().replace(" ", "_")
-        if key not in completed:
-            result.append(objective)
-    return result[:max(0, int(limit))]
+    return list(objectives.get(phase, ()))[:max(0, int(limit))]
