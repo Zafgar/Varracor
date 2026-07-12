@@ -154,7 +154,7 @@ def _patch_muckford_city() -> None:
                 options=[
                     {
                         "text": "I'll talk to Bram.",
-                        "action": "opening_bram_hint_ack",
+                        "action": "close_dialogue",
                     }
                 ],
             )
