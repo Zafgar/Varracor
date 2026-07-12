@@ -175,11 +175,51 @@ Still planned for Greywash Ford:
 - final painted riverbank, bridge, watchtower, NPC and creature assets after
   interactive gameplay and performance tuning.
 
-Next production focus — Kingsreach Toll:
+## 2026-07-12 — Kingsreach Toll checkpoint batch
 
-1. Build the Crown stone causeway, gatehouse, inspection booths and caravan yard.
-2. Add the toll captain, quarantine medic, merchants and a smuggler contact.
-3. Implement travel papers, payment, service and smuggling as real alternatives.
-4. Add quarantine inspection, medicine work and persistent Crown reputation choices.
-5. Add road bandits, toll enforcers and quarantine threats.
-6. Connect the completed checkpoint to Bram's recommendation and the Tier 0 finale.
+Completed:
+
+- added a 3800 x 2300 Crown checkpoint map with a paved causeway, wall segments,
+  gatehouse, two toll booths, quarantine camp, caravan yard, bandit camp and
+  south-west smuggler culvert;
+- connected the east exit to Greywash Ford and the west exit to Rattlebridge's
+  existing Tier 1 gate;
+- added Toll Captain Elric Dorn, Medic Vela Marrow, Salla Quill and Nix Quickreed
+  with stable identities and stage-aware dialogue;
+- added mandatory quarantine inspection followed by four real resolution paths:
+  Garran Vale evidence, a 140 SP toll, quarantine service or a 35 SP smuggler route;
+- added Crown reputation consequences: evidence and service improve standing,
+  payment gives modest credit and smuggling damages Crown reputation;
+- added 28 daily Feverfew, Clean Bandage, Charcoal and Parchment Sheet gathering
+  nodes plus Salla Quill's checkpoint trade stock;
+- added quarantine service requiring six Feverfew, four Clean Bandages, three
+  Charcoal and containment of four Fevered Escapees;
+- added generated Causeway Bandits, Crown Toll Enforcers and Fevered Escapees with
+  distinct AI, status effects and loot;
+- added the optional smuggler-route boss Tollmaster Hadrik Crowl, level 8 with
+  1640 HP, three phases, collector reinforcements, paid knives, tax shouts and
+  Crown-stamp shockwaves;
+- added Stamped Crown Travel Papers and the Crown Promotion Docket as the legal
+  handoff from the checkpoint to Bram Carrow;
+- synchronized completed Kingsreach saves with the existing league engine so a
+  successful Rookie Dust promotion converts the docket into Bram's Recommendation
+  and opens the Rattlebridge road;
+- persisted the selected route, toll payment, service work, boss state, daily
+  resources, pass issuance, quarantine exposure and Crown reputation delta;
+- validated compilation, the Tier 0 report, `main.py` import and the complete
+  Muckford suite: 87 tests passed in the headless GitHub runner.
+
+Still planned for Kingsreach Toll:
+
+- dedicated checkpoint, quarantine, merchant, enforcer and Crowl audio;
+- final painted gatehouse, tents, carts, NPCs and enemy assets after interactive
+  performance and route-balance tuning.
+
+Next production focus — Tier 0 Finale:
+
+1. Add Bram's Crown Promotion Docket dialogue and prerequisite validation.
+2. Connect existing Rookie Dust standings and promotion match to the finale state.
+3. Add branch-aware Marda, Hamo and Muckford-resident farewell dialogue.
+4. Build the Shanty Yard promotion ceremony and Bram recommendation handoff.
+5. Add persistent Tier 1 Charter, sponsor letter and western departure state.
+6. Open Rattlebridge only after both Crown papers and formal arena promotion.
