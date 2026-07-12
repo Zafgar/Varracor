@@ -25,6 +25,8 @@ from systems.world_progression import (
     league_lore_tier,
     location_status,
     party_level,
+    refresh_world_progression,
+    route_key,
     survey_location,
     travel_to,
     world_progress_summary,
@@ -107,6 +109,9 @@ def test_world_graph_has_regions_locations_and_valid_route_endpoints():
         seen_edges.add(edge)
         assert route["hours"] > 0
         assert 1 <= route["danger"] <= 10
+        assert route_key(route["a"], route["b"]) == route_key(
+            route["b"], route["a"]
+        )
 
 
 def test_every_world_node_is_connected_to_muckford():
@@ -132,26 +137,39 @@ def test_arena_circuits_match_level_bands_and_location_tiers():
             assert location["arena_name"]
 
 
-def test_new_world_state_starts_in_muckford_with_known_rumor_routes():
+def test_new_world_state_starts_in_muckford_with_known_rumors_and_roads():
     manager = DummyManager()
-    state = ensure_world_state(manager)
+    state = refresh_world_progression(manager)
 
     assert state["current_location"] == "muckford"
     assert state["visited_locations"] == ["muckford"]
     assert "muckford" in state["surveyed_locations"]
-    assert {"shanty_yard", "whisper_marsh", "old_mine_road",
-            "rattlebridge", "saffron_oasis", "vinehollow",
-            "timbercross"}.issubset(state["discovered_locations"])
+    assert {
+        "shanty_yard",
+        "whisper_marsh",
+        "old_mine_road",
+        "rattlebridge",
+        "saffron_oasis",
+        "vinehollow",
+        "timbercross",
+    }.issubset(state["discovered_locations"])
+    assert route_key("muckford", "rattlebridge") in state["discovered_routes"]
+    assert route_key("muckford", "whisper_marsh") in state["discovered_routes"]
     json.dumps(manager.npc_state)
 
 
 def test_league_tier_and_party_level_use_current_game_structures():
     manager = DummyManager(league_tier=4, level=18)
-    manager.my_team = [DummyUnit(20), DummyUnit(17), DummyUnit(16),
-                       DummyUnit(15), DummyUnit(2), DummyUnit(30)]
+    manager.my_team = [
+        DummyUnit(20),
+        DummyUnit(17),
+        DummyUnit(16),
+        DummyUnit(15),
+        DummyUnit(2),
+        DummyUnit(30),
+    ]
 
     assert league_lore_tier(manager) == 3
-    # Top five levels are 30, 20, 18, 17 and 16.
     assert party_level(manager) == 20
 
 
@@ -159,6 +177,7 @@ def test_local_travel_advances_world_clock_and_writes_history():
     manager = DummyManager(level=1)
     status = location_status(manager, "whisper_marsh")
     assert status["can_travel"]
+    assert status["route_discovered"]
 
     ok, message, target = travel_to(manager, "whisper_marsh")
 
@@ -207,19 +226,25 @@ def test_reputation_and_story_keys_gate_routes():
     assert location_status(manager, "old_mine_road")["can_travel"]
 
 
-def test_surveying_reveals_connected_next_step_routes():
+def test_surveying_opens_known_but_unmapped_next_step_roads():
     manager = DummyManager(league_tier=2, level=8)
     ok, _message, target = travel_to(manager, "rattlebridge")
     assert ok and target == "regional_staging"
 
     state = manager.npc_state["world_progression"]
-    assert "rivet_row" not in state["discovered_locations"]
-    revealed = survey_location(manager, "rattlebridge")
+    assert "rivet_row" in state["discovered_locations"]
+    assert route_key("rattlebridge", "rivet_row") not in state["discovered_routes"]
+    assert not location_status(manager, "rivet_row")["can_travel"]
+    assert "not been surveyed" in location_status(manager, "rivet_row")["reason"]
 
-    assert "rivet_row" in revealed
-    assert "giltgate" in revealed
-    assert "sanctum_marches" in revealed
+    opened = survey_location(manager, "rattlebridge")
+
+    assert "rivet_row" in opened
+    assert "giltgate" in opened
+    assert "sanctum_marches" in opened
     assert "rattlebridge" in state["surveyed_locations"]
+    assert route_key("rattlebridge", "rivet_row") in state["discovered_routes"]
+    assert location_status(manager, "rivet_row")["can_travel"]
 
 
 def test_travel_is_node_by_node_not_global_teleportation():
@@ -235,19 +260,29 @@ def test_future_and_vortex_nodes_cannot_skip_content_order():
     manager = DummyManager(league_tier=6, level=30, reputation=500)
     state = ensure_world_state(manager)
     state["current_location"] = "sundered_ruins"
+    state["visited_locations"].append("sundered_ruins")
     state["discovered_locations"].extend(
-        location_id for location_id in (
-            "outer_shatterbelt", "spiral_scar", "the_throat", "the_eye"
-        ) if location_id not in state["discovered_locations"]
+        location_id
+        for location_id in (
+            "outer_shatterbelt",
+            "spiral_scar",
+            "the_throat",
+            "the_eye",
+        )
+        if location_id not in state["discovered_locations"]
     )
 
+    survey_location(manager, "sundered_ruins")
     outer = location_status(manager, "outer_shatterbelt")
     assert outer["can_travel"]
 
-    # The deeper rings exist in the graph, but are explicitly future content
-    # and also require visiting the preceding ring.
+    ok, _message, target = travel_to(manager, "outer_shatterbelt")
+    assert ok and target == "regional_staging"
+    survey_location(manager, "outer_shatterbelt")
+
     spiral = location_status(manager, "spiral_scar")
     assert not spiral["can_travel"]
+    assert spiral["route_discovered"]
     assert "not secured yet" in spiral["reason"]
 
 
@@ -267,6 +302,8 @@ def test_world_progress_summary_is_save_safe():
     summary = world_progress_summary(manager)
     assert summary["current_location"] == "muckford"
     assert summary["total_locations"] == 36
+    assert summary["total_routes"] == len(ROUTES)
+    assert summary["discovered_routes"] > 0
     assert summary["league_tier"] == 2
     assert summary["party_level"] == 13
     assert summary["reputation"] == 44
