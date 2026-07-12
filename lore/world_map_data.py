@@ -150,6 +150,18 @@ LOCATIONS = OrderedDict({
         materials=("Iron Ore", "Coal", "Chipped Ruby"),
         requires_manager_attr=("mine_key_owned", True),
     ),
+    "greywash_ford": _location(
+        "Greywash Ford", "sundered_heartlands", (330, 300), (5, 7), "wilds",
+        "Shallow river crossing north-west of Muckford where the Western causeway begins.",
+        "The Greywash marks where Muckford's mud ends and Crown-laid stone starts. "
+        "The causeway climbs north-west from here toward the Crown tolls; "
+        "ford ambushers, deserters and toll-dodgers prey on teams too poor to "
+        "pay the King's road.",
+        required_tier=0, reveal_tier=0, target_state="regional_staging",
+        content_state="survey", services=("ford crossing", "scouting"),
+        threats=("ford ambushers", "toll-dodgers", "Gutter overflow"),
+        materials=("Scrap Iron", "Bitterleaf", "River Reed"),
+    ),
     "sundered_ruins": _location(
         "Sundered Road Ruins", "sundered_heartlands", (470, 315), (6, 10), "ruins",
         "Collapsed toll roads and settlements nearer the Vortex.",
@@ -194,6 +206,18 @@ LOCATIONS = OrderedDict({
     # ------------------------------------------------------------------
     # Crownlands
     # ------------------------------------------------------------------
+    "kingsreach_toll": _location(
+        "Kingsreach Toll", "crownlands", (299, 274), (6, 8), "outpost",
+        "Crown tollgate on the causeway, the first checkpoint of King Alaric's roads.",
+        "North-west of the Greywash the road turns to counted Crown stone. Every "
+        "wheel, boot and blade is taxed here, and the guards are bored, bribable "
+        "and quick to quarantine anyone coughing on the way down from fever-struck "
+        "Rattlebridge, one more day's march north-west.",
+        required_tier=0, reveal_tier=0, target_state="regional_staging",
+        content_state="survey", services=("toll gate", "Crown notices", "caravan rest"),
+        threats=("toll enforcers", "road bandits", "quarantine sweeps"),
+        materials=("Parchment Sheet", "Wax Seal", "Iron Ore"),
+    ),
     "rattlebridge": _location(
         "Rattlebridge", "crownlands", (275, 240), (6, 9), "city",
         "Massive bridge-city and the main western route around the Vortex.",
@@ -494,8 +518,12 @@ ROUTES = [
     _route("muckford", "old_mine_road", 3, 2, "Old mine road"),
     _route("muckford", "sundered_ruins", 6, 4, "Broken Crown road"),
 
+    # Western causeway: Muckford -> Rattlebridge is walked in legs, not one hop.
+    _route("muckford", "greywash_ford", 4, 2, "Western causeway (Greywash leg)"),
+    _route("greywash_ford", "kingsreach_toll", 4, 3, "Western causeway (toll leg)"),
+    _route("kingsreach_toll", "rattlebridge", 4, 3, "Western causeway (bridge approach)"),
+
     # Western trade loop
-    _route("muckford", "rattlebridge", 12, 3, "Western causeway"),
     _route("rattlebridge", "rivet_row", 5, 3, "Rivet freight road"),
     _route("rattlebridge", "giltgate", 8, 3, "Crownflow road"),
     _route("giltgate", "ledgerford", 4, 2, "Ledger road"),
@@ -579,6 +607,63 @@ def get_route(a, b):
         if {route["a"], route["b"]} == {a, b}:
             return route
     return None
+
+
+# 8-wind compass. Map y grows downward, so "north" is decreasing y.
+_COMPASS = [
+    (0, "east"), (45, "north-east"), (90, "north"), (135, "north-west"),
+    (180, "west"), (225, "south-west"), (270, "south"), (315, "south-east"),
+]
+
+
+def route_heading(a, b):
+    """Compass direction travelling from location ``a`` to ``b`` (or None).
+
+    Derived from map positions so every route reports "its direction" without
+    hand-authoring. Returns e.g. "north-west".
+    """
+    import math
+    la, lb = get_location(a), get_location(b)
+    if not la or not lb:
+        return None
+    ax, ay = la["map_pos"]
+    bx, by = lb["map_pos"]
+    dx, dy = bx - ax, -(by - ay)  # flip y so north points up
+    if dx == 0 and dy == 0:
+        return None
+    ang = math.degrees(math.atan2(dy, dx)) % 360
+    best = min(_COMPASS, key=lambda c: min((ang - c[0]) % 360, (c[0] - ang) % 360))
+    return best[1]
+
+
+def journey_legs(a, b):
+    """Ordered legs of a known multi-hop journey between ``a`` and ``b`` using a
+    breadth-first walk over ROUTES. Each leg is (from, to, route, heading).
+    Returns [] if no path exists."""
+    a, b = str(a), str(b)
+    if a == b:
+        return []
+    prev = {a: None}
+    queue = [a]
+    while queue:
+        cur = queue.pop(0)
+        if cur == b:
+            break
+        for nb in get_neighbors(cur):
+            if nb not in prev:
+                prev[nb] = cur
+                queue.append(nb)
+    if b not in prev:
+        return []
+    path = []
+    node = b
+    while node is not None:
+        path.append(node)
+        node = prev[node]
+    path.reverse()
+    return [(path[i], path[i + 1], get_route(path[i], path[i + 1]),
+             route_heading(path[i], path[i + 1]))
+            for i in range(len(path) - 1)]
 
 
 def get_circuit_for_location(location_id):

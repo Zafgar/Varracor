@@ -87,7 +87,7 @@ def test_world_graph_has_regions_locations_and_valid_route_endpoints():
         "wyrdwood",
         "aegis_peaks",
     }
-    assert len(LOCATIONS) == 36
+    assert len(LOCATIONS) == 38
     assert len(ROUTES) >= 35
 
     for location_id, location in LOCATIONS.items():
@@ -153,7 +153,10 @@ def test_new_world_state_starts_in_muckford_with_known_rumors_and_roads():
         "vinehollow",
         "timbercross",
     }.issubset(state["discovered_locations"])
-    assert route_key("muckford", "rattlebridge") in state["discovered_routes"]
+    # Rattlebridge is a known rumor, but its road is now walked in legs: the
+    # first surveyed leg out of Muckford is the Greywash causeway, not a direct hop.
+    assert route_key("muckford", "greywash_ford") in state["discovered_routes"]
+    assert route_key("muckford", "rattlebridge") not in state["discovered_routes"]
     assert route_key("muckford", "whisper_marsh") in state["discovered_routes"]
     json.dumps(manager.npc_state)
 
@@ -198,7 +201,14 @@ def test_local_travel_advances_world_clock_and_writes_history():
 
 
 def test_level_is_a_warning_but_arena_tier_is_a_hard_gate():
-    manager = DummyManager(league_tier=1, level=1)
+    manager = DummyManager(league_tier=1, level=1)  # lore tier 0
+    # Walk the tier-0-open causeway waypoints up to the toll (adjacent to
+    # Rattlebridge) so the tier gate on the city itself can be checked.
+    assert travel_to(manager, "greywash_ford")[0]
+    survey_location(manager, "greywash_ford")
+    assert travel_to(manager, "kingsreach_toll")[0]
+    survey_location(manager, "kingsreach_toll")
+
     locked = location_status(manager, "rattlebridge")
     assert not locked["can_travel"]
     assert "Requires Arena Tier 1" in locked["reason"]
@@ -228,8 +238,14 @@ def test_reputation_and_story_keys_gate_routes():
 
 def test_surveying_opens_known_but_unmapped_next_step_roads():
     manager = DummyManager(league_tier=2, level=8)
-    ok, _message, target = travel_to(manager, "rattlebridge")
-    assert ok and target == "regional_staging"
+    # Rattlebridge is reached node-by-node along the causeway.
+    target = None
+    for node in ("greywash_ford", "kingsreach_toll", "rattlebridge"):
+        ok, _message, target = travel_to(manager, node)
+        assert ok, f"could not travel to {node}"
+        if node != "rattlebridge":
+            survey_location(manager, node)
+    assert target == "regional_staging"
 
     state = manager.npc_state["world_progression"]
     assert "rivet_row" in state["discovered_locations"]
@@ -301,7 +317,7 @@ def test_world_progress_summary_is_save_safe():
     manager = DummyManager(league_tier=3, level=13, reputation=44)
     summary = world_progress_summary(manager)
     assert summary["current_location"] == "muckford"
-    assert summary["total_locations"] == 36
+    assert summary["total_locations"] == 38
     assert summary["total_routes"] == len(ROUTES)
     assert summary["discovered_routes"] > 0
     assert summary["league_tier"] == 2
