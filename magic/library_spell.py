@@ -67,9 +67,20 @@ class LibrarySpell(Spell):
             manager.all_units.add(minion)
             manager.vfx.create_spawn_fog(x, y)
 
+    def _cast_flourish(self, caster, manager):
+        """Koulun varinen kanavointivalahdys loitsijan kohdalla (animaatio)."""
+        try:
+            manager.vfx.create_shockwave(caster.rect.centerx, caster.rect.centery,
+                                         color=self.projectile_color,
+                                         max_radius=26 + self.tier * 2, width=3)
+        except Exception:
+            pass
+
     def cast(self, caster, target, manager, target_pos=None):
         if manager is None:
             return False
+
+        self._cast_flourish(caster, manager)
 
         # Abyssal Weave (heron Vortex-taika): kyla huomaa ja pelastyy.
         if self.school == "abyssal":
