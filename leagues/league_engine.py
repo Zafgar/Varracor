@@ -129,10 +129,11 @@ class LeagueSeason:
         self.tier = int(tier)
         self.rounds_per_season = int(rounds_per_season)
         
-        # Generoidaan tiimit
+        # Generoidaan tiimit. Sallitaan jopa 8 rivaalia (lore Tier 1:ssa on 8).
+        MAX_RIVALS = 8
         self.premades: List[object] = generate_league_teams(self.tier)
-        if len(self.premades) > 7:
-            self.premades = self.premades[:7]
+        if len(self.premades) > MAX_RIVALS:
+            self.premades = self.premades[:MAX_RIVALS]
         while len(self.premades) < 7:
             self.premades.append(None)
 

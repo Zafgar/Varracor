@@ -57,6 +57,65 @@ def shield_for(tier, elite=False):
     return IRON_SHIELD if (elite or int(tier) >= 2) else SCRAP_SHIELD
 
 
+def build_team(name, color, tier, style, reputation, roster, motto=""):
+    """DRY-rakentaja authored-tiimeille (Tier 1+). roster = lista dicteja:
+      name, race('Human'/'Orc'/'Elf'/'Goblin'),
+      weapon(group), shield(bool), armor('light'/'heavy'/'cloth'),
+      cap(bool), elite(bool), scrap(bool), lvl(bonus),
+      str/dex/int/hp/def (base_attributes-bonus), skills(list).
+    Stat-bonukset menevat base_attributesiin (selviavat calc:sta)."""
+    from units.human import Human
+    from units.orc import Orc
+    from units.elf import Elf
+    from units.goblin import Goblin
+    races = {"Human": Human, "Orc": Orc, "Elf": Elf, "Goblin": Goblin}
+
+    t = Team(name, color, tier)
+    t.motto = motto
+    t.style = style
+    t.reputation = reputation
+    t.authored = True
+    base_lvl = max(1, 1 + tier * 2)
+
+    for spec in roster:
+        cls = races.get(spec.get("race", "Human"), Human)
+        u = cls(spec["name"], 0, 0, color)
+        u.level = base_lvl + spec.get("lvl", 0)
+        for key, battr in (("str", "str"), ("dex", "dex"), ("int", "int"),
+                           ("hp", "max_hp"), ("def", "def_flat")):
+            if key in spec:
+                u.base_attributes[battr] = u.base_attributes.get(battr, 0) + spec[key]
+        for sk in spec.get("skills", []):
+            u.unlocked_skills.add(sk)
+
+        wg = spec.get("weapon")
+        if wg:
+            u.unlocked_skills.add(f"wp_{wg}")
+            wname = (SCRAP_WEAPONS.get(wg) if spec.get("scrap")
+                     else weapon_for(wg, tier, elite=spec.get("elite", False)))
+            t.equip_unit(u, wname)
+        if spec.get("shield"):
+            u.unlocked_skills.add("arm_shield")
+            t.equip_unit(u, shield_for(tier, elite=spec.get("elite", False)))
+
+        armor = spec.get("armor", "light")
+        if armor == "heavy":
+            u.unlocked_skills.add("arm_heavy")
+            t.equip_unit(u, "Rusty Mail")
+            t.equip_unit(u, "Iron Helm")
+        elif armor == "cloth":
+            t.equip_unit(u, "Novice Robe")
+        else:
+            t.equip_unit(u, "Padded Vest")
+            if spec.get("cap", True):
+                t.equip_unit(u, "Leather Cap")
+
+        u.calculate_final_stats()
+        u.current_hp = u.max_hp
+        t.members.append(u)
+    return t
+
+
 class Team:
     """
     League team container for premades + fallback generation.
@@ -210,6 +269,9 @@ def generate_league_teams(tier):
         from lore.world_data import get_tier_teams
         lore_teams = get_tier_teams(max(0, int(tier) - 1))
         for team, lore in zip(teams, lore_teams):
+            # Authored-tiimeilla (Tier 1+) on jo lore-nimi ja maine -> ei nimeta uudelleen.
+            if getattr(team, "authored", False):
+                continue
             team.name = lore["name"]
             team.manager = lore.get("manager")
             team.lore_desc = lore.get("desc", "")
