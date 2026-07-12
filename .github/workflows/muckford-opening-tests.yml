@@ -1,0 +1,75 @@
+name: Muckford opening checks
+
+on:
+  pull_request:
+    paths:
+      - "systems/muckford_opening_*.py"
+      - "systems/muckford_forest_tutorial.py"
+      - "systems/muckford_city_opening.py"
+      - "citys/mucford/forest_road_*.py"
+      - "citys/mucford/muckford_city_menu.py"
+      - "npc/marda_shant_npc.py"
+      - "npc/dwarf_league_manager.py"
+      - "menus/barracks_menu.py"
+      - "main.py"
+      - "tests/test_muckford_opening.py"
+      - ".github/workflows/muckford-opening-tests.yml"
+  push:
+    branches:
+      - "main"
+    paths:
+      - "systems/muckford_opening_*.py"
+      - "systems/muckford_forest_tutorial.py"
+      - "systems/muckford_city_opening.py"
+      - "menus/barracks_menu.py"
+      - "tests/test_muckford_opening.py"
+      - ".github/workflows/muckford-opening-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  opening-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SDL_VIDEODRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+      PYGAME_HIDE_SUPPORT_PROMPT: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+
+      - name: Compile opening and main state machine
+        run: |
+          python -m py_compile \
+            systems/muckford_opening_core.py \
+            systems/muckford_opening_integration.py \
+            systems/muckford_forest_tutorial.py \
+            systems/muckford_city_opening.py \
+            citys/mucford/forest_road_arena.py \
+            citys/mucford/forest_road_menu.py \
+            citys/mucford/muckford_city_menu.py \
+            npc/marda_shant_npc.py \
+            npc/dwarf_league_manager.py \
+            menus/barracks_menu.py \
+            main.py \
+            tests/test_muckford_opening.py
+
+      - name: Import main with headless SDL
+        run: python -c "import main; print('main import ok')"
+
+      - name: Run Muckford opening tests
+        run: python -m pytest -q --tb=short tests/test_muckford_opening.py
