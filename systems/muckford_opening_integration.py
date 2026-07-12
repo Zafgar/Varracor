@@ -22,14 +22,18 @@ from systems.tier0_monster_integration import (
 from systems.tier0_world_integration import (
     install_tier0_world_integration,
 )
+from systems.whisper_marsh_story import (
+    install_whisper_marsh_story,
+)
 
-# Outskirts, local areas, ecology and world tracking use idempotent runtime
-# wrappers plus pure registries. Install them eagerly so import order cannot hide
-# new content from main, tests or save migration.
+# Outskirts, local areas, ecology, story and world tracking use idempotent
+# runtime wrappers plus pure registries. Install them eagerly so import order
+# cannot hide new content from main, tests or save migration.
 install_muckford_outskirts_integration()
 install_muckford_low_fields_integration()
 install_tier0_monster_integration()
 install_tier0_world_integration()
+install_whisper_marsh_story()
 
 _INSTALLED = False
 
@@ -43,6 +47,7 @@ def install_muckford_opening_integration() -> None:
     install_muckford_low_fields_integration()
     install_tier0_monster_integration()
     install_tier0_world_integration()
+    install_whisper_marsh_story()
     if _INSTALLED:
         return
     from systems.muckford_opening_core import install_muckford_opening_core
