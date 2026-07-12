@@ -13,21 +13,25 @@ from systems.muckford_opening_core import (
 from systems.muckford_outskirts_integration import (
     install_muckford_outskirts_integration,
 )
+from systems.tier0_monster_integration import (
+    install_tier0_monster_integration,
+)
 
-# Outskirts contains pure world-map metadata plus idempotent runtime wrappers.
-# Install it eagerly so a previously cached opening integration cannot skip the
-# new area when import order differs between the game, tests and old saves.
+# Outskirts and ecology contain idempotent runtime wrappers plus pure registries.
+# Install them eagerly so import order cannot hide newly added area content.
 install_muckford_outskirts_integration()
+install_tier0_monster_integration()
 
 _INSTALLED = False
 
 
 def install_muckford_opening_integration() -> None:
     global _INSTALLED
-    # Keep the outskirts call outside the guard. Its installer is idempotent and
-    # this guarantees newly added area hooks are present even when the older
-    # opening hooks were installed earlier in the same Python process.
+    # Keep these calls outside the guard. Their installers are idempotent and this
+    # guarantees newly added content is present when an older opening integration
+    # was already cached in the same Python process.
     install_muckford_outskirts_integration()
+    install_tier0_monster_integration()
     if _INSTALLED:
         return
     from systems.muckford_opening_core import install_muckford_opening_core
