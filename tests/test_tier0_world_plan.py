@@ -36,8 +36,8 @@ class DummyManager:
 
 def test_plan_is_complete_structurally_and_acyclic():
     assert validate_plan() == []
-    assert PLAN_VERSION == 5
-    assert CURRENT_FOCUS == "greywash_ford"
+    assert PLAN_VERSION == 6
+    assert CURRENT_FOCUS == "kingsreach_toll"
     assert list(TIER0_AREAS) == [
         "muckford",
         "low_fields",
@@ -56,10 +56,10 @@ def test_plan_is_complete_structurally_and_acyclic():
         assert area["vfx"]
 
 
-def test_development_queue_advances_to_greywash_and_keeps_partial_work_visible():
+def test_development_queue_advances_to_kingsreach_and_keeps_partial_work_visible():
     queue = next_development_batch(20)
     assert queue
-    assert queue[0]["area_id"] == "greywash_ford"
+    assert queue[0]["area_id"] == "kingsreach_toll"
     assert queue[0]["domain"] in {
         "area",
         "npcs",
@@ -77,6 +77,7 @@ def test_development_queue_advances_to_greywash_and_keeps_partial_work_visible()
     assert 0.9 < completion_ratio("drowned_chapel") < 1.0
     assert 0.9 < completion_ratio("old_muckford_mine") < 1.0
     assert 0.9 < completion_ratio("muckford_warrens") < 1.0
+    assert 0.9 < completion_ratio("greywash_ford") < 1.0
 
 
 def test_open_risk_area_warns_but_does_not_block_entry():
