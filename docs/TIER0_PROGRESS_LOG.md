@@ -61,9 +61,38 @@ Still planned for Low Fields:
   sound cues;
 - final painted replacement assets after gameplay tuning.
 
-Next production focus:
+## 2026-07-12 — Whisper Marsh story, fishing and boss batch
 
-1. Complete Whisper Marsh NPC placement and dialogue.
-2. Turn its partial survey events into explicit quest states.
-3. Add the first playable fishing minigame using the existing fishing anchors.
-4. Define and implement the Whisper Pool boss before opening Drowned Chapel.
+Completed:
+
+- added Surveyor Kessa Fenmark, Hamo's field contact Brik Sealrunner and named
+  ferryman Noll as persistent marsh NPCs;
+- replaced the random ferryman rescue with a save-backed named quest stage;
+- linked the full Survey Post chain to explicit story progression;
+- added three persistent Whisper Pool survey markers;
+- added separate Greywash Channel and Whisper Pool fish tables;
+- added a playable cast, bite, hook and line-tension fishing minigame without
+  requiring finished fishing art;
+- added persistent fish catches and first-catch progression;
+- created the code-rendered Whisper Pool Maw boss with a second phase that calls
+  three Mire-Lurker Spawn;
+- added boss rewards: 60 SP, 5 reputation and a Whisper Maw Scale;
+- integrated the minigame through the existing regional-state factory without
+  adding a fragile duplicate main-loop state;
+- hardened shared Whisper Marsh world-map metadata against import-order changes;
+- added focused story, fishing, factory, metadata and boss tests;
+- validated the expanded suite: 39 tests passed and `main.py` imported
+  successfully in the headless runner.
+
+Still planned for Whisper Marsh:
+
+- dedicated ambience, fishing sounds and voiced NPC lines;
+- final painted fish, NPC and Whisper Pool Maw assets after gameplay tuning.
+
+Next production focus — Drowned Chapel:
+
+1. Build the flooded chapel, graveyard, bell tower and quarantine camp map.
+2. Add Sister-Medic Rhea Ashford and rescueable pilgrims.
+3. Implement Water-risen enemies, disease pressure and holy field objectives.
+4. Add medicine-chest recovery, pilgrim rescue and tainted-water investigation.
+5. Implement The Bell-Drowned Pilgrim boss and persistent chapel recovery.
