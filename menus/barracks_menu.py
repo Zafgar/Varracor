@@ -119,6 +119,9 @@ try:
     )
     from systems.world_map_integration import install_world_map_integration
     from systems.rattlebridge_integration import install_rattlebridge_integration
+    from systems.muckford_opening_integration import (
+        install_muckford_opening_integration,
+    )
 
     install_farming_expansion()
     install_farming_hardening()
@@ -130,5 +133,6 @@ try:
     install_material_integration_hardening()
     install_world_map_integration()
     install_rattlebridge_integration()
+    install_muckford_opening_integration()
 except Exception as exc:
     print(f"[RuntimeExtensions] Could not install: {exc}")
