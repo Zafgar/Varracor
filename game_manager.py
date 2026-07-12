@@ -379,6 +379,86 @@ class GameManager:
             g["vortex_fear_timer"] = int(g["vortex_fear_timer"]) - 1
 
     # =========================================================
+    # MAGIAN ETENEMINEN (koulukunnat + Abyssal-taitopuut)
+    # =========================================================
+    def _magic_state(self):
+        g = self.npc_state.setdefault("global", {})
+        m = g.setdefault("magic", {})
+        m.setdefault("schools", [])
+        m.setdefault("abyssal_trees", [])
+        return m
+
+    def is_school_unlocked(self, school):
+        from magic.progression import SCHOOL_UNLOCK
+        if CHEAT_MODE:
+            return True
+        if SCHOOL_UNLOCK.get(school, {}).get("default"):
+            return True
+        return school in self._magic_state()["schools"]
+
+    def unlocked_schools(self):
+        from magic.progression import SCHOOL_UNLOCK, default_schools
+        if CHEAT_MODE:
+            return list(SCHOOL_UNLOCK.keys())
+        seen = list(default_schools())
+        for s in self._magic_state()["schools"]:
+            if s not in seen:
+                seen.append(s)
+        return seen
+
+    def unlock_school(self, school):
+        from magic.progression import SCHOOL_UNLOCK
+        try:
+            from magic.schools import SCHOOLS
+            org = SCHOOLS.get(school, {}).get("org", school)
+        except Exception:
+            org = school
+        st = self._magic_state()
+        if school not in st["schools"] and not SCHOOL_UNLOCK.get(school, {}).get("default"):
+            st["schools"].append(school)
+            self.record_deed(f"school_{school}", f"was admitted to {org}")
+            return True
+        return False
+
+    def can_unlock_school(self, school):
+        from magic.progression import SCHOOL_UNLOCK
+        req = SCHOOL_UNLOCK.get(school)
+        if req is None:
+            return False, "Unknown school"
+        res = req.get("resource")
+        if res and int(self.inventory.get(res[0], 0)) < res[1]:
+            return False, f"Need {res[1]}x {res[0]}"
+        return True, ""
+
+    def try_unlock_school_with_resources(self, school):
+        if self.is_school_unlocked(school):
+            return True, "Already open"
+        ok, reason = self.can_unlock_school(school)
+        if not ok:
+            return False, reason
+        from magic.progression import SCHOOL_UNLOCK
+        res = SCHOOL_UNLOCK.get(school, {}).get("resource")
+        if res:
+            self.inventory[res[0]] = int(self.inventory.get(res[0], 0)) - res[1]
+        self.unlock_school(school)
+        return True, "unlocked"
+
+    def knows_abyssal_tree(self, tree):
+        if CHEAT_MODE:
+            return True
+        return tree in self._magic_state().get("abyssal_trees", [])
+
+    def learn_abyssal_tree(self, tree):
+        st = self._magic_state()
+        trees = st.setdefault("abyssal_trees", [])
+        if tree not in trees:
+            trees.append(tree)
+            self.record_deed(f"abyssal_{tree}",
+                             f"learned to see the other reality: the {tree} weave")
+            return True
+        return False
+
+    # =========================================================
     # DIALOGUE SYSTEM
     # =========================================================
     def open_dialogue(self, npc_id: str):

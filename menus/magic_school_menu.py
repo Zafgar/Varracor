@@ -72,7 +72,20 @@ class MagicSchoolMenu(BaseMenu):
         ]
         
         self.school_buttons = []
+        self._sync_unlocks()
         self._init_buttons()
+
+    def _sync_unlocks(self):
+        """Paivittaa 'unlocked'-tilan GameManagerin etenemisesta (cheat avaa kaikki)."""
+        try:
+            from magic.progression import MENU_ID_TO_SCHOOL, unlock_requirement_text
+            for sc in self.schools:
+                canon = MENU_ID_TO_SCHOOL.get(sc["id"], sc["id"])
+                sc["unlocked"] = self.manager.is_school_unlocked(canon)
+                if not sc["unlocked"] and not sc.get("req_text"):
+                    sc["req_text"] = "Requires: " + unlock_requirement_text(canon)
+        except Exception:
+            pass
 
     def _init_buttons(self):
         start_y = 150
