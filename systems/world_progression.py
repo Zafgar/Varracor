@@ -11,6 +11,7 @@ from typing import Iterable
 from lore.world_map_data import (
     ARENA_CIRCUITS,
     LOCATIONS,
+    ROUTES,
     STARTING_DISCOVERED_LOCATIONS,
     get_location,
     get_neighbors,
@@ -18,7 +19,7 @@ from lore.world_map_data import (
 )
 
 
-WORLD_STATE_VERSION = 1
+WORLD_STATE_VERSION = 2
 WORLD_STATE_KEY = "world_progression"
 
 
@@ -27,6 +28,17 @@ def _append_unique(values: list, value) -> bool:
         return False
     values.append(value)
     return True
+
+
+def route_key(a: str, b: str) -> str:
+    """Return a stable JSON-safe identifier for an undirected route."""
+    return "|".join(sorted((str(a), str(b))))
+
+
+VALID_ROUTE_KEYS = {
+    route_key(route["a"], route["b"])
+    for route in ROUTES
+}
 
 
 def _normalise_id_list(value: Iterable | None) -> list[str]:
@@ -38,10 +50,21 @@ def _normalise_id_list(value: Iterable | None) -> list[str]:
     return out
 
 
+def _normalise_route_list(value: Iterable | None) -> list[str]:
+    out = []
+    for item in value or ():
+        item = str(item)
+        if item in VALID_ROUTE_KEYS and item not in out:
+            out.append(item)
+    return out
+
+
 def ensure_world_state(manager) -> dict:
     npc_state = getattr(manager, "npc_state", None)
     if not isinstance(npc_state, dict):
-        manager.npc_state = {"global": {"reputation": 0, "flags": {}, "deeds": []}}
+        manager.npc_state = {
+            "global": {"reputation": 0, "flags": {}, "deeds": []}
+        }
         npc_state = manager.npc_state
 
     state = npc_state.setdefault(WORLD_STATE_KEY, {})
@@ -49,15 +72,14 @@ def ensure_world_state(manager) -> dict:
         state = {}
         npc_state[WORLD_STATE_KEY] = state
 
-    state["version"] = WORLD_STATE_VERSION
     current = str(state.get("current_location", "muckford"))
     if current not in LOCATIONS:
         current = "muckford"
-    state["current_location"] = current
 
     discovered = _normalise_id_list(state.get("discovered_locations"))
     visited = _normalise_id_list(state.get("visited_locations"))
     surveyed = _normalise_id_list(state.get("surveyed_locations"))
+    discovered_routes = _normalise_route_list(state.get("discovered_routes"))
 
     if not discovered:
         discovered = list(STARTING_DISCOVERED_LOCATIONS)
@@ -70,16 +92,18 @@ def ensure_world_state(manager) -> dict:
         visited = ["muckford"]
     _append_unique(visited, current)
 
-    # The starting city and its immediate roads are assumed to have been mapped
-    # by Bram, Hamo and Muckford's caravan brokers before the campaign begins.
+    # Bram, Hamo and Muckford's caravan brokers provide the first local map.
     if not surveyed:
         surveyed = ["muckford"]
     else:
         _append_unique(surveyed, "muckford")
 
+    state["version"] = WORLD_STATE_VERSION
+    state["current_location"] = current
     state["discovered_locations"] = discovered
     state["visited_locations"] = visited
     state["surveyed_locations"] = surveyed
+    state["discovered_routes"] = discovered_routes
 
     history = state.get("travel_history")
     state["travel_history"] = history if isinstance(history, list) else []
@@ -107,7 +131,11 @@ def party_level(manager) -> int:
         pass
 
     levels = sorted(
-        (max(1, int(getattr(unit, "level", 1) or 1)) for unit in units if unit),
+        (
+            max(1, int(getattr(unit, "level", 1) or 1))
+            for unit in units
+            if unit
+        ),
         reverse=True,
     )
     if not levels:
@@ -127,40 +155,59 @@ def _requirement_attr_met(manager, requirement) -> bool:
     return getattr(manager, str(attr), None) == expected
 
 
+def _route_reveal_allowed(manager, destination_id: str) -> bool:
+    destination = LOCATIONS[destination_id]
+    return int(destination.get("reveal_tier", 0)) <= league_lore_tier(manager) + 1
+
+
 def refresh_world_progression(manager) -> dict:
-    """Reveal circuit goals and routes from locations the player surveyed."""
+    """Reveal circuit goals and roads from locations the player surveyed."""
     state = ensure_world_state(manager)
     tier = league_lore_tier(manager)
     discovered = state["discovered_locations"]
     surveyed = state["surveyed_locations"]
+    discovered_routes = state["discovered_routes"]
 
-    before = set(discovered)
+    before_locations = set(discovered)
+    before_routes = set(discovered_routes)
 
-    # Arena promotion reveals the names and approximate positions of the new
-    # circuit. Physical travel still follows the route graph.
+    # Promotion reveals arena-city names as rumors, but not their roads.
     for circuit_tier in range(0, min(5, tier) + 1):
         for location_id in ARENA_CIRCUITS[circuit_tier]["locations"]:
             _append_unique(discovered, location_id)
 
-    # Major landmarks become known as rumors before they are reachable.
+    # Major landmarks may also be known by rumor before a safe route exists.
     for location_id, location in LOCATIONS.items():
-        if location.get("landmark") and int(location.get("reveal_tier", 0)) <= tier:
+        if (
+            location.get("landmark")
+            and int(location.get("reveal_tier", 0)) <= tier
+        ):
             _append_unique(discovered, location_id)
 
-    # Only surveyed locations expose their connected roads. One tier ahead may
-    # appear as a locked rumor so the next progression goal remains visible.
+    # Surveying opens physical roads. A road may lead to a destination one tier
+    # ahead so the next progression goal can be seen while remaining gated.
     for origin in list(dict.fromkeys(surveyed)):
         for neighbor in get_neighbors(origin):
-            data = LOCATIONS[neighbor]
-            if int(data.get("reveal_tier", 0)) <= tier + 1:
-                _append_unique(discovered, neighbor)
+            if not _route_reveal_allowed(manager, neighbor):
+                continue
+            _append_unique(discovered, neighbor)
+            _append_unique(discovered_routes, route_key(origin, neighbor))
 
-    newly_revealed = [location_id for location_id in discovered
-                      if location_id not in before]
-    if newly_revealed:
+    newly_revealed_locations = [
+        location_id
+        for location_id in discovered
+        if location_id not in before_locations
+    ]
+    newly_revealed_routes = [
+        key
+        for key in discovered_routes
+        if key not in before_routes
+    ]
+    if newly_revealed_locations or newly_revealed_routes:
         state["unlock_notices"].append({
             "tier": tier,
-            "locations": newly_revealed,
+            "locations": newly_revealed_locations,
+            "routes": newly_revealed_routes,
         })
         state["unlock_notices"] = state["unlock_notices"][-20:]
     return state
@@ -170,8 +217,13 @@ def current_location_id(manager) -> str:
     return str(refresh_world_progression(manager)["current_location"])
 
 
-def mark_location_visited(manager, location_id: str, *, set_current=True,
-                          surveyed=False) -> dict:
+def mark_location_visited(
+    manager,
+    location_id: str,
+    *,
+    set_current=True,
+    surveyed=False,
+) -> dict:
     location_id = str(location_id)
     if location_id not in LOCATIONS:
         raise KeyError(f"Unknown world location: {location_id}")
@@ -186,14 +238,29 @@ def mark_location_visited(manager, location_id: str, *, set_current=True,
 
 
 def survey_location(manager, location_id: str) -> list[str]:
-    """Survey a reached node and return the newly revealed adjacent nodes."""
+    """Survey a reached node and return destinations whose roads were opened."""
     location_id = str(location_id)
-    before_state = ensure_world_state(manager)
-    before = set(before_state["discovered_locations"])
-    state = mark_location_visited(manager, location_id, set_current=True,
-                                  surveyed=True)
-    return [location for location in state["discovered_locations"]
-            if location not in before]
+    state = ensure_world_state(manager)
+    before_routes = set(state["discovered_routes"])
+
+    state = mark_location_visited(
+        manager,
+        location_id,
+        set_current=True,
+        surveyed=True,
+    )
+
+    opened = []
+    for neighbor in get_neighbors(location_id):
+        key = route_key(location_id, neighbor)
+        if key in state["discovered_routes"] and key not in before_routes:
+            opened.append(neighbor)
+    return opened
+
+
+def is_route_discovered(manager, a: str, b: str) -> bool:
+    state = refresh_world_progression(manager)
+    return route_key(a, b) in state["discovered_routes"]
 
 
 def location_status(manager, location_id: str) -> dict:
@@ -207,11 +274,15 @@ def location_status(manager, location_id: str) -> dict:
             "reason": "Unknown location.",
             "warning": "",
             "route": None,
+            "route_discovered": False,
         }
 
     discovered = location_id in state["discovered_locations"]
     current = state["current_location"]
     route = get_route(current, location_id)
+    route_discovered = bool(
+        route and route_key(current, location_id) in state["discovered_routes"]
+    )
     tier = league_lore_tier(manager)
     rep = _reputation(manager)
     level = party_level(manager)
@@ -219,7 +290,9 @@ def location_status(manager, location_id: str) -> dict:
 
     warning = ""
     if level < low:
-        warning = f"Danger: party average Lv {level}; recommended Lv {low}-{high}."
+        warning = (
+            f"Danger: party average Lv {level}; recommended Lv {low}-{high}."
+        )
     elif level > high + 5:
         warning = f"Low-level region for your Lv {level} party."
 
@@ -232,39 +305,69 @@ def location_status(manager, location_id: str) -> dict:
         "reason": "",
         "warning": warning,
         "route": route,
+        "route_discovered": route_discovered,
         "party_level": level,
         "league_tier": tier,
     }
 
     if not discovered:
-        result["reason"] = "The route has not been discovered. Survey connected locations first."
+        result["reason"] = (
+            "The location has not been discovered. Survey connected areas first."
+        )
         return result
     if location_id == current:
         result["reason"] = "Your expedition is currently here."
         return result
     if route is None:
-        result["reason"] = "No direct route from your current location. Travel node by node."
+        result["reason"] = (
+            "No direct route from your current location. Travel node by node."
+        )
+        return result
+    if not route_discovered:
+        result["reason"] = (
+            "The destination is known, but this road has not been surveyed."
+        )
         return result
     if location.get("content_state") == "future":
-        result["reason"] = "This region is mapped in the world foundation but its local playable area is not secured yet."
+        result["reason"] = (
+            "This region is mapped in the world foundation but its local "
+            "playable area is not secured yet."
+        )
         return result
+
     required_tier = int(location.get("required_tier", 0))
     if tier < required_tier:
-        result["reason"] = f"Requires Arena Tier {required_tier}; current tier is {tier}."
+        result["reason"] = (
+            f"Requires Arena Tier {required_tier}; current tier is {tier}."
+        )
         return result
+
     required_rep = int(location.get("required_rep", 0))
     if rep < required_rep:
-        result["reason"] = f"Requires {required_rep} reputation; current reputation is {rep}."
+        result["reason"] = (
+            f"Requires {required_rep} reputation; current reputation is {rep}."
+        )
         return result
-    if not _requirement_attr_met(manager, location.get("requires_manager_attr")):
+
+    if not _requirement_attr_met(
+        manager,
+        location.get("requires_manager_attr"),
+    ):
         attr, expected = location["requires_manager_attr"]
         if attr == "mine_key_owned":
-            result["reason"] = "The mine road is locked. Marda holds the key until the debt is settled."
+            result["reason"] = (
+                "The mine road is locked. Marda holds the key until the debt "
+                "is settled."
+            )
         else:
             result["reason"] = f"Requires {attr} = {expected}."
         return result
-    missing = [req for req in location.get("requires_visited", ())
-               if req not in state["visited_locations"]]
+
+    missing = [
+        requirement
+        for requirement in location.get("requires_visited", ())
+        if requirement not in state["visited_locations"]
+    ]
     if missing:
         names = ", ".join(LOCATIONS[item]["name"] for item in missing)
         result["reason"] = f"Reach and survey {names} first."
@@ -274,7 +377,9 @@ def location_status(manager, location_id: str) -> dict:
     if warning:
         result["reason"] = warning
     else:
-        result["reason"] = f"Direct route: {route['label']} ({route['hours']} travel hours)."
+        result["reason"] = (
+            f"Direct route: {route['label']} ({route['hours']} travel hours)."
+        )
     return result
 
 
@@ -343,7 +448,9 @@ def world_progress_summary(manager) -> dict:
         "discovered": len(state["discovered_locations"]),
         "visited": len(state["visited_locations"]),
         "surveyed": len(state["surveyed_locations"]),
+        "discovered_routes": len(state["discovered_routes"]),
         "total_locations": len(LOCATIONS),
+        "total_routes": len(ROUTES),
         "party_level": party_level(manager),
         "league_tier": league_lore_tier(manager),
         "reputation": _reputation(manager),
