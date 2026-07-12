@@ -1,4 +1,4 @@
-name: Muckford opening, Low Fields, Whisper Marsh and Tier 0 plan
+name: Muckford opening, Whisper Marsh, Drowned Chapel and Tier 0 plan
 
 on:
   pull_request:
@@ -9,6 +9,7 @@ on:
       - "systems/muckford_outskirts_integration.py"
       - "systems/muckford_low_fields_integration.py"
       - "systems/whisper_marsh_story.py"
+      - "systems/drowned_chapel_integration.py"
       - "systems/procedural_water.py"
       - "systems/tier0_monster_*.py"
       - "systems/tier0_world_*.py"
@@ -18,10 +19,12 @@ on:
       - "ai/tier0_monster_ai.py"
       - "units/tier0_monsters.py"
       - "units/whisper_pool_boss.py"
+      - "units/drowned_chapel_monsters.py"
       - "minigames/marsh_fishing.py"
       - "citys/mucford/forest_road_*.py"
       - "citys/mucford/forest_excursion.py"
       - "citys/mucford/low_fields.py"
+      - "citys/mucford/drowned_chapel.py"
       - "citys/mucford/muckford_city_menu.py"
       - "npc/marda_shant_npc.py"
       - "npc/dwarf_league_manager.py"
@@ -32,6 +35,7 @@ on:
       - "tests/test_muckford_water_outskirts.py"
       - "tests/test_muckford_low_fields.py"
       - "tests/test_whisper_marsh_story_fishing.py"
+      - "tests/test_drowned_chapel.py"
       - "tests/test_tier0_monsters.py"
       - "tests/test_tier0_world_plan.py"
       - ".github/workflows/muckford-opening-tests.yml"
@@ -45,6 +49,7 @@ on:
       - "systems/muckford_outskirts_integration.py"
       - "systems/muckford_low_fields_integration.py"
       - "systems/whisper_marsh_story.py"
+      - "systems/drowned_chapel_integration.py"
       - "systems/procedural_water.py"
       - "systems/tier0_monster_*.py"
       - "systems/tier0_world_*.py"
@@ -54,15 +59,18 @@ on:
       - "ai/tier0_monster_ai.py"
       - "units/tier0_monsters.py"
       - "units/whisper_pool_boss.py"
+      - "units/drowned_chapel_monsters.py"
       - "minigames/marsh_fishing.py"
       - "citys/mucford/forest_excursion.py"
       - "citys/mucford/low_fields.py"
+      - "citys/mucford/drowned_chapel.py"
       - "menus/barracks_menu.py"
       - "menus/regional_staging_menu.py"
       - "tests/test_muckford_opening.py"
       - "tests/test_muckford_water_outskirts.py"
       - "tests/test_muckford_low_fields.py"
       - "tests/test_whisper_marsh_story_fishing.py"
+      - "tests/test_drowned_chapel.py"
       - "tests/test_tier0_monsters.py"
       - "tests/test_tier0_world_plan.py"
       - ".github/workflows/muckford-opening-tests.yml"
@@ -110,6 +118,7 @@ jobs:
               systems/muckford_outskirts_integration.py \
               systems/muckford_low_fields_integration.py \
               systems/whisper_marsh_story.py \
+              systems/drowned_chapel_integration.py \
               systems/procedural_water.py \
               systems/tier0_monster_ecology.py \
               systems/tier0_monster_integration.py \
@@ -120,11 +129,13 @@ jobs:
               ai/tier0_monster_ai.py \
               units/tier0_monsters.py \
               units/whisper_pool_boss.py \
+              units/drowned_chapel_monsters.py \
               minigames/marsh_fishing.py \
               citys/mucford/forest_road_arena.py \
               citys/mucford/forest_road_menu.py \
               citys/mucford/forest_excursion.py \
               citys/mucford/low_fields.py \
+              citys/mucford/drowned_chapel.py \
               citys/mucford/muckford_city_menu.py \
               npc/marda_shant_npc.py \
               npc/dwarf_league_manager.py \
@@ -135,6 +146,7 @@ jobs:
               tests/test_muckford_water_outskirts.py \
               tests/test_muckford_low_fields.py \
               tests/test_whisper_marsh_story_fishing.py \
+              tests/test_drowned_chapel.py \
               tests/test_tier0_monsters.py \
               tests/test_tier0_world_plan.py
             python tools/tier0_content_report.py --next 12
@@ -144,6 +156,7 @@ jobs:
               tests/test_muckford_water_outskirts.py \
               tests/test_muckford_low_fields.py \
               tests/test_whisper_marsh_story_fishing.py \
+              tests/test_drowned_chapel.py \
               tests/test_tier0_monsters.py \
               tests/test_tier0_world_plan.py
           ' 2>&1 | tee muckford-opening-test-output.txt
@@ -166,10 +179,10 @@ jobs:
           TEST_EXIT_CODE: ${{ steps.opening_validation.outputs.exit_code }}
         run: |
           state="success"
-          description="Whisper Marsh story, fishing and Tier 0 content passed"
+          description="Drowned Chapel and Tier 0 content passed"
           if [ "${TEST_EXIT_CODE}" != "0" ]; then
             state="failure"
-            description="Whisper Marsh or Tier 0 content checks failed"
+            description="Drowned Chapel or Tier 0 content checks failed"
           fi
           curl --fail-with-body --silent --show-error \
             --request POST \
