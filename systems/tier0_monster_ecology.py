@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from settings import ENEMY_TEAM
 from units.tier0_monsters import TIER0_MONSTER_BY_SPECIES
@@ -168,7 +168,7 @@ def spawn_group(
     team_color=ENEMY_TEAM,
     *,
     count: Optional[int] = None,
-    spread: int = 70,
+    spread: int = 55,
 ) -> List[object]:
     entry = ECOLOGY_BY_SPECIES[species]
     amount = int(count) if count is not None else rng.randint(*entry.group_size)
@@ -210,6 +210,30 @@ def _land_point_in_zone(arena, rng: random.Random, zone: str) -> Tuple[int, int]
     return arena.random_land_point(180)
 
 
+def _spawn_safe_group(
+    arena,
+    rng: random.Random,
+    entry: MonsterEcologyEntry,
+    zone: str,
+    team_color,
+    *,
+    count: Optional[int] = None,
+) -> List[object]:
+    center = _land_point_in_zone(arena, rng, zone)
+    group = spawn_group(entry.species, center, rng, team_color, count=count)
+    for monster in group:
+        if any(water.contains_point(monster.rect.center, inset=0) for water in arena.waters):
+            monster.rect.center = _land_point_in_zone(arena, rng, zone)
+        elif any(
+            getattr(obstacle, "rect", None)
+            and obstacle.rect.inflate(8, 8).collidepoint(monster.rect.center)
+            for obstacle in arena.land_obstacles
+        ):
+            monster.rect.center = _land_point_in_zone(arena, rng, zone)
+        monster.ai_controller.home = tuple(monster.rect.center)
+    return group
+
+
 def build_whisper_marsh_population(
     arena,
     rng: random.Random,
@@ -218,37 +242,68 @@ def build_whisper_marsh_population(
     visits: int = 1,
     camp_stage: int = 0,
 ) -> List[object]:
-    """Create a difficulty-gradient population instead of global random soup.
+    """Create a deliberate difficulty gradient across Whisper Marsh.
 
-    Level 1-2 creatures live west of the Greywash, level 2-4 creatures occupy
-    the far bank, and level 4-5 predators remain around Whisper Pool. BaseAI is
-    paired with a local aggro radius, so deep threats do not cross the entire
-    map to attack a new player at the entrance.
+    The near bank always contains level 1 and 2 fauna, the far bank contains
+    level 3 threats, and the Whisper Pool zone always contains at least one
+    level 4 and one level 5 encounter. Local aggro and leash rules keep those
+    deep predators from attacking a new player at the entrance.
     """
     population: List[object] = []
 
-    near_groups = 3 + min(1, visits // 4)
-    for _ in range(near_groups):
-        entry = choose_species(rng, min_level=1, max_level=2, habitat=rng.choice(("mud", "bank", "reeds")))
-        population.extend(
-            spawn_group(entry.species, _land_point_in_zone(arena, rng, "near"), rng, team_color)
+    # Guaranteed readable opening curve: one level-1 group and one level-2 group.
+    for level, habitat in ((1, "bank"), (2, "mud")):
+        entry = choose_species(
+            rng,
+            min_level=level,
+            max_level=level,
+            habitat=habitat,
         )
+        population.extend(_spawn_safe_group(arena, rng, entry, "near", team_color))
 
+    # Additional low-risk group keeps return visits from feeling identical.
+    extra_near = 1 + min(1, visits // 4)
+    for _ in range(extra_near):
+        entry = choose_species(
+            rng,
+            min_level=1,
+            max_level=2,
+            habitat=rng.choice(("mud", "bank", "reeds")),
+        )
+        population.extend(_spawn_safe_group(arena, rng, entry, "near", team_color))
+
+    # A level-3 group is guaranteed beyond the Greywash. Later visits may add
+    # one level-4 species to this middle zone, but never a level-5 brute.
+    level_three = choose_species(rng, min_level=3, max_level=3)
+    population.extend(_spawn_safe_group(arena, rng, level_three, "middle", team_color))
     middle_cap = min(4, 3 + max(0, visits - 1) // 3)
-    for _ in range(3):
-        entry = choose_species(rng, min_level=2, max_level=middle_cap, habitat=rng.choice(("woodland", "deep_marsh", "ruins")))
-        population.extend(
-            spawn_group(entry.species, _land_point_in_zone(arena, rng, "middle"), rng, team_color)
+    for _ in range(2):
+        entry = choose_species(
+            rng,
+            min_level=2,
+            max_level=middle_cap,
+            habitat=rng.choice(("woodland", "deep_marsh", "ruins")),
         )
+        population.extend(_spawn_safe_group(arena, rng, entry, "middle", team_color))
 
-    # Deep predators are present from the start, but isolated behind exploration
-    # distance and the Greywash crossings. Camp progress increases their variety.
-    deep_min = 4 if camp_stage < 2 else 3
-    deep_groups = 2 if camp_stage < 3 else 3
-    for _ in range(deep_groups):
-        entry = choose_species(rng, min_level=deep_min, max_level=5, habitat=rng.choice(("pool", "fungus", "deep_marsh")))
-        population.extend(
-            spawn_group(entry.species, _land_point_in_zone(arena, rng, "deep"), rng, team_color)
+    # Deep zone: explicitly one level-4 and one level-5 encounter every trip.
+    # Camp stage three adds a third mixed deep-marsh group.
+    for level in (4, 5):
+        entry = choose_species(
+            rng,
+            min_level=level,
+            max_level=level,
+            habitat=rng.choice(("pool", "fungus", "deep_marsh")),
         )
+        population.extend(_spawn_safe_group(arena, rng, entry, "deep", team_color))
+
+    if camp_stage >= 3:
+        entry = choose_species(
+            rng,
+            min_level=3,
+            max_level=5,
+            habitat=rng.choice(("pool", "fungus", "deep_marsh")),
+        )
+        population.extend(_spawn_safe_group(arena, rng, entry, "deep", team_color))
 
     return population
