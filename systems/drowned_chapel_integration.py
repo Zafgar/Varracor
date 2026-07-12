@@ -38,8 +38,6 @@ def _patch_world_map_data() -> None:
             world_map._route("whisper_marsh", "drowned_chapel", 3, 4, "Drowned pilgrim path")
         )
 
-    # The area is visible and physically reachable from the beginning. Its level
-    # range is a warning, never an invisible level gate.
     if "drowned_chapel" not in world_map.STARTING_DISCOVERED_LOCATIONS:
         world_map.STARTING_DISCOVERED_LOCATIONS = (
             tuple(world_map.STARTING_DISCOVERED_LOCATIONS) + ("drowned_chapel",)
@@ -108,6 +106,28 @@ def _patch_regional_staging_factory() -> None:
     RegionalStagingMenu._drowned_chapel_factory_installed = True
 
 
+def _patch_chapel_return() -> None:
+    from citys.mucford.drowned_chapel import DrownedChapelMenu
+
+    if getattr(DrownedChapelMenu, "_direct_marsh_return_installed", False):
+        return
+    previous_update = DrownedChapelMenu.update
+
+    def update(self):
+        result = previous_update(self)
+        if (
+            self.next_state == "regional_staging"
+            and bool(getattr(self.manager, "chapel_return", False))
+            and getattr(self.manager, "pending_world_location", None) == "whisper_marsh"
+        ):
+            self.manager.pending_local_area = None
+            self.next_state = "forest_excursion"
+        return result
+
+    DrownedChapelMenu.update = update
+    DrownedChapelMenu._direct_marsh_return_installed = True
+
+
 def _patch_whisper_marsh_route() -> None:
     from citys.mucford.forest_excursion import ForestExcursionMenu
 
@@ -169,6 +189,7 @@ def install_drowned_chapel_integration() -> None:
         return
     _patch_game_manager()
     _patch_regional_staging_factory()
+    _patch_chapel_return()
     _patch_whisper_marsh_route()
     _INSTALLED = True
 
