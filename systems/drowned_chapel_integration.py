@@ -23,15 +23,14 @@ def _patch_world_map_data() -> None:
             threats=("Water-risen Pilgrims", "Flooded Acolytes", "Bell Wraiths", "Bell-Drowned Pilgrim"),
             materials=("Medicinal Herb", "Grave-Lotus", "Sanctified Wax", "River Clay"),
         )
-    else:
-        location = world_map.LOCATIONS["drowned_chapel"]
-        location["content_state"] = "playable"
-        location["target_state"] = "regional_staging"
-        location["services"] = ("holy field work", "rescue", "foraging", "quarantine rest")
-        location["threats"] = ("Water-risen Pilgrims", "Flooded Acolytes", "Bell Wraiths", "Bell-Drowned Pilgrim")
-        location["materials"] = ("Medicinal Herb", "Grave-Lotus", "Sanctified Wax", "River Clay")
-        location["boss"] = "The Bell-Drowned Pilgrim"
-        location["story_state"] = "playable quest chain"
+    location = world_map.LOCATIONS["drowned_chapel"]
+    location["content_state"] = "playable"
+    location["target_state"] = "regional_staging"
+    location["services"] = ("holy field work", "rescue", "foraging", "quarantine rest")
+    location["threats"] = ("Water-risen Pilgrims", "Flooded Acolytes", "Bell Wraiths", "Bell-Drowned Pilgrim")
+    location["materials"] = ("Medicinal Herb", "Grave-Lotus", "Sanctified Wax", "River Clay")
+    location["boss"] = "The Bell-Drowned Pilgrim"
+    location["story_state"] = "playable quest chain"
 
     if world_map.get_route("whisper_marsh", "drowned_chapel") is None:
         world_map.ROUTES.append(
