@@ -11,6 +11,7 @@ try:
     from npc.gambler_npc import GamblerNPC
     from npc.hamo_npc import HamoNPC
     from npc.school_keeper import KeeperPure, KeeperHoly, KeeperDruid, KeeperManip
+    from npc.vortex_mentor import VortexMentor
 except ImportError as e:
     print(f"NPC Registry Import Error: {e}")
 
@@ -27,6 +28,7 @@ NPC_DB = {
     "keeper_holy": KeeperHoly if 'KeeperHoly' in locals() else None,
     "keeper_druid": KeeperDruid if 'KeeperDruid' in locals() else None,
     "keeper_manip": KeeperManip if 'KeeperManip' in locals() else None,
+    "vortex_mentor": VortexMentor if 'VortexMentor' in locals() else None,
 }
 
 def get_npc_class(npc_id):

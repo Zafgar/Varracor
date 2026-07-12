@@ -148,6 +148,13 @@ class ChatMenu(BaseMenu):
             except Exception:
                 pass
 
+        # "learn_abyssal:warping" -> opettaa heron Vortex-taitopuun (Tia Muira).
+        elif command == "learn_abyssal" and value:
+            try:
+                self.manager.learn_abyssal_tree(value)
+            except Exception:
+                pass
+
         # --- QUEST KOMENNOT ---
 
         # "quest_unlock:hunt_01" -> Pakottaa tehtävän auki (Locked -> Available)
