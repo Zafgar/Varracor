@@ -10,6 +10,7 @@ pygame.init()
 pygame.display.set_mode((1280, 720))
 
 from systems.muckford_opening_integration import install_muckford_opening_integration
+from systems.muckford_outskirts_integration import _patch_world_map_data
 from systems.procedural_water import ProceduralWaterBody
 
 install_muckford_opening_integration()
@@ -102,6 +103,10 @@ def test_boardwalk_upgrade_opens_second_crossing_and_persists():
 
 
 def test_world_map_describes_playable_outskirts_resources():
+    # The runtime installer also performs this update automatically. Calling the
+    # pure data patch directly keeps this assertion independent of pytest module
+    # collection order and verifies the canonical mutation itself.
+    _patch_world_map_data()
     location = LOCATIONS["whisper_marsh"]
     assert location["content_state"] == "playable"
     assert "survey-post development" in location["services"]
