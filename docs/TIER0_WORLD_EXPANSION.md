@@ -14,7 +14,7 @@ The machine-readable source of truth is:
 Development order is not player lock order.
 
 Most Tier 0 wilderness areas are open after the player discovers a physical
-route. Entering below the recommended level remains allowed. The UI must show a
+route. Entering below the recommended level remains allowed. The UI shows a
 clear danger warning instead of blocking travel.
 
 Only real obstacles may block entry:
@@ -27,10 +27,10 @@ Only real obstacles may block entry:
 ## Canonical development order
 
 1. **Muckford Low Fields** — first exterior work and gathering zone.
-2. **Whisper Marsh completion** — NPCs, quest chains, dialogue and fishing.
+2. **Whisper Marsh** — NPCs, survey quests, fishing and pool boss.
 3. **Drowned Chapel** — Rhea's flooded holy ruin and Water-risen crisis.
-4. **Old Muckford Mine expansion** — galleries, Webbed Depths and mine recovery.
-5. **Muckford Warrens** — violet-eyed rat army and Rat King finale.
+4. **Old Muckford Mine** — galleries, Webbed Depths and mine recovery.
+5. **Muckford Warrens** — violet-eyed rat army and Rat King crisis.
 6. **Greywash Ford** — open-risk river crossing and caravan route.
 7. **Kingsreach Toll** — Crown politics and travel-paper gate.
 8. **Tier 0 Finale** — Rookie Dust victory, local service and Bram's recommendation.
@@ -41,20 +41,20 @@ is only the order in which complete production-quality content is built.
 
 ## Required content pass for every area
 
-Every area must pass all twelve domains before being marked `live`:
+Every area is measured across twelve domains:
 
 1. **Area** — playable boundaries, routes, collision, camera and return points.
 2. **NPCs** — stable IDs, roles, schedules, placement and persistence.
-3. **Quests** — objectives, rewards, failure/retry rules and world changes.
-4. **Dialogue** — introductions, active-quest states and completed states.
+3. **Quests** — objectives, rewards, retry rules and world changes.
+4. **Dialogue** — introductions, active states and completed states.
 5. **Resources** — nodes, tools, yields, economy and crafting use.
 6. **Creatures** — level band, spawn ecology, AI and loot.
-7. **Boss** — encounter identity, mechanics, reward and persistent consequence.
+7. **Boss** — encounter mechanics, reward and persistent consequence.
 8. **Graphics** — code placeholders first, replaceable final assets later.
-9. **VFX** — terrain feedback, attacks, hazards, weather and boss telegraphs.
+9. **VFX** — terrain feedback, attacks, hazards and telegraphs.
 10. **Audio** — ambience, creature cues, interaction sounds and boss cues.
 11. **Persistence** — visits, projects, quests, bosses and world changes survive saves.
-12. **Tests** — compile, main import, deterministic systems and headless encounter tests.
+12. **Tests** — compile, main import, deterministic systems and headless encounters.
 
 ## Work-batch procedure
 
@@ -62,52 +62,59 @@ Every implementation batch follows the same order:
 
 1. Run `python tools/tier0_content_report.py`.
 2. Read the current area's entry in `lore/tier0_world_plan.py`.
-3. Check its corresponding entry and routes in `lore/world_map_data.py`.
+3. Check its routes and lore in `lore/world_map_data.py`.
 4. Implement the next incomplete domain without silently changing canon.
-5. Connect the content to current GameManager, save and world-progression systems.
+5. Connect content to GameManager, saves and world progression.
 6. Add or update tests before changing the domain state.
-7. Update the domain state in `lore/tier0_world_plan.py`.
+7. Update `lore/tier0_world_plan.py`.
 8. Add a dated entry to `docs/TIER0_PROGRESS_LOG.md`.
 9. Run the focused CI workflow and inspect its output.
 
 No area is declared complete based only on an import test. Runtime-facing systems
-need focused headless tests, and large visual areas still need actual client
-playtesting after automated checks.
+need focused headless tests, and large visual areas still need client playtesting
+after automated checks.
 
 ## Current honest status
 
-### Already playable foundations
+### Playable production foundations
 
 - Muckford city, farming, crafting, registration and Shanty Yard access.
-- Expanded Forest Road tutorial.
-- Whisper Marsh procedural water, gathering, development and monster ecology.
-- Old Muckford Mine has an existing playable foundation but still requires the
-  planned multi-level expansion and recovery systems.
-- Rattlebridge has a substantial city foundation, but the complete Tier 0
+- Expanded Forest Road combat tutorial.
+- Low Fields gathering, restoration and local travel.
+- Whisper Marsh survey chain, fishing, monster ecology and Whisper Pool Maw.
+- Drowned Chapel rescue chain, taint exposure and Bell-Drowned Pilgrim.
+- Old Muckford Mine restoration, daily ore production and three-phase Cave
+  Broodmother.
+- Rattlebridge has a substantial city foundation, but its complete Tier 0
   promotion handoff is not finished.
+
+The completed wilderness areas still retain planned audio and final painted art
+passes. Their gameplay, persistence, generated placeholders and headless tests
+are live.
 
 ### Current focus
 
-`low_fields`
+`muckford_warrens`
 
-The first full production batch will create the Low Fields area shell, its route
-from Muckford, procedural field graphics, basic resource work, Farmer Gus quest
-states and persistence. Mud Mites, Reed Skitters and existing farm systems will
-be reused rather than replaced.
+The next production batch creates the sewer and food-tunnel network beneath
+Muckford. It will include Hamo, Old Rinna Net, missing Ratcatchers, stolen food
+caches, Vortex-waste nests, violet-eyed rat swarms, Rat Riders, Waste Gnawers
+and the Rat King. Clearing it must permanently reduce Muckford rat raids and
+serve as the major local crisis required for Tier 0 promotion.
 
 ## Arena progression relationship
 
 World work complements the Rookie Dust Circuit; it does not replace it.
 
 The normal player should need several seasons to clear a tier. Tier 0 progress
-therefore combines:
+combines:
 
-- 1v1, 3v3 and 5v5 league results,
-- team development and injuries,
-- local reputation,
-- monster and boss hunts,
-- resource and settlement projects,
-- one major Muckford crisis,
+- 1v1, 3v3 and 5v5 league results;
+- team development and injuries;
+- local reputation;
+- monster and boss hunts;
+- resource and settlement projects;
+- one major Muckford crisis;
 - Bram's formal recommendation.
 
 Easy low-level gathering must not become an unlimited shortcut for money or XP.
