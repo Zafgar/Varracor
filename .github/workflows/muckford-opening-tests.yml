@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   opening-tests:
@@ -52,24 +53,61 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pytest
 
-      - name: Compile opening and main state machine
+      - name: Validate Muckford opening and main import
+        id: opening_validation
+        shell: bash
         run: |
-          python -m py_compile \
-            systems/muckford_opening_core.py \
-            systems/muckford_opening_integration.py \
-            systems/muckford_forest_tutorial.py \
-            systems/muckford_city_opening.py \
-            citys/mucford/forest_road_arena.py \
-            citys/mucford/forest_road_menu.py \
-            citys/mucford/muckford_city_menu.py \
-            npc/marda_shant_npc.py \
-            npc/dwarf_league_manager.py \
-            menus/barracks_menu.py \
-            main.py \
-            tests/test_muckford_opening.py
+          set +e
+          bash -o pipefail -c '
+            set -e
+            python -m py_compile \
+              systems/muckford_opening_core.py \
+              systems/muckford_opening_integration.py \
+              systems/muckford_forest_tutorial.py \
+              systems/muckford_city_opening.py \
+              citys/mucford/forest_road_arena.py \
+              citys/mucford/forest_road_menu.py \
+              citys/mucford/muckford_city_menu.py \
+              npc/marda_shant_npc.py \
+              npc/dwarf_league_manager.py \
+              menus/barracks_menu.py \
+              main.py \
+              tests/test_muckford_opening.py
+            python -c "import main; print(\"main import ok\")"
+            python -m pytest -q --tb=short tests/test_muckford_opening.py
+          ' 2>&1 | tee muckford-opening-test-output.txt
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
 
-      - name: Import main with headless SDL
-        run: python -c "import main; print('main import ok')"
+      - name: Upload Muckford opening test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: muckford-opening-test-output
+          path: muckford-opening-test-output.txt
+          retention-days: 7
 
-      - name: Run Muckford opening tests
-        run: python -m pytest -q --tb=short tests/test_muckford_opening.py
+      - name: Publish Muckford opening status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_EXIT_CODE: ${{ steps.opening_validation.outputs.exit_code }}
+        run: |
+          state="success"
+          description="Muckford opening, Forest Road tutorial and main import passed"
+          if [ "${TEST_EXIT_CODE}" != "0" ]; then
+            state="failure"
+            description="Muckford opening checks failed"
+          fi
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            --data "{\"state\":\"${state}\",\"context\":\"muckford-opening-ci\",\"description\":\"${description}\",\"target_url\":\"${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}"
+
+      - name: Fail when Muckford opening checks failed
+        if: steps.opening_validation.outputs.exit_code != '0'
+        run: exit 1
