@@ -71,6 +71,52 @@ class LibrarySpell(Spell):
         if manager is None:
             return False
 
+        # Abyssal Weave (heron Vortex-taika): kyla huomaa ja pelastyy.
+        if self.school == "abyssal":
+            if (getattr(manager, "player_character", None) is caster
+                    and hasattr(manager, "notice_vortex_use")):
+                manager.notice_vortex_use("abyssal")
+
+        # --- WARP (Warping-puu): lyhyt siirto ilman teleporttia ---
+        if self.kind == "warp":
+            if not target_pos and target is not None:
+                target_pos = target.rect.center
+            if target_pos:
+                import math
+                dx = target_pos[0] - caster.rect.centerx
+                dy = target_pos[1] - caster.rect.centery
+                dist = math.hypot(dx, dy) or 1
+                r = min(self.range, dist)
+                caster.rect.centerx += int(dx / dist * r)
+                caster.rect.centery += int(dy / dist * r)
+                manager.vfx.create_shockwave(caster.rect.centerx, caster.rect.centery,
+                                             color=self.projectile_color, max_radius=60)
+            return True
+
+        # --- DISPEL (Severing-puu): purkaa suojat ja vahingoittaa ---
+        if self.kind == "dispel":
+            if target is not None and not getattr(target, "is_dead", False):
+                target.status_effects = [e for e in target.status_effects
+                                         if e.get("type") not in ("Warded", "Shielded")]
+                target.take_damage(self._amount(caster), "Magic",
+                                   attacker=caster, manager=manager)
+                manager.vfx.show_damage(target.rect.centerx, target.rect.top - 20,
+                                        "SEVERED", color=self.projectile_color)
+            return True
+
+        # --- DRAIN (Taint-puu): korruptio + elamansiirto ---
+        if self.kind == "drain":
+            if target is not None and not getattr(target, "is_dead", False):
+                dmg = self._amount(caster)
+                target.take_damage(dmg, "Poison", attacker=caster, manager=manager)
+                if self.status:
+                    st = self.status
+                    target.apply_status(st[0], int(st[1]), int(st[2]) if len(st) > 2 else 0)
+                heal = int(dmg * 0.5)
+                if hasattr(caster, "heal"):
+                    caster.heal(heal, manager)
+            return True
+
         # --- BUFF (Warded/Barkskin ym.) - kohdistuu itseen ---
         if self.kind == "buff":
             b = self.buff or {"type": "Warded", "duration": 300}

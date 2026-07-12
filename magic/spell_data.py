@@ -64,6 +64,19 @@ def _summon(name, school, tier, unit="UndeadSkeleton", count=1, cast="instant", 
     })
 
 
+def _abyssal(name, tier, kind, tree, status=None, power=None, rng=None,
+             cast="instant", desc=""):
+    """Abyssal Weave - vain paahenkilo. tree = Vortex-taitopuu."""
+    return (name, {
+        "school": "abyssal", "tier": tier, "cast": cast, "kind": kind, "tree": tree,
+        "mana": mana_for(tier), "strain": strain_for(tier) + 2, "cooldown": cd_for(tier),
+        "range": rng if rng is not None else rng_for(tier),
+        "power": power or dmg_for(tier), "scaling": {"INT": 1.0 + 0.1 * tier},
+        "status": status, "desc": desc, "rarity": "Epic" if tier <= 6 else "Legendary",
+        "cost": 80 * tier,
+    })
+
+
 SPELL_LIBRARY = dict([
 
     # ================= PURE MAGIC (Prism Collegium) =================
@@ -128,4 +141,32 @@ SPELL_LIBRARY = dict([
     _dmg("Mind Shatter", "manipulation", 7, desc="Shatters the psyche outright."),
     _dmg("Perfect Lie", "manipulation", 8, cast="ritual",
          desc="A reality-warping deception the target cannot help but believe."),
+
+    # ================= ABYSSAL WEAVE (Commander / Vortex) =================
+    # Viisi taitopuuta: Anchoring, Severing, Echoing, Warping, Taint.
+    # Anchoring - vakauttaa: estaa liikkeen ja teleportit
+    _abyssal("Anchor Field", 3, "debuff", "anchoring", status=("Web", 210, 0),
+             desc="Pins a foe to a fixed point in space - no step, no blink."),
+    _abyssal("Absolute Anchor", 6, "debuff", "anchoring", status=("Web", 360, 0),
+             cast="channel", desc="Nails an entire skirmish in place around you."),
+    # Severing - katkaisee siteet: purkaa suojat, poistaa kutsutut
+    _abyssal("Sever Bonds", 4, "dispel", "severing",
+             desc="Cuts a foe's Vortex-threads: strips wards and cheap tricks."),
+    _abyssal("Unmake", 7, "dispel", "severing", cast="channel",
+             desc="Severs what should not be - wards, bindings, summoned things."),
+    # Echoing - aika ja varjot: toistaa iskuja / kelaa aikaa
+    _abyssal("Echo Strike", 3, "damage", "echoing", power=None,
+             desc="Replays your last blow as a lash of the Weave."),
+    _abyssal("Rewind", 6, "heal", "echoing", cast="channel", power=None,
+             desc="Winds your own timeline back a breath, undoing wounds."),
+    # Warping - vaantaa tilaa ilman teleportaatiota
+    _abyssal("Warp Step", 3, "warp", "warping", rng=220,
+             desc="Folds the space between here and there and simply... arrives."),
+    _abyssal("Fold Space", 6, "warp", "warping", rng=420,
+             desc="Creases the battlefield, crossing it in a single unnatural stride."),
+    # Taint Management - siirtaa/muuttaa Vortex-korruptiota voimaksi
+    _abyssal("Taint Lance", 5, "drain", "taint", status=("Poison", 150, 8),
+             desc="Spears a foe with corruption and drinks the backlash as strength."),
+    _abyssal("Corruption Bloom", 7, "drain", "taint", status=("Poison", 220, 12),
+             cast="channel", desc="Blossoms rot across a foe and turns their ruin into your power."),
 ])
