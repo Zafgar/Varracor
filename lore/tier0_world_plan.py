@@ -1,25 +1,18 @@
 """Canonical development plan for the playable Tier 0 world around Muckford.
 
-This file is the source of truth for both future development sessions and tests.
-It is intentionally structured data instead of prose only: every area records
-its player-access policy, content dependencies, NPCs, quests, resources,
-creatures, graphics, VFX and implementation state.
-
-Rules:
-* Development order is not player lock order. Most Tier 0 areas are open once
-  their road is discovered; recommended level is a danger warning only.
-* Only explicit physical/story obstacles may block travel (for example Marda's
-  mine key or formal promotion through Kingsreach Toll).
-* A work batch is complete only after persistence and automated tests exist.
-* Every content implementation must update this file and the progress log.
+This structured registry is the source of truth for future implementation
+sessions and CI. Development order never means an invisible player level lock:
+most wilderness areas stay open once their physical route is discovered, while
+the recommended level is shown as a danger warning. Only explicit physical or
+story obstacles may block travel.
 """
 from __future__ import annotations
 
 from collections import OrderedDict
 
 
-PLAN_VERSION = 1
-CURRENT_FOCUS = "low_fields"
+PLAN_VERSION = 2
+CURRENT_FOCUS = "whisper_marsh"
 
 VALID_STATES = {"live", "partial", "next", "planned", "blocked"}
 CONTENT_DOMAINS = (
@@ -46,6 +39,7 @@ def _area(
     environment,
     access_policy,
     entry_from,
+    *,
     dependencies=(),
     physical_gate=None,
     npcs=(),
@@ -116,21 +110,23 @@ TIER0_AREAS = OrderedDict({
         "Muckford Low Fields",
         1,
         (1, 3),
-        "Safe first exterior zone for work, gathering and visible town recovery.",
-        ("wet fields", "irrigation ditches", "animal pens", "willow hedges"),
+        "First exterior work zone for gathering and visible town recovery.",
+        ("wet fields", "irrigation channel", "crop roads", "willow margins"),
         "open_with_warning",
-        ("muckford",),
+        ("muckford", "whisper_marsh"),
         dependencies=("muckford",),
         npcs=(
             "Farmer Gus",
-            "field workers",
-            "Saint Lumen supply runner",
+            "Lysa Reedrunner",
+            "Orin Ditchhand",
+            "Mela Root",
+            "Tarn Wick",
         ),
         quest_chains=(
-            "Mend the irrigation channels",
-            "Protect the grain carts",
-            "Close the mite burrows",
-            "Rebuild the field footbridge",
+            "Mend the irrigation channel",
+            "Protect the grain cart",
+            "Seal the Mud Mite burrows",
+            "Rebuild the lower field footbridge",
         ),
         resources=(
             "Carrot",
@@ -144,25 +140,30 @@ TIER0_AREAS = OrderedDict({
         boss="The Burrow-Mother (optional level 3 field event)",
         graphics=(
             "procedural crop fields",
-            "ditches and fences",
-            "animal shelters",
-            "work carts",
+            "irrigation water",
+            "fences and carts",
+            "bridges and burrows",
         ),
-        vfx=("ditch water", "mud splashes", "crop movement", "dust and flies"),
-        systems=("field development", "NPC work", "resource deliveries"),
+        vfx=("water ripples", "crop movement", "drifting seed", "flies", "low mist"),
+        systems=(
+            "daily renewable resources",
+            "field restoration",
+            "NPC dialogue",
+            "open-risk travel",
+        ),
         deliverables={
-            "area": "next",
-            "npcs": "partial",
-            "quests": "next",
-            "dialogue": "next",
-            "resources": "partial",
+            "area": "live",
+            "npcs": "live",
+            "quests": "live",
+            "dialogue": "live",
+            "resources": "live",
             "creatures": "live",
             "boss": "planned",
-            "graphics": "next",
-            "vfx": "next",
+            "graphics": "live",
+            "vfx": "live",
             "audio": "planned",
-            "persistence": "next",
-            "tests": "next",
+            "persistence": "live",
+            "tests": "live",
         },
     ),
     "whisper_marsh": _area(
@@ -200,9 +201,9 @@ TIER0_AREAS = OrderedDict({
         systems=("survey-post development", "monster ecology", "fishing foundation"),
         deliverables={
             "area": "live",
-            "npcs": "planned",
+            "npcs": "next",
             "quests": "partial",
-            "dialogue": "planned",
+            "dialogue": "next",
             "resources": "live",
             "creatures": "live",
             "boss": "partial",
@@ -217,7 +218,7 @@ TIER0_AREAS = OrderedDict({
         "Drowned Chapel",
         3,
         (3, 5),
-        "Saint Lumen ruin that introduces Water-risen, disease and holy field work.",
+        "Saint Lumen ruin introducing Water-risen, disease and holy field work.",
         ("flooded chapel", "sunken graveyard", "bell tower", "quarantine camp"),
         "open_with_warning",
         ("whisper_marsh",),
@@ -240,7 +241,7 @@ TIER0_AREAS = OrderedDict({
         "Old Muckford Mine",
         4,
         (3, 7),
-        "Mining dungeon, undead investigation and first persistent industrial recovery.",
+        "Mining dungeon, undead investigation and persistent industrial recovery.",
         ("mine road", "abandoned galleries", "webbed depths", "collapsed rail"),
         "physical_gate",
         ("muckford",),
@@ -303,7 +304,7 @@ TIER0_AREAS = OrderedDict({
         "Greywash Ford",
         6,
         (5, 7),
-        "Open-risk river crossing and physical transition from mud tracks to Crown roads.",
+        "Open-risk river crossing from Muckford mud to Crown roads.",
         ("wide river", "shallow ford", "broken bridge", "abandoned watchtower"),
         "open_with_warning",
         ("muckford", "whisper_marsh"),
@@ -340,7 +341,7 @@ TIER0_AREAS = OrderedDict({
         "Kingsreach Toll",
         7,
         (6, 8),
-        "Crown checkpoint, political preview and formal gate to the Tier 1 road.",
+        "Crown checkpoint, political preview and formal gate to Tier 1 roads.",
         ("stone causeway", "toll booths", "quarantine tents", "caravan rest"),
         "formal_gate",
         ("greywash_ford",),
@@ -364,7 +365,7 @@ TIER0_AREAS = OrderedDict({
         "Tier 0 Finale",
         8,
         (5, 6),
-        "Tie arena success and Muckford field service into one earned promotion.",
+        "Tie arena success and Muckford service into an earned promotion.",
         ("Shanty Yard ceremony", "Muckford streets", "western departure"),
         "milestone",
         ("muckford", "kingsreach_toll"),
@@ -377,7 +378,6 @@ TIER0_AREAS = OrderedDict({
             "Meet Sera Quench's scout",
         ),
         resources=("Tier 1 charter", "sponsor letter", "travel papers"),
-        creatures=(),
         boss="Arena promotion match or Rat King, depending on player path",
         graphics=("promotion ceremony", "crowd", "departure caravan"),
         vfx=("crowd confetti scraps", "torchlight", "league banner"),
@@ -387,7 +387,7 @@ TIER0_AREAS = OrderedDict({
         "Rattlebridge Handoff",
         9,
         (6, 10),
-        "End Tier 0 and place the team inside the professional Scrapring circuit.",
+        "End Tier 0 inside the professional Scrapring circuit.",
         ("bridge approach", "city gates", "Scrapring district"),
         "tier1_gate",
         ("kingsreach_toll",),
@@ -397,7 +397,6 @@ TIER0_AREAS = OrderedDict({
         quest_chains=("Register the promoted team", "Find Tier 1 lodging", "Enter the Scrapring"),
         resources=("professional contracts", "Tier 1 gear access"),
         creatures=("bridge raiders",),
-        boss=None,
         graphics=("Rattlebridge city foundation", "bridge districts", "Scrapring"),
         vfx=("canal water", "industrial smoke", "bridge traffic"),
         systems=("Tier 1 league", "sponsors", "professional economy"),
@@ -424,7 +423,13 @@ DEVELOPMENT_DOMAIN_ORDER = CONTENT_DOMAINS
 
 def completion_ratio(area_id: str) -> float:
     area = TIER0_AREAS[str(area_id)]
-    weights = {"live": 1.0, "partial": 0.5, "next": 0.0, "planned": 0.0, "blocked": 0.0}
+    weights = {
+        "live": 1.0,
+        "partial": 0.5,
+        "next": 0.0,
+        "planned": 0.0,
+        "blocked": 0.0,
+    }
     values = [weights[state] for state in area["deliverables"].values()]
     return sum(values) / max(1, len(values))
 
@@ -440,11 +445,7 @@ def dependency_ready(area_id: str) -> bool:
 
 
 def next_development_batch(limit: int = 8):
-    """Return the next ordered implementation tasks.
-
-    ``next`` states are emitted before ``planned`` states. Existing ``partial``
-    work is also returned so it can be finished rather than silently forgotten.
-    """
+    """Return unfinished domains in explicit priority and area order."""
     priority = {"next": 0, "partial": 1, "planned": 2, "blocked": 3, "live": 9}
     tasks = []
     for area_id, area in TIER0_AREAS.items():
@@ -463,8 +464,10 @@ def next_development_batch(limit: int = 8):
                 "sort": (priority[state], area["order"], domain_index),
             })
     tasks.sort(key=lambda item: item["sort"])
-    return [{key: value for key, value in task.items() if key != "sort"}
-            for task in tasks[:max(0, int(limit))]]
+    return [
+        {key: value for key, value in task.items() if key != "sort"}
+        for task in tasks[:max(0, int(limit))]
+    ]
 
 
 def validate_plan() -> list[str]:
@@ -481,8 +484,8 @@ def validate_plan() -> list[str]:
         for dependency in area["dependencies"]:
             if dependency not in TIER0_AREAS:
                 errors.append(f"{area_id}: unknown dependency {dependency}")
-        if area["access_policy"] == "physical_gate" and not area["physical_gate"]:
-            errors.append(f"{area_id}: physical gate missing description")
+        if area["access_policy"] in {"physical_gate", "formal_gate", "tier1_gate"} and not area["physical_gate"]:
+            errors.append(f"{area_id}: gated area missing description")
         if not area["graphics"]:
             errors.append(f"{area_id}: graphics plan is empty")
         if not area["vfx"]:
