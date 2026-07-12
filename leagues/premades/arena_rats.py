@@ -1,42 +1,45 @@
+# leagues/premades/arena_rats.py
+"""
+Arena Rats - Shanty Yardin katutappelijat (gobliineja ja ihmisia sekaisin).
+Tikarit, vaistely ja likaiset kaksoisaseet. B/C-taso: nopeita ja arsyttavia,
+mutta ohut panssari.
+"""
 import random
-from leagues.league_data import Team
+from leagues.league_data import Team, weapon_for
 from items.item_registry import create_item
 from units.goblin import Goblin
 from units.human import Human
 
+
+RAT_NAMES = ["Scab", "Nettle", "Grin", "Two-Tooth", "Sniv"]
+
+
 def create_team(tier):
     t = Team("Arena Rats", (100, 100, 100), tier)
     t.motto = "Fight dirty."
-    t.style = "Evasive"
+    t.style = "Evasive Duelists"
+    t.reputation = ("Gutter-fighters with no honor and all elbows. Half of them "
+                    "owe Old Rinna money; all of them carry a hidden blade.")
     t.members = []
     base_lvl = max(1, 1 + tier * 2)
 
-    for i in range(5):
-        # 50/50 Human tai Goblin
-        if random.random() < 0.5:
-            u = Goblin(f"Rat {i+1}", 0, 0, t.color)
+    for i, base_name in enumerate(RAT_NAMES):
+        if i % 2 == 0:
+            u = Goblin(base_name, 0, 0, t.color)
         else:
-            u = Human(f"Scoundrel {i+1}", 0, 0, t.color)
-            
+            u = Human(base_name, 0, 0, t.color)
         u.level = base_lvl
         u.dexterity += 5
-        
-        # Skillit: Sword (tikari) ja Dual Wield (jos itemit sallii)
-        u.unlocked_skills.update(["wp_sword", "dex_dodge"])
-        
-        # Varustus
-        t.equip_unit(u, "Rusty Sword")
+        u.unlocked_skills.update(["wp_dagger", "dex_dodge"])
+
+        t.equip_unit(u, weapon_for("dagger", tier))
         t.equip_unit(u, "Padded Vest")
-        
-        # Mahdollisuus "Off-hand sword" jos dual wield sallittu
-        # (Vaatisi can_dual_wield skillin, lisätään se varmuuden vuoksi)
-        if random.random() < 0.3:
+
+        if random.random() < 0.4:
             u.unlocked_skills.add("can_dual_wield")
-            # equip_item laittaa automaattisesti off-handiin jos main on täynnä?
-            # Gladiator.equip_item logiikka laittaa main_handiin oletuksena.
-            # Käytetään manuaalista off-handia:
-            off = create_item("Rusty Sword")
-            if off: u.equip_item_to_slot("off_hand", off)
+            off = create_item(weapon_for("dagger", tier))
+            if off:
+                u.equip_item_to_slot("off_hand", off)
 
         u.calculate_final_stats()
         u.current_hp = u.max_hp

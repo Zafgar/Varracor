@@ -1,44 +1,50 @@
-from leagues.league_data import Team
-from items.item_registry import create_item
+# leagues/premades/lost_soliders.py
+"""
+Lost Soldiers - Tier 0:n CHAMPION-kaliiberin joukkue.
+Kurinalainen kilpimuuri + keihassselusta. Kayttaa iron-tason (lvl 2)
+varusteita = Tier 0:n paras, mutta silti pelkkaa Tier 0 -kamaa, joten
+Tier 1:ssa he tippuisivat takaisin. Ei loitsuja (Tier 0).
+"""
+from leagues.league_data import Team, weapon_for, shield_for
 from units.human import Human
+
 
 def create_team(tier):
     t = Team("Lost Soldiers", (80, 80, 120), tier)
     t.motto = "Hold the line."
-    t.style = "Defensive"
+    t.style = "Defensive Shield Wall"
+    t.reputation = ("Ex-Heartlands levy that never broke formation. The crowd "
+                    "bets safe on them - disciplined, armored, patient.")
     t.members = []
     base_lvl = max(1, 1 + tier * 2)
 
-    # 1. Kapteeni (Tank)
-    cap = Human("Sergeant", 0, 0, t.color)
-    cap.level = base_lvl + 1
-    cap.strength += 3
-    cap.unlocked_skills.update(["wp_sword", "arm_heavy", "arm_shield"])
-    
-    t.equip_unit(cap, "Rusty Sword")
-    t.equip_unit(cap, "Wooden Shield") # Off-hand
-    t.equip_unit(cap, "Rusty Mail")    # Heavy
-    t.equip_unit(cap, "Iron Helm")
-    
-    cap.calculate_final_stats()
-    cap.current_hp = cap.max_hp
-    t.members.append(cap)
+    def soldier(name, weapon_group, shield=True, heavy=False, lvl=None, extra=()):
+        u = Human(name, 0, 0, t.color)
+        u.level = lvl or base_lvl
+        u.unlocked_skills.update((f"wp_{weapon_group}",) + tuple(extra))
+        t.equip_unit(u, weapon_for(weapon_group, tier, elite=True))
+        if shield:
+            u.unlocked_skills.add("arm_shield")
+            t.equip_unit(u, shield_for(tier, elite=True))
+        if heavy:
+            u.unlocked_skills.add("arm_heavy")
+            t.equip_unit(u, "Rusty Mail")
+            t.equip_unit(u, "Iron Helm")
+        else:
+            t.equip_unit(u, "Padded Vest")
+            t.equip_unit(u, "Leather Cap")
+        u.calculate_final_stats()
+        u.current_hp = u.max_hp
+        t.members.append(u)
+        return u
 
-    # 2. Rivisotilaat (4 kpl)
-    for i in range(4):
-        sol = Human(f"Private {i+1}", 0, 0, t.color)
-        sol.level = base_lvl
-        sol.defense += 1 # Luonnostaan sitkeitä
-        
-        sol.unlocked_skills.update(["wp_sword", "arm_shield"])
-        
-        t.equip_unit(sol, "Rusty Sword")
-        t.equip_unit(sol, "Wooden Shield")
-        t.equip_unit(sol, "Padded Vest") # Light armor (budjetti)
-        t.equip_unit(sol, "Leather Cap")
-        
-        sol.calculate_final_stats()
-        sol.current_hp = sol.max_hp
-        t.members.append(sol)
+    sergeant = soldier("Sergeant Halbrek", "sword", shield=True, heavy=True,
+                       lvl=base_lvl + 1, extra=("str_tank",))
+    sergeant.strength += 3
+    soldier("Corporal Dane", "sword", shield=True, heavy=True, extra=("str_tank",))
+    soldier("Osmund", "sword", shield=True, heavy=False)
+    spearman = soldier("Halric", "spear", shield=False, heavy=False)
+    spearman.defense += 1
+    soldier("Wesk the Steady", "sword", shield=True, heavy=False)
 
     return t

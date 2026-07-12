@@ -26,6 +26,37 @@ LEAGUE_NAMES = [
 ]
 
 
+# =========================================================
+# TIER 0 -ARSENAALI
+# Oikeat rekisterinimet (items/<group>/{scrap,weak}_*.py). Vanhat nimet
+# kuten "Rusty Sword" EIVAT ole rekisterissa -> yksikko jai nyrkeille.
+# scrap = lvl 1 (Tier 0 perus), iron = lvl 2 (Tier 0 eliitti).
+# =========================================================
+SCRAP_WEAPONS = {
+    "sword": "Scrap Blade", "axe": "Dull Hatchet", "mace": "Heavy Branch",
+    "spear": "Splintered Pole", "dagger": "Rusty Shiv", "bow": "Scrap Bow",
+    "crossbow": "Jammed Crossbow", "staff": "Twisted Stick",
+}
+IRON_WEAPONS = {
+    "sword": "Iron Sword", "axe": "Iron Axe", "mace": "Iron Mace",
+    "spear": "Bent Spear", "dagger": "Iron Dagger", "bow": "Short Bow",
+    "crossbow": "Light Crossbow", "staff": "Apprentice Staff",
+}
+SCRAP_SHIELD = "Pot Lid"
+IRON_SHIELD = "Wooden Buckler"
+
+
+def weapon_for(group, tier, elite=False):
+    """Ryhman ase: scrap Tier 0:ssa, iron eliitille tai korkeammilla
+    tiereilla. Pitaa aseistuksen aina oikeana (ei nyrkkeja)."""
+    table = IRON_WEAPONS if (elite or int(tier) >= 2) else SCRAP_WEAPONS
+    return table.get(group, SCRAP_WEAPONS.get(group, "Scrap Blade"))
+
+
+def shield_for(tier, elite=False):
+    return IRON_SHIELD if (elite or int(tier) >= 2) else SCRAP_SHIELD
+
+
 class Team:
     """
     League team container for premades + fallback generation.
@@ -50,8 +81,16 @@ class Team:
         # Roster
         self.members = []
 
-        # Back-compat alias
-        self.roster = self.members
+    # Back-compat alias: `roster` seuraa aina `members`-listaa. (Aiemmin tama
+    # oli kertaluontoinen viittaus, jonka premade-tiedostojen `t.members = []`
+    # katkaisi -> league_enginen _safe_roster naki tyhjan listan.)
+    @property
+    def roster(self):
+        return self.members
+
+    @roster.setter
+    def roster(self, value):
+        self.members = value
 
     def _ensure_sets(self, unit):
         # Make sure common containers exist on Gladiator-like units
@@ -112,17 +151,17 @@ class Team:
             g.level = max(1, base_lvl + random.randint(-1, 1))
 
             # Defaults
-            w_name = "Rusty Sword"
+            w_name = "Scrap Blade"
             a_name = "Padded Vest"
 
             if i == 0:  # Tank
-                w_name = "Weak Axe"
+                w_name = "Dull Hatchet"
                 a_name = "Rusty Mail"
             elif i == 1:  # Ranged
-                w_name = "Weak Crossbow"
+                w_name = "Jammed Crossbow"
                 a_name = "Padded Vest"
             elif i == 3:  # Mage-ish
-                w_name = "Novice Staff"
+                w_name = "Twisted Stick"
                 a_name = "Novice Robe"
 
             self.equip_unit(g, w_name)
