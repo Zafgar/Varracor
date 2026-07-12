@@ -1,0 +1,115 @@
+name: World map progression checks
+
+on:
+  pull_request:
+    paths:
+      - "lore/world_map_data.py"
+      - "systems/world_progression.py"
+      - "systems/world_map_integration.py"
+      - "arenas/world_arena_profiles.py"
+      - "menus/world_map_menu.py"
+      - "menus/regional_staging_menu.py"
+      - "menus/barracks_menu.py"
+      - "main.py"
+      - "tests/test_world_map_*.py"
+      - "docs/WORLD_MAP_PROGRESSION.md"
+      - ".github/workflows/world-map-tests.yml"
+  push:
+    branches:
+      - "main"
+    paths:
+      - "lore/world_map_data.py"
+      - "systems/world_progression.py"
+      - "systems/world_map_integration.py"
+      - "arenas/world_arena_profiles.py"
+      - "menus/world_map_menu.py"
+      - "menus/regional_staging_menu.py"
+      - "menus/barracks_menu.py"
+      - "main.py"
+      - "tests/test_world_map_*.py"
+      - "docs/WORLD_MAP_PROGRESSION.md"
+      - ".github/workflows/world-map-tests.yml"
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  world-map-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      SDL_VIDEODRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+      PYGAME_HIDE_SUPPORT_PROMPT: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+
+      - name: Compile world map modules and main state machine
+        run: |
+          python -m py_compile \
+            lore/world_map_data.py \
+            systems/world_progression.py \
+            systems/world_map_integration.py \
+            arenas/world_arena_profiles.py \
+            menus/world_map_menu.py \
+            menus/regional_staging_menu.py \
+            menus/barracks_menu.py \
+            main.py \
+            tests/test_world_map_*.py
+
+      - name: Run world map tests
+        id: world_pytest
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q --tb=short tests/test_world_map_*.py \
+            2>&1 | tee world-map-test-output.txt
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload world map test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-map-test-output
+          path: world-map-test-output.txt
+          retention-days: 7
+
+      - name: Publish world map status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_EXIT_CODE: ${{ steps.world_pytest.outputs.exit_code }}
+        run: |
+          state="success"
+          description="World map progression and UI tests passed"
+          if [ "${TEST_EXIT_CODE}" != "0" ]; then
+            state="failure"
+            description="World map progression or UI tests failed"
+          fi
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            --data "{\"state\":\"${state}\",\"context\":\"world-map-ci\",\"description\":\"${description}\",\"target_url\":\"${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}"
+
+      - name: Fail when world map tests failed
+        if: steps.world_pytest.outputs.exit_code != '0'
+        run: exit 1
