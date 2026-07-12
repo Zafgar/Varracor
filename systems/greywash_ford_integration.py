@@ -153,6 +153,46 @@ def _patch_fishing_awards() -> None:
     MarshFishingMenu._greywash_awards_installed = True
 
 
+def _patch_ford_menu_runtime() -> None:
+    from citys.mucford.greywash_ford import CARAVAN_CHECKPOINTS, GreywashFordMenu, ford_state, sync_ford_story
+
+    if getattr(GreywashFordMenu, "_greywash_runtime_fixes_installed", False):
+        return
+    previous_try_caravan = GreywashFordMenu._try_caravan
+    previous_update = GreywashFordMenu.update
+
+    def _try_caravan(self):
+        result = previous_try_caravan(self)
+        if not result:
+            return result
+        state = ford_state(self.manager)
+        if (
+            int(state.get("quest_stage", 0)) == 4
+            and int(state.get("caravan_checkpoint", 0)) >= CARAVAN_CHECKPOINTS
+            and not state.get("caravan_complete")
+        ):
+            state["caravan_checkpoint"] = CARAVAN_CHECKPOINTS
+            state["caravan_complete"] = True
+            sync_ford_story(self.manager)
+            self._refresh_npcs_and_caravan()
+            self._flash("The caravan reached the western causeway. Search the abandoned watchtower.", 340)
+            try:
+                self.manager.record_tier0_event("quest", "greywash_caravan_escorted")
+            except Exception:
+                pass
+        return result
+
+    def update(self):
+        result = previous_update(self)
+        if self.next_state == "forest_excursion":
+            self.manager.marsh_entry = "greywash_ford"
+        return result
+
+    GreywashFordMenu._try_caravan = _try_caravan
+    GreywashFordMenu.update = update
+    GreywashFordMenu._greywash_runtime_fixes_installed = True
+
+
 def _patch_muckford_return_spawn() -> None:
     from citys.mucford.muckford_city_menu import MuckfordCityMenu
 
@@ -238,6 +278,7 @@ def install_greywash_ford_integration() -> None:
     _patch_game_manager()
     _patch_regional_staging_factory()
     _patch_fishing_awards()
+    _patch_ford_menu_runtime()
     _patch_muckford_return_spawn()
     _patch_whisper_marsh_bank_route()
     _INSTALLED = True
