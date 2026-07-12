@@ -336,6 +336,49 @@ class GameManager:
         return deeds[-1]["text"] if deeds else None
 
     # =========================================================
+    # VORTEX-TAIKUUS (heron pelottava signature-voima)
+    # =========================================================
+    def notice_vortex_use(self, source="combat"):
+        """Kutsutaan kun hero paastaa valloilleen Vortex-taikuutta. Ensimmainen
+        kaytto on iso lore-paljastus: kylalaiset pelastyvat ja kysymykset
+        heraavat (NPC-dialogit reagoivat 'vortex_seen'-lippuun)."""
+        g = self.npc_state.setdefault("global", {})
+        first = not g.get("vortex_seen", False)
+        g["vortex_seen"] = True
+        g["vortex_uses"] = int(g.get("vortex_uses", 0)) + 1
+        # Tuoreen pelon ajastin: kyla reagoi hetken voimakkaammin.
+        g["vortex_fear_timer"] = 600
+        if first:
+            self.record_deed(
+                "vortex_revealed",
+                "unleashed the Vortex - a power the townsfolk fear to name")
+            hero = getattr(self, "player_character", None)
+            if hero is not None and getattr(self, "vfx", None):
+                try:
+                    self.vfx.show_damage(hero.rect.centerx, hero.rect.top - 60,
+                                         "THE VORTEX STIRS", color=(150, 60, 220))
+                except Exception:
+                    pass
+            if hasattr(self, "trigger_screen_shake"):
+                try:
+                    self.trigger_screen_shake(16)
+                except Exception:
+                    pass
+        return first
+
+    def has_seen_vortex(self):
+        return bool(self.npc_state.get("global", {}).get("vortex_seen", False))
+
+    def vortex_fear_active(self):
+        """Tosi hetken ajan Vortexin kayton jalkeen (kyla viela peloissaan)."""
+        return int(self.npc_state.get("global", {}).get("vortex_fear_timer", 0)) > 0
+
+    def tick_vortex_fear(self):
+        g = self.npc_state.get("global", {})
+        if int(g.get("vortex_fear_timer", 0)) > 0:
+            g["vortex_fear_timer"] = int(g["vortex_fear_timer"]) - 1
+
+    # =========================================================
     # DIALOGUE SYSTEM
     # =========================================================
     def open_dialogue(self, npc_id: str):
@@ -757,6 +800,8 @@ class GameManager:
     # GAME LOOP UPDATE
     # =========================================================
     def update_match(self):
+        # Vortex-pelon vaimeneminen (kyla rauhoittuu vahitellen)
+        self.tick_vortex_fear()
         # --- HIT STOP (Game Feel) ---
         if self.hit_stop_timer > 0:
             self.hit_stop_timer -= 1

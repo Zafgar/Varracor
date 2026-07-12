@@ -38,8 +38,15 @@ class GriznakQuestGiver(BaseNPC):
         nodes = {}
 
         # Urotekojen tunnustus: Griznak kuulee kylän juoruista mitä olet tehnyt
-        deeds = context.get("global_data", {}).get("deeds", [])
-        if deeds:
+        gdata = context.get("global_data", {})
+        deeds = gdata.get("deeds", [])
+        if gdata.get("vortex_seen"):
+            # Vortex-reaktio: pelko ja kysymykset (lore-paljastus)
+            normal_text = ("...I saw what you did out there. That was no arena trick. "
+                           "That was the Vortex. Folk are whispering, and not kindly - "
+                           "some won't even say the word. What ARE you, really? "
+                           "...Bah. Pick a contract, if your hands have stopped shaking.")
+        elif deeds:
             normal_text = (f"Word travels, hero. Heard you {deeds[-1]['text']}. "
                            f"Heh. Now pick a contract or get out of my sight.")
         else:

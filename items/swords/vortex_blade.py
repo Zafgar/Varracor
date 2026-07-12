@@ -131,6 +131,10 @@ class VortexBlade(Weapon):
             
             sound_system.play_sound("vortex_wave_release")
             if manager: manager.trigger_screen_shake(10) # Kova tärähdys
+            # Vortex-voiman kaytto: kyla huomaa ja pelastyy (lore-reaktio).
+            if manager and getattr(manager, "player_character", None) is owner:
+                if hasattr(manager, "notice_vortex_use"):
+                    manager.notice_vortex_use("vortex_blade")
             self.special_cooldown = 360 # 6 sekuntia (60fps)
             owner.attack_cooldown = 30 # Lyhyt animaatiolukko hahmolle
         else:

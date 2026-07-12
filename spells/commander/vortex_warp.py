@@ -85,5 +85,10 @@ class VortexWarp(Spell):
         
         # Ääni (Matala humahdus/repeämä)
         sound_system.play_sound("cmd_vortex_warp")
-        
+
+        # Vortex-voiman kaytto: kyla huomaa ja pelastyy (lore-reaktio).
+        if manager and getattr(manager, "player_character", None) is caster:
+            if hasattr(manager, "notice_vortex_use"):
+                manager.notice_vortex_use("vortex_warp")
+
         return True
