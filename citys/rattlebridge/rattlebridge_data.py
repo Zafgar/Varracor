@@ -187,6 +187,13 @@ NAMED_NPCS = OrderedDict({
             "Muckford proves a team can survive. Rattlebridge proves whether anyone will pay to watch.",
             "Sponsors remember colors, victories and scandals. Give them the first two and deny them the third.",
             "The Scrapring gears do not care how famous you are. Learn the timing before they learn your bones.",
+            "I do not sell fighters. I sell stories with a fighter attached. Give me a good one.",
+            "New posters every week, yes. It is called visibility. The Union calls it something ruder.",
+            "Win clean and I can market you. Win ugly and I can still market you - for more. Just do not lose boring.",
+            "The Runners are my showcase: Corwin Hale keeps them tidy, and tidy sells to the Crown's money.",
+            "Bridgeguard Five? Dull as a toll ledger. Reliable, though. Sponsors hate them, gamblers love them.",
+            "Steam bursts blind the crowd's favorites for a heartbeat. A heartbeat is enough to change the odds.",
+            "Everyone blames my banners for the taxes. The taxes were here before my banners. I just made them worth it.",
         ),
     },
     "hendrik_ironspan": {
@@ -197,9 +204,16 @@ NAMED_NPCS = OrderedDict({
         "position_norm": (0.475, 0.39),
         "color": (166, 119, 67),
         "dialogue": (
-            "Warm cider, dry boots and no fighting without cause. Those are the rules.",
-            "The union hears every bridge rumor before the Crown writes it down.",
+            "Warm cider, dry boots and no fighting without cause. Those are the rules of The Span.",
+            "The Ironspan Union hears every bridge rumor before the Crown writes it down.",
             "Workers respect teams that take sewer patrols. They respect teams that return even more.",
+            "Boil-cider's the only thing in this city the Crown hasn't found a way to tax twice. Drink up.",
+            "You want the truth about Rattlebridge? It's held together by rivets, debt and the Union. In that order.",
+            "The fog's been coming earlier. When The Span goes quiet mid-song, you leave by the land door. Fast.",
+            "Hush-Mantle takes the sound before it takes the man. No scream, no boots, no last prayer.",
+            "Someone's greasing a toll-man to run Vortex-waste through the underway. Union'll find him before the Crown pretends to.",
+            "Sera sells shine. Prior Jannik sells mercy by the coin. Me, I sell a warm seat and a fair word. Rarer than both.",
+            "King Alaric keeps the roads open and the purse tight. Strong hand, heavy hand. Depends whose neck it's on.",
         ),
     },
     "prior_jannik_voss": {
@@ -210,9 +224,15 @@ NAMED_NPCS = OrderedDict({
         "position_norm": (0.325, 0.84),
         "color": (201, 190, 145),
         "dialogue": (
-            "Healing is sacred. Specialist treatment, however, is expensive.",
+            "Healing is sacred. Specialist treatment, however, is expensive. Both truths, at once.",
             "The Scrapring breaks bones in remarkably predictable ways. I price accordingly.",
-            "Charity keeps the chapel warm. Coin keeps the surgeons sober.",
+            "Charity keeps the chapel warm. Coin keeps the surgeons sober. I keep the ledgers.",
+            "The holy lamps are not cheap, the good surgeons less so, and pain, my friend, is a seller's market.",
+            "A cracked skull from the gears? Standard rate. A blade envenomed by some gutter alchemist? Now we negotiate.",
+            "The Red Lantern fever fills my beds and empties my stores. The Crown sends prayers. I would prefer silver.",
+            "I do not overcharge. I charge exactly what a desperate man will pay. The Synod calls that a sin. I call it arithmetic.",
+            "Bring your wounded early and pay in full. Bring them late and pay in full, and grief. The price is the same.",
+            "You judge me. Good. Judge me from a bed you did not have to mortgage your team to lie in.",
         ),
     },
     "captain_mara_chain": {
@@ -226,6 +246,11 @@ NAMED_NPCS = OrderedDict({
             "Hold the line, keep the lane clear, and never stand under a cargo bell.",
             "The Gutter Swarm is not just rats. Something in the runoff teaches them to move together.",
             "Hush-Mantle sightings always begin with people complaining the city has gone too quiet.",
+            "When the fog eats your own footsteps, you are already inside it. Walk to light. Do not run.",
+            "Red Lantern Cadavers carry the fever with them. Put them down at range, then burn the rags. No trophies.",
+            "Half my guards are chasing bridge gangs the tolls created. The other half are chasing the fog. Wonderful.",
+            "Bridgeguard Five drills with us. If the Swarm ever breaches the underway, they are the plug in the dam.",
+            "You want to help this city? Take a sewer contract. The pay is bad and the smell is worse. That is how you know it's real work.",
         ),
     },
     "factor_ellis_vane": {
@@ -236,8 +261,12 @@ NAMED_NPCS = OrderedDict({
         "position_norm": (0.105, 0.44),
         "color": (145, 125, 105),
         "dialogue": (
-            "Every wheel, hoof and blade crossing this span has a declared value.",
+            "Every wheel, hoof and blade crossing this span has a declared value. Undeclared value has a fine.",
             "Arena exemptions are not tax exemptions. Sera knows the difference, even when she pretends otherwise.",
+            "King Alaric Vane funds his roads and his walls with these tolls. Grumble to me; salute to him.",
+            "Yes, the taxes rise. So does the Vortex, the fever and the fog. Coin is the only wall that answers all three.",
+            "Do I take a little on the side? I assess honestly and I sleep poorly. Draw your own ledger.",
+            "Whoever is running Vortex-waste through my gate is smarter than my seal and richer than my salary. For now.",
         ),
     },
 })
@@ -245,30 +274,30 @@ NAMED_NPCS = OrderedDict({
 LOCAL_TEAMS = OrderedDict({
     "rattlebridge_runners": {
         "name": "Rattlebridge Runners",
-        "manager": "Lysa Trackwell",
+        "manager": "Corwin Hale",
         "style": "Disciplined mobility and clean sponsor presentation",
         "relation": "Sera Quench’s preferred showcase team",
         "reputation": 42,
         "members": (
-            "Dane Quickstep",
-            "Mira Rivet",
-            "Orren Span",
-            "Kel Ashcoat",
-            "Tessa Gauge",
+            "Jax Merrin",       # captain
+            "Sila Vorn",
+            "Brenna Kest",
+            "Olek Ironside",    # Dwarf
+            "Miri Vale",        # Pure Magic novice
         ),
     },
     "bridgeguard_five": {
         "name": "Bridgeguard Five",
-        "manager": "Captain Mara Chain",
+        "manager": "Halden Pike",   # retired captain
         "style": "Shield line, zone denial and defensive objectives",
         "relation": "Trusted by Rattlebridge guards and freight unions",
         "reputation": 38,
         "members": (
-            "Holt Ironwall",
-            "Rena Brace",
-            "Cobb Lantern",
-            "Sile Chainhook",
-            "Varra Toll",
+            "Yara Pike",
+            "Toma Crest",
+            "Bruk",             # Orc
+            "Sel Copper",       # Dwarf
+            "Enna Reed",        # magic novice
         ),
     },
 })
