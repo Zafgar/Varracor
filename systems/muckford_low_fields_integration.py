@@ -98,6 +98,39 @@ def _patch_regional_staging_factory() -> None:
     RegionalStagingMenu._low_fields_factory_installed = True
 
 
+def _patch_low_fields_project_flow() -> None:
+    """Prevent the decorative cart marker consuming materials out of sequence."""
+    from citys.mucford.low_fields import LowFieldsMenu, low_fields_state
+
+    if getattr(LowFieldsMenu, "_ordered_projects_installed", False):
+        return
+    previous_try_project = LowFieldsMenu._try_project
+
+    def _try_project(self):
+        state = low_fields_state(self.manager)
+        stage = int(state.get("quest_stage", 0))
+        valid_irrigation = (
+            stage == 1
+            and self._near(self.arena.irrigation_marker.rect, 90)
+        )
+        valid_bridge = (
+            stage == 4
+            and self._near(self.arena.bridge_marker.rect, 90)
+        )
+        if (
+            not valid_irrigation
+            and not valid_bridge
+            and self._near(self.arena.cart_marker.rect, 90)
+        ):
+            # The cart is scenery until the irrigation repair automatically
+            # stabilises its road. No hidden material sink is allowed here.
+            return False
+        return previous_try_project(self)
+
+    LowFieldsMenu._try_project = _try_project
+    LowFieldsMenu._ordered_projects_installed = True
+
+
 def _patch_muckford_gate() -> None:
     from citys.mucford.muckford_city_menu import MuckfordCityMenu
     from sound_manager import sound_system
@@ -201,6 +234,7 @@ def _patch_whisper_marsh_return() -> None:
 def install_muckford_low_fields_integration() -> None:
     global _INSTALLED
     _patch_world_map_data()
+    _patch_low_fields_project_flow()
     if _INSTALLED:
         return
     _patch_game_manager()
