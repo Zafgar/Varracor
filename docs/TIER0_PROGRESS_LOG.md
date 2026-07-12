@@ -91,29 +91,57 @@ Completed:
   Broodmother and restart the entrance winch;
 - added daily Iron Ore, Coal, Stone, Chipped Ruby and Silver Ore depletion and
   respawn tracking;
-- added a permanent mine-road clear state and daily restored-mine production of
-  two Iron Ore and one Coal into Muckford city storage;
-- added Grave Pickmen, Rail Wraiths, Web Crawlers, Crystal Husks and Brood Guards
-  spanning levels 3-6 with generated animation sets and distinct AI roles;
-- replaced the old boss encounter with a level 7, 1080 HP three-phase Cave
-  Broodmother that summons Web Crawlers and Brood Guards, emits Web Bursts and
-  triggers cavern-collapse waves;
-- added dynamic player and lantern darkness, dust, collapse hazards, web gates,
-  mine supports, carts, rails and production machinery;
-- added boss and production rewards, deeds, Tier 0 events and save persistence;
-- validated compilation, the content report, `main.py` import and the complete
-  Muckford suite: 57 tests passed in the headless GitHub runner.
+- added permanent road clearance and daily Iron Ore and Coal production;
+- added Grave Pickmen, Rail Wraiths, Web Crawlers, Crystal Husks and Brood Guards;
+- added the level 7 three-phase Cave Broodmother;
+- validated the complete Muckford suite with 57 passing tests.
 
-Still planned for the mine:
+Still planned:
 
 - dedicated mining, undead, web and collapse ambience;
-- final painted mine, miner and creature assets after gameplay tuning.
+- final painted mine, miner and creature assets.
 
-Next production focus — Muckford Warrens:
+## 2026-07-12 — Muckford Warrens city-crisis batch
 
-1. Build the sewer, food tunnels, collapsed cellars and Vortex-waste nest map.
-2. Add Hamo, Old Rinna Net and the missing Muckford Ratcatchers.
-3. Implement persistent food-cache recovery and nest destruction.
-4. Add violet-eyed rat swarms, Rat Riders and Waste Gnawers.
-5. Connect cleared warrens to reduced Muckford rat raids.
-6. Implement the Rat King as the main local Tier 0 crisis boss.
+Completed:
+
+- added a 3600 x 2400 sewer, food-tunnel, collapsed-cellar and Royal Cistern map;
+- added two physical entrances: Hamo's cellar hatch in Muckford and the Low
+  Fields drain culvert;
+- kept both routes open at every level while displaying the Lv 4-6 danger band;
+- added Hamo, Old Rinna Net and the missing Ratcatchers Tessa Trapwire, Brin
+  Sootsnare and Dorrik Two-Nails with stage-aware dialogue and persistence;
+- added the full crisis chain: trace four violet trails, recover four food
+  caches, destroy four Vortex-waste nests, rescue three Ratcatchers, defeat the
+  Rat King and report the result;
+- added persistent recovered grain and scrap deliveries into Muckford storage;
+- added three moving sewer channels, four safe bridges, Vortex-waste exposure,
+  poison pressure, fumes, darkness and route-specific return spawns;
+- added Sewer Rat Swarms, Violet-Eyed Rats, Rat Riders and Waste Gnawers with
+  generated animation sets, distinct AI roles, status effects and loot;
+- added a level 6, 1120 HP three-phase Rat King that summons violet regiments,
+  Rat Riders and Waste Gnawers, releases Royal Screech and erupts the cistern;
+- connected the boss to the existing `rat_king` Tier 0 milestone, legacy hunt
+  quest and deed systems;
+- permanently disabled Muckford's existing random rat raids after the Rat King
+  dies, including removal of any raid already active when the save is loaded;
+- added the Gnawed Crown, Vortex Residue, reputation, Silver Piece and city-food
+  rewards;
+- integrated the area through the current regional-state factory without adding
+  a duplicate main-loop state;
+- validated compilation, the Tier 0 report, `main.py` import and the complete
+  Muckford suite: 66 tests passed in the headless GitHub runner.
+
+Still planned for the Warrens:
+
+- dedicated rat-army, sewer-current and Rat King audio;
+- final painted cellar, sewer, NPC and creature assets after gameplay tuning.
+
+Next production focus — Greywash Ford:
+
+1. Build a broad code-rendered river, ford lanes, broken bridge and watchtower.
+2. Connect the route physically to Muckford and Whisper Marsh.
+3. Add Ferrykeeper Oswin Pike, Shanty Yard Saints and Crown deserters.
+4. Implement safe-lane surveying, bridge repair and caravan escort objectives.
+5. Add ford fishing, river resources, ambushers and flood-state hazards.
+6. Implement the ford crisis boss and open the road toward Kingsreach Toll.
