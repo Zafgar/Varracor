@@ -1,4 +1,4 @@
-name: Muckford opening checks
+name: Muckford opening and outskirts checks
 
 on:
   pull_request:
@@ -6,13 +6,17 @@ on:
       - "systems/muckford_opening_*.py"
       - "systems/muckford_forest_tutorial.py"
       - "systems/muckford_city_opening.py"
+      - "systems/muckford_outskirts_integration.py"
+      - "systems/procedural_water.py"
       - "citys/mucford/forest_road_*.py"
+      - "citys/mucford/forest_excursion.py"
       - "citys/mucford/muckford_city_menu.py"
       - "npc/marda_shant_npc.py"
       - "npc/dwarf_league_manager.py"
       - "menus/barracks_menu.py"
       - "main.py"
       - "tests/test_muckford_opening.py"
+      - "tests/test_muckford_water_outskirts.py"
       - ".github/workflows/muckford-opening-tests.yml"
   push:
     branches:
@@ -21,8 +25,12 @@ on:
       - "systems/muckford_opening_*.py"
       - "systems/muckford_forest_tutorial.py"
       - "systems/muckford_city_opening.py"
+      - "systems/muckford_outskirts_integration.py"
+      - "systems/procedural_water.py"
+      - "citys/mucford/forest_excursion.py"
       - "menus/barracks_menu.py"
       - "tests/test_muckford_opening.py"
+      - "tests/test_muckford_water_outskirts.py"
       - ".github/workflows/muckford-opening-tests.yml"
 
 permissions:
@@ -53,7 +61,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pytest
 
-      - name: Validate Muckford opening and main import
+      - name: Validate Muckford systems and main import
         id: opening_validation
         shell: bash
         run: |
@@ -65,22 +73,28 @@ jobs:
               systems/muckford_opening_integration.py \
               systems/muckford_forest_tutorial.py \
               systems/muckford_city_opening.py \
+              systems/muckford_outskirts_integration.py \
+              systems/procedural_water.py \
               citys/mucford/forest_road_arena.py \
               citys/mucford/forest_road_menu.py \
+              citys/mucford/forest_excursion.py \
               citys/mucford/muckford_city_menu.py \
               npc/marda_shant_npc.py \
               npc/dwarf_league_manager.py \
               menus/barracks_menu.py \
               main.py \
-              tests/test_muckford_opening.py
+              tests/test_muckford_opening.py \
+              tests/test_muckford_water_outskirts.py
             python -c "import main; print(\"main import ok\")"
-            python -m pytest -q --tb=short tests/test_muckford_opening.py
+            python -m pytest -q --tb=short \
+              tests/test_muckford_opening.py \
+              tests/test_muckford_water_outskirts.py
           ' 2>&1 | tee muckford-opening-test-output.txt
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Upload Muckford opening test output
+      - name: Upload Muckford test output
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -88,17 +102,17 @@ jobs:
           path: muckford-opening-test-output.txt
           retention-days: 7
 
-      - name: Publish Muckford opening status
+      - name: Publish Muckford status
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           TEST_EXIT_CODE: ${{ steps.opening_validation.outputs.exit_code }}
         run: |
           state="success"
-          description="Muckford opening, Forest Road tutorial and main import passed"
+          description="Muckford opening, water outskirts and main import passed"
           if [ "${TEST_EXIT_CODE}" != "0" ]; then
             state="failure"
-            description="Muckford opening checks failed"
+            description="Muckford opening or water outskirts checks failed"
           fi
           curl --fail-with-body --silent --show-error \
             --request POST \
@@ -108,6 +122,6 @@ jobs:
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
             --data "{\"state\":\"${state}\",\"context\":\"muckford-opening-ci\",\"description\":\"${description}\",\"target_url\":\"${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}"
 
-      - name: Fail when Muckford opening checks failed
+      - name: Fail when Muckford checks failed
         if: steps.opening_validation.outputs.exit_code != '0'
         run: exit 1
