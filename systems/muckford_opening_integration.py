@@ -25,6 +25,9 @@ from systems.tier0_world_integration import (
 from systems.whisper_marsh_story import (
     install_whisper_marsh_story,
 )
+from systems.drowned_chapel_integration import (
+    install_drowned_chapel_integration,
+)
 
 # Outskirts, local areas, ecology, story and world tracking use idempotent
 # runtime wrappers plus pure registries. Install them eagerly so import order
@@ -34,6 +37,7 @@ install_muckford_low_fields_integration()
 install_tier0_monster_integration()
 install_tier0_world_integration()
 install_whisper_marsh_story()
+install_drowned_chapel_integration()
 
 _INSTALLED = False
 
@@ -48,6 +52,7 @@ def install_muckford_opening_integration() -> None:
     install_tier0_monster_integration()
     install_tier0_world_integration()
     install_whisper_marsh_story()
+    install_drowned_chapel_integration()
     if _INSTALLED:
         return
     from systems.muckford_opening_core import install_muckford_opening_core
