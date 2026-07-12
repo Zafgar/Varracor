@@ -70,6 +70,13 @@ def ensure_world_state(manager) -> dict:
         visited = ["muckford"]
     _append_unique(visited, current)
 
+    # The starting city and its immediate roads are assumed to have been mapped
+    # by Bram, Hamo and Muckford's caravan brokers before the campaign begins.
+    if not surveyed:
+        surveyed = ["muckford"]
+    else:
+        _append_unique(surveyed, "muckford")
+
     state["discovered_locations"] = discovered
     state["visited_locations"] = visited
     state["surveyed_locations"] = surveyed
@@ -105,7 +112,6 @@ def party_level(manager) -> int:
     )
     if not levels:
         return 1
-    # The active squad is at most five members in the current game design.
     active = levels[:5]
     return max(1, int(round(sum(active) / len(active))))
 
@@ -122,35 +128,35 @@ def _requirement_attr_met(manager, requirement) -> bool:
 
 
 def refresh_world_progression(manager) -> dict:
-    """Reveal newly relevant nodes without granting travel automatically."""
+    """Reveal circuit goals and routes from locations the player surveyed."""
     state = ensure_world_state(manager)
     tier = league_lore_tier(manager)
     discovered = state["discovered_locations"]
-    visited = state["visited_locations"]
     surveyed = state["surveyed_locations"]
 
     before = set(discovered)
 
-    # Arena promotion reveals the locations belonging to the new circuit.
+    # Arena promotion reveals the names and approximate positions of the new
+    # circuit. Physical travel still follows the route graph.
     for circuit_tier in range(0, min(5, tier) + 1):
         for location_id in ARENA_CIRCUITS[circuit_tier]["locations"]:
             _append_unique(discovered, location_id)
 
-    # Major landmarks become known when their reveal tier is reached.
+    # Major landmarks become known as rumors before they are reachable.
     for location_id, location in LOCATIONS.items():
         if location.get("landmark") and int(location.get("reveal_tier", 0)) <= tier:
             _append_unique(discovered, location_id)
 
-    # Exploration reveals directly connected destinations. One tier ahead is
-    # shown as a locked rumor so the player can see the next progression goal.
-    origins = list(dict.fromkeys(visited + surveyed))
-    for origin in origins:
+    # Only surveyed locations expose their connected roads. One tier ahead may
+    # appear as a locked rumor so the next progression goal remains visible.
+    for origin in list(dict.fromkeys(surveyed)):
         for neighbor in get_neighbors(origin):
             data = LOCATIONS[neighbor]
             if int(data.get("reveal_tier", 0)) <= tier + 1:
                 _append_unique(discovered, neighbor)
 
-    newly_revealed = [location_id for location_id in discovered if location_id not in before]
+    newly_revealed = [location_id for location_id in discovered
+                      if location_id not in before]
     if newly_revealed:
         state["unlock_notices"].append({
             "tier": tier,
@@ -180,17 +186,14 @@ def mark_location_visited(manager, location_id: str, *, set_current=True,
 
 
 def survey_location(manager, location_id: str) -> list[str]:
+    """Survey a reached node and return the newly revealed adjacent nodes."""
     location_id = str(location_id)
+    before_state = ensure_world_state(manager)
+    before = set(before_state["discovered_locations"])
     state = mark_location_visited(manager, location_id, set_current=True,
                                   surveyed=True)
-    tier = league_lore_tier(manager)
-    revealed = []
-    for neighbor in get_neighbors(location_id):
-        data = LOCATIONS[neighbor]
-        if int(data.get("reveal_tier", 0)) <= tier + 1:
-            if _append_unique(state["discovered_locations"], neighbor):
-                revealed.append(neighbor)
-    return revealed
+    return [location for location in state["discovered_locations"]
+            if location not in before]
 
 
 def location_status(manager, location_id: str) -> dict:
