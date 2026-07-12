@@ -271,7 +271,7 @@ def test_frog_smith_recruit_and_fights(manager):
     vt = manager.village_tasks
     manager.reputation = 30
     assert vt.accept("marsh_smith")
-    manager.inventory["Void Iron"] = 2
+    manager.inventory["Iron Ingot"] = 2  # marsh_smith collect-vaihe vaatii Iron Ingotia
     assert vt.notify_collect(manager, "marsh_smith")
     before = len(manager.my_team)
     vt.complete(manager, "marsh_smith")
