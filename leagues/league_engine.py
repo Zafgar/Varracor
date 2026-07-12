@@ -475,16 +475,37 @@ class LeagueEngine:
         return True, "PROMOTION MATCH READY!", BossTeamFallback(opp_entry['team_name'])
 
     def fail_season(self) -> str:
-        """Nollaa kausi, säilytä tier."""
+        """Kausi ohi ilman ylennystä. Jos pelaaja on korkeammalla tierillä
+        (engine tier > 1 = yli lore Tier 0) ja sijoittui kentän alempaan
+        puoliskoon, hänet pudotetaan tier alaspäin (relegaatio). Muuten kausi
+        vain nollataan ja tier säilyy."""
         standings = self.get_grand_slam_standings()
         winner = standings[0]['team_name']
-        if winner == "My Guild" or winner == "Player": winner = standings[1]['team_name']
-        
+        if winner == "My Guild" or winner == "Player":
+            winner = standings[1]['team_name']
+
+        rank = self.get_player_rank()
+        total = max(1, len(standings))
+
+        # Relegaatio: pidä paikkasi tai putoat. Tier 1 (lore Tier 0) on pohja.
+        if self.tier > 1 and rank > (total // 2):
+            self.relegate_player()
+            tier_name = self.tier_names.get(self.tier, f"Tier {self.tier}")
+            return (f"{winner} won promotion. You finished #{rank} and were "
+                    f"relegated to {tier_name}.")
+
         self.next_season()
-        return f"{winner} won promotion. Season reset."
+        tier_name = self.tier_names.get(self.tier, f"Tier {self.tier}")
+        return f"{winner} won promotion. Season reset — hold your ground in {tier_name}."
 
     def promote_player(self):
         self.tier = min(self.tier + 1, 6)
+        self.next_season()
+        return True
+
+    def relegate_player(self):
+        """Pudota yksi tier (ei koskaan alle 1 = lore Tier 0) ja aloita uusi kausi."""
+        self.tier = max(self.tier - 1, 1)
         self.next_season()
         return True
 
