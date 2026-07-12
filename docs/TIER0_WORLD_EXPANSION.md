@@ -83,8 +83,9 @@ after automated checks.
 - Low Fields gathering, restoration and local travel.
 - Whisper Marsh survey chain, fishing, monster ecology and Whisper Pool Maw.
 - Drowned Chapel rescue chain, taint exposure and Bell-Drowned Pilgrim.
-- Old Muckford Mine restoration, daily ore production and three-phase Cave
-  Broodmother.
+- Old Muckford Mine restoration, daily ore production and Cave Broodmother.
+- Muckford Warrens crisis chain, two physical routes, four rat-army species,
+  three-phase Rat King and permanent shutdown of city rat raids.
 - Rattlebridge has a substantial city foundation, but its complete Tier 0
   promotion handoff is not finished.
 
@@ -94,13 +95,14 @@ are live.
 
 ### Current focus
 
-`muckford_warrens`
+`greywash_ford`
 
-The next production batch creates the sewer and food-tunnel network beneath
-Muckford. It will include Hamo, Old Rinna Net, missing Ratcatchers, stolen food
-caches, Vortex-waste nests, violet-eyed rat swarms, Rat Riders, Waste Gnawers
-and the Rat King. Clearing it must permanently reduce Muckford rat raids and
-serve as the major local crisis required for Tier 0 promotion.
+The next production batch creates the broad Greywash crossing between Muckford's
+mud roads and the Crown causeway. It will include a code-rendered fast river,
+surveyable ford lanes, a repairable bridge, an abandoned watchtower,
+Ferrykeeper Oswin Pike, Shanty Yard Saints, Crown deserters, caravan escort,
+river resources, fishing, flood-state hazards and the crisis that opens the road
+toward Kingsreach Toll.
 
 ## Arena progression relationship
 
