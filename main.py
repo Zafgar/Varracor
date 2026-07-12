@@ -52,6 +52,12 @@ from citys.mucford.forest_road_menu import ForestRoadMenu
 from citys.mucford.mine_road_menu import MineRoadMenu
 from citys.mucford.mine_cave_menu import MineCaveMenu
 from citys.mucford.forest_excursion import ForestExcursionMenu
+from citys.rattlebridge.rattlebridge_city_menu import RattlebridgeCityMenu
+from citys.rattlebridge.the_span_menu import TheSpanMenu
+from citys.rattlebridge.bridgeward_hospital_menu import BridgewardHospitalMenu
+from citys.rattlebridge.scrapring_menu import ScrapringMenu
+from citys.rattlebridge.rattlebridge_contracts_menu import RattlebridgeContractsMenu
+from citys.rattlebridge.canalworks_menu import CanalworksMenu
 from minigames.crown_knives import CrownKnivesMenu
 
 
@@ -122,6 +128,12 @@ def main():
         "market": MarketMenu(manager),
         "world_map": WorldMapMenu(manager),
         "regional_staging": RegionalStagingMenu(manager),
+        "rattlebridge_city": None,
+        "rattlebridge_span": TheSpanMenu(manager),
+        "rattlebridge_hospital": BridgewardHospitalMenu(manager),
+        "rattlebridge_scrapring": ScrapringMenu(manager),
+        "rattlebridge_contracts": RattlebridgeContractsMenu(manager),
+        "rattlebridge_canalworks": CanalworksMenu(manager),
     }
 
     MENU_FACTORIES = {
@@ -152,6 +164,12 @@ def main():
         "mine_cave": MineCaveMenu,
         "world_map": WorldMapMenu,
         "regional_staging": RegionalStagingMenu,
+        "rattlebridge_city": RattlebridgeCityMenu,
+        "rattlebridge_span": TheSpanMenu,
+        "rattlebridge_hospital": BridgewardHospitalMenu,
+        "rattlebridge_scrapring": ScrapringMenu,
+        "rattlebridge_contracts": RattlebridgeContractsMenu,
+        "rattlebridge_canalworks": CanalworksMenu,
     }
 
     RECREATE_ALWAYS = {
@@ -160,6 +178,9 @@ def main():
         "magic_school", "necro_school", "shop_locations", "city_storage",
         "muckford_intro", "test_arena", "options", "market", "barracks",
         "notice_board", "world_map", "regional_staging",
+        "rattlebridge_span", "rattlebridge_hospital",
+        "rattlebridge_scrapring", "rattlebridge_contracts",
+        "rattlebridge_canalworks",
     }
 
     RECREATE_UNLESS_FROM = {
@@ -168,13 +189,16 @@ def main():
 
     CREATE_IF_MISSING = {
         "muckford_city", "blacksmith_interior", "forest_road", "mine_road",
-        "mine_cave", "forest_excursion",
+        "mine_cave", "forest_excursion", "rattlebridge_city",
     }
 
     CALL_ON_ENTER = {
         "muckford_city", "blacksmith_interior", "forest_road", "mine_road",
         "mine_cave", "test_arena", "crown_knives", "forest_excursion",
-        "world_map", "regional_staging",
+        "world_map", "regional_staging", "rattlebridge_city",
+        "rattlebridge_span", "rattlebridge_hospital",
+        "rattlebridge_scrapring", "rattlebridge_contracts",
+        "rattlebridge_canalworks",
     }
 
     SKIP_INIT_FROM = {
@@ -269,7 +293,8 @@ def main():
             old_key = current_state_key
 
             heavy_states = [
-                "tavern_sunk_cask", "muckford_city", "blacksmith_interior"
+                "tavern_sunk_cask", "muckford_city", "blacksmith_interior",
+                "rattlebridge_city", "rattlebridge_canalworks",
             ]
             is_dialogue_transition = (
                 new_key == "dialogue"
