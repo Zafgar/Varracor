@@ -78,6 +78,24 @@ def _patch_game_manager() -> None:
     GameManager._drowned_chapel_installed = True
 
 
+def _patch_chapel_npc_names() -> None:
+    from citys.mucford.drowned_chapel import DrownedChapelMenu
+
+    if getattr(DrownedChapelMenu, "_canonical_npc_names_installed", False):
+        return
+    previous_npc = DrownedChapelMenu._npc
+
+    def _npc(name, x, y, role):
+        npc = previous_npc(name, x, y, role)
+        # VillagerAI assigns a random civilian job and appends it to the display
+        # name. Story NPCs need stable lore names for dialogue and persistence.
+        npc.name = str(name)
+        return npc
+
+    DrownedChapelMenu._npc = staticmethod(_npc)
+    DrownedChapelMenu._canonical_npc_names_installed = True
+
+
 def _patch_regional_staging_factory() -> None:
     from menus.regional_staging_menu import RegionalStagingMenu
 
@@ -187,6 +205,7 @@ def install_drowned_chapel_integration() -> None:
     if _INSTALLED:
         return
     _patch_game_manager()
+    _patch_chapel_npc_names()
     _patch_regional_staging_factory()
     _patch_chapel_return()
     _patch_whisper_marsh_route()
