@@ -137,11 +137,49 @@ Still planned for the Warrens:
 - dedicated rat-army, sewer-current and Rat King audio;
 - final painted cellar, sewer, NPC and creature assets after gameplay tuning.
 
-Next production focus — Greywash Ford:
+## 2026-07-12 — Greywash Ford crossing batch
 
-1. Build a broad code-rendered river, ford lanes, broken bridge and watchtower.
-2. Connect the route physically to Muckford and Whisper Marsh.
-3. Add Ferrykeeper Oswin Pike, Shanty Yard Saints and Crown deserters.
-4. Implement safe-lane surveying, bridge repair and caravan escort objectives.
-5. Add ford fishing, river resources, ambushers and flood-state hazards.
-6. Implement the ford crisis boss and open the road toward Kingsreach Toll.
+Completed:
+
+- added a 3900 x 2500 open-risk river map connecting Muckford, Whisper Marsh and
+  the western Crown causeway;
+- added a 1000-pixel-wide procedural Greywash with fast current, moving foam,
+  spray, ripples and weather-scaled flood states;
+- added three surveyable shallow ford lanes and a fourth safe crossing created
+  by repairing the central bridge;
+- added 31 daily River Reed, Clay, Driftwood and Scrap Iron gathering nodes;
+- added a dedicated Greywash fish table with Ford Dace, Crownscale Perch,
+  Stonebelly Carp, Flood Eel and Greywash Pike;
+- kept Greywash fishing persistence separate from the Whisper Marsh quest chain;
+- added Ferrykeeper Oswin Pike and the Shanty Yard Saints Saint Mara Wold and
+  Hobb Reed with stable names and stage-aware dialogue;
+- added the persistent route chain: survey three lanes, defeat six Crown
+  deserters, repair the bridge, escort a caravan across five checkpoints, search
+  the abandoned watchtower, defeat Garran Vale and report the secured road;
+- added caravan ambushes, a generated caravan cart, watchtower evidence, Crown
+  seals and city-storage trade rewards;
+- added Greywash Riverjaws, Crown Deserters and Ford Brutes with generated
+  animation sets, distinct combat AI, status effects and loot;
+- added the level 7, 1380 HP three-phase Captain Garran Vale, deserter
+  reinforcements, Ford Brute reinforcements, Command Shout and floodgate waves;
+- added permanent bridge persistence, daily resource reset, fishing catches,
+  caravan progress, boss state and Kingsreach road access;
+- fixed the caravan to complete exactly on the fifth checkpoint and preserved
+  the correct Greywash-to-Whisper-Marsh return spawn;
+- validated compilation, the Tier 0 report, `main.py` import and the complete
+  Muckford suite: 75 tests passed in the headless GitHub runner.
+
+Still planned for Greywash Ford:
+
+- dedicated river, caravan, deserter and Garran Vale audio;
+- final painted riverbank, bridge, watchtower, NPC and creature assets after
+  interactive gameplay and performance tuning.
+
+Next production focus — Kingsreach Toll:
+
+1. Build the Crown stone causeway, gatehouse, inspection booths and caravan yard.
+2. Add the toll captain, quarantine medic, merchants and a smuggler contact.
+3. Implement travel papers, payment, service and smuggling as real alternatives.
+4. Add quarantine inspection, medicine work and persistent Crown reputation choices.
+5. Add road bandits, toll enforcers and quarantine threats.
+6. Connect the completed checkpoint to Bram's recommendation and the Tier 0 finale.
