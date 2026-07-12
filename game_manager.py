@@ -855,6 +855,16 @@ class GameManager:
             from units.cave_spider import Spiderling
             return Spiderling("Spiderling", 0, 0)
 
+        if name in ("Hush-Mantle", "Hush Mantle"):
+            from units.rattlebridge_threats import HushMantle
+            return HushMantle("Hush-Mantle", 0, 0)
+        if name == "Gutter Vermin":
+            from units.rattlebridge_threats import GutterVermin
+            return GutterVermin("Gutter Vermin", 0, 0)
+        if name == "Red Lantern Cadaver":
+            from units.rattlebridge_threats import RedLanternCadaver
+            return RedLanternCadaver("Red Lantern Cadaver", 0, 0)
+
         RED = ENEMY_TEAM
         if name == 'Giant Rat': return GiantRat(name, 0, 0)
         if name == 'Rat Rider': return RatRider(name, 0, 0, RED)
@@ -1406,6 +1416,9 @@ class GameManager:
             ("Troll", "Troll"),
             ("Broodmother", "Cave Broodmother"),
             ("Spiderling", "Spiderling"),
+            ("Hush", "Hush-Mantle"),
+            ("Cadaver", "Red Lantern Cadaver"),
+            ("Gutter", "Gutter Vermin"),
             ("Rat Rider", "Rat Rider"),
             ("Skeleton Archer", "Skeleton Archer"),
             ("Archer", "Skeleton Archer"),

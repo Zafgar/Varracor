@@ -32,6 +32,19 @@ LOOT_DROPS = {
         {'item': 'Chipped Ruby', 'chance': 0.5, 'min': 1, 'max': 1},
     ],
     'Spiderling':   [{'item': 'Spider Silk', 'chance': 0.3, 'min': 1, 'max': 1}],
+    # --- RATTLEBRIDGE THREATS ---
+    'Hush-Mantle': [
+        {'item': 'Silent Veil', 'chance': 1.0, 'min': 1, 'max': 1},
+        {'item': 'Vortex Residue', 'chance': 0.3, 'min': 1, 'max': 1},
+    ],
+    'Gutter Vermin': [
+        {'item': 'Toxic Sludge', 'chance': 0.6, 'min': 1, 'max': 2},
+        {'item': 'Slime Goo', 'chance': 0.5, 'min': 1, 'max': 2},
+    ],
+    'Red Lantern Cadaver': [
+        {'item': 'Plague Bone', 'chance': 0.6, 'min': 1, 'max': 2},
+        {'item': 'Rotten Flesh', 'chance': 0.5, 'min': 1, 'max': 2},
+    ],
     
     # --- SWAMP ENEMIES ---
     'Bog Leech': [

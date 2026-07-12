@@ -458,6 +458,7 @@ MARKET_PRICES = {
         "Coal": 2, "Iron Bar": 8, "Chipped Ruby": 40, "Stone": 1,
         "Spider Silk": 6, "Venom Gland": 12, "Silver Ore": 25,
         "Blacksteel Ore": 18, "Ironbark": 14, "Direhide": 16,
+        "Silent Veil": 22, "Plague Bone": 6, "Toxic Sludge": 5,
     },
     # Mitä pelaaja voi ostaa kojulta
     "buy": {
