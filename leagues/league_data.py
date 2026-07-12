@@ -69,6 +69,12 @@ def build_team(name, color, tier, style, reputation, roster, motto=""):
     from units.elf import Elf
     from units.goblin import Goblin
     races = {"Human": Human, "Orc": Orc, "Elf": Elf, "Goblin": Goblin}
+    try:
+        from units.werewolf import Werewolf
+        from units.tortle import Tortle
+        races.update({"Werewolf": Werewolf, "Tortle": Tortle})
+    except Exception:
+        pass
 
     t = Team(name, color, tier)
     t.motto = motto

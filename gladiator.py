@@ -145,6 +145,8 @@ class Gladiator(pygame.sprite.Sprite):
         self.reveal_timer = 0
         self.stoneform_timer = 0       # Dwarf Stoneform (-50% vahinko)
         self.speed_buff_timer = 0      # Elf Wind Dance (+40% nopeus)
+        self.frenzy_timer = 0          # Werewolf Bloodmoon Frenzy
+        self.shell_timer = 0           # Tortle Shell Guard
         self.racial_cooldown = 0
 
         # --- SKILL FLAGS ---
@@ -1208,9 +1210,23 @@ class Gladiator(pygame.sprite.Sprite):
         if self.stoneform_timer > 0:
             amount = int(amount * 0.5)
 
+        # Tortle Shell Guard: -75% vahinko (mutta juurtunut, ei liiku)
+        if getattr(self, 'shell_timer', 0) > 0:
+            amount = int(amount * 0.25)
+
+        # Werewolf Bloodmoon Frenzy: hyokkaaja lyo kovempaa
+        if attacker is not None and getattr(attacker, 'frenzy_timer', 0) > 0:
+            amount = int(amount * 1.2)
+
         final = max(1, int(amount) - int(self.defense))
         self.current_hp -= final
         self._break_invisibility(manager)  # Osuma paljastaa
+
+        # Werewolf Frenzy: hyokkaaja imee elamaa osuessaan
+        if (attacker is not None and not getattr(attacker, 'is_dead', False)
+                and getattr(attacker, 'frenzy_timer', 0) > 0):
+            heal = max(1, int(final * 0.3))
+            attacker.current_hp = min(attacker.max_hp, attacker.current_hp + heal)
 
         # --- HIT STUN & ANIMATION (Vasta kun vahinko on varma) ---
         # Vain jos ei immuniteettia
@@ -1369,6 +1385,8 @@ class Gladiator(pygame.sprite.Sprite):
         if self.racial_cooldown > 0: self.racial_cooldown -= 1
         if self.stoneform_timer > 0: self.stoneform_timer -= 1
         if self.speed_buff_timer > 0: self.speed_buff_timer -= 1
+        if getattr(self, 'frenzy_timer', 0) > 0: self.frenzy_timer -= 1
+        if getattr(self, 'shell_timer', 0) > 0: self.shell_timer -= 1
         if self.reveal_timer > 0:
             self.reveal_timer -= 1
             if self.reveal_timer <= 0:
@@ -1384,6 +1402,8 @@ class Gladiator(pygame.sprite.Sprite):
         current_speed = self.walk_speed
         if self.is_invisible: current_speed *= 1.3   # Shadowstep
         if self.speed_buff_timer > 0: current_speed *= 1.4  # Wind Dance
+        if getattr(self, 'frenzy_timer', 0) > 0: current_speed *= 1.35  # Werewolf Frenzy
+        if getattr(self, 'shell_timer', 0) > 0: current_speed = 0.0     # Tortle Shell (root)
         if self.is_dashing:
             current_speed = self.walk_speed * self.dash_speed_mult
             move_x = self.dash_vector[0] * current_speed
@@ -1807,6 +1827,25 @@ class Gladiator(pygame.sprite.Sprite):
             if manager:
                 manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
                                         "WIND DANCE!", color=(150, 255, 200))
+            return True
+
+        if race == "Werewolf":
+            # Bloodmoon Frenzy: 5s +nopeus, +vahinko ja elamanimu
+            self.frenzy_timer = 300
+            self.racial_cooldown = 1800  # 30s
+            if manager:
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
+                                        "BLOODMOON FRENZY!", color=(200, 40, 40))
+            return True
+
+        if race == "Tortle":
+            # Shell Guard: 5s -75% vahinko, mutta juurtunut (ei liiku)
+            self.shell_timer = 300
+            self.stun_timer = 0
+            self.racial_cooldown = 1800  # 30s
+            if manager:
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
+                                        "SHELL GUARD!", color=(80, 160, 90))
             return True
 
         return False

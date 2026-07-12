@@ -10,6 +10,8 @@ RACES = {
     'Undead': {'hp_mult': 1.5, 'str_mult': 0.9, 'spd_mult': 0.5, 'defense': 0, 'resistance': 'Ice', 'weakness': 'Fire', 'desc': 'Undying'},
     'Goblin': {'hp_mult': 0.6, 'str_mult': 0.8, 'spd_mult': 1.4, 'defense': 0, 'resistance': 'None', 'weakness': 'Physical', 'desc': 'Weak but fast', 'affinity': {'dagger': 1.15, 'crossbow': 1.10}},
     'Frogfolk': {'hp_mult': 1.2, 'str_mult': 1.15, 'spd_mult': 0.95, 'defense': 2, 'resistance': 'Poison', 'weakness': 'Ice', 'desc': 'Marsh smith-warrior', 'affinity': {'mace': 1.15, 'spear': 1.10}},
+    'Werewolf': {'hp_mult': 1.25, 'str_mult': 1.35, 'spd_mult': 1.25, 'defense': 1, 'resistance': 'Physical', 'weakness': 'Fire', 'desc': 'Frenzied lycan', 'affinity': {'axe': 1.15, 'dagger': 1.10}},
+    'Tortle': {'hp_mult': 1.5, 'str_mult': 1.0, 'spd_mult': 0.6, 'defense': 5, 'resistance': 'Physical', 'weakness': 'Magic', 'desc': 'Shelled bulwark', 'affinity': {'mace': 1.15, 'spear': 1.10}},
     'Troll':  {'hp_mult': 2.2, 'str_mult': 1.6, 'spd_mult': 0.7, 'defense': 2, 'resistance': 'Physical', 'weakness': 'Magic', 'desc': 'Boss'},
     'Spider': {'hp_mult': 1.0, 'str_mult': 1.0, 'spd_mult': 1.2, 'defense': 1, 'resistance': 'None', 'weakness': 'Fire', 'desc': 'Cave dweller'},
 
@@ -89,6 +91,14 @@ RACE_NAMES = {
     "Goblin": {
         "first": ["Zik", "Rix", "Tok", "Mik", "Nax", "Pox", "Vix", "Kax", "Lax", "Dax"],
         "last": ["Ratchewer", "Toebiter", "Shinbreaker", "Kneecapper", "Anklebiter", "Fingergnawer", "Nosepicker", "Earchewer", "Eyegouger", "Tonguebiter"]
+    },
+    "Werewolf": {
+        "first": ["Fenrir", "Greymane", "Rurik", "Vael", "Skoll", "Hati", "Bran", "Lupa", "Garou", "Rhen"],
+        "last": ["Nighthowl", "Bloodmoon", "Ironfang", "Greypelt", "Duskrunner", "Mooncaller", "Redclaw", "Frostmaw", "Ashfur", "Stormhide"]
+    },
+    "Tortle": {
+        "first": ["Shellwick", "Bartok", "Grum", "Torbin", "Odo", "Mudra", "Kappa", "Snapjaw", "Wren", "Boulder"],
+        "last": ["Stoneshell", "Deepwade", "Slowtide", "Ironback", "Mossback", "Barnacle", "Shoalkeeper", "Reefborn", "Longwater", "Craggle"]
     }
 }
 
