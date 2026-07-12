@@ -43,7 +43,6 @@ class BarracksMenu(BaseMenu):
             sound_system.play_sound('click')
             return
 
-        # Klikkaa joukkueen jäsentä -> juttele
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             for rect, unit in self.card_rects:
                 if rect.collidepoint(event.pos):
@@ -51,7 +50,6 @@ class BarracksMenu(BaseMenu):
                     return
 
     def _talk_to(self, unit):
-        # Commanderin kanssa ei jutella (se on pelaaja itse)
         if unit is self.manager.player_character:
             self.manager.selected_hero = unit
             self.manager.guild_return_state = "barracks"
@@ -71,7 +69,6 @@ class BarracksMenu(BaseMenu):
         draw_text("Bram's leftover shacks - but they're yours. Click a fighter to talk; gear them below.",
                   font_small, GRAY, screen, 60, 120)
 
-        # Roster-kortit
         self.card_rects = []
         roster = self._roster()
         card_w, card_h = 210, 270
@@ -92,17 +89,19 @@ class BarracksMenu(BaseMenu):
                 unit.draw_info_card(screen, x, y, card_w, card_h, hover=hover)
             else:
                 self.draw_soft_panel(screen, rect)
-                draw_text(getattr(unit, "name", "Unit"), font_main, WHITE, screen, x + 10, y + 10)
+                draw_text(getattr(unit, "name", "Unit"), font_main, WHITE,
+                          screen, x + 10, y + 10)
             if unit is self.manager.player_character:
-                draw_text("(You)", font_small, GOLD_COLOR, screen, x + 10, y + card_h - 24)
+                draw_text("(You)", font_small, GOLD_COLOR, screen,
+                          x + 10, y + card_h - 24)
 
         self.btn_equip.draw(screen)
         self.btn_back.draw(screen)
 
 
-# Farming and material modules are installed here because main.py imports
-# BarracksMenu before creating GameManager/menu instances. Runtime extensions
-# are therefore active for new games and save loading.
+# Runtime extensions are installed during menu imports, before GameManager is
+# instantiated in main.py. This keeps old saves and large existing city modules
+# compatible while new systems become available globally.
 try:
     from citys.mucford.farming_expansion import install_farming_expansion
     from citys.mucford.farming_hardening import install_farming_hardening
@@ -118,6 +117,7 @@ try:
     from systems.material_integration_hardening import (
         install_material_integration_hardening,
     )
+    from systems.world_map_integration import install_world_map_integration
 
     install_farming_expansion()
     install_farming_hardening()
@@ -127,5 +127,6 @@ try:
     install_farming_stations_hardening()
     install_material_integration()
     install_material_integration_hardening()
+    install_world_map_integration()
 except Exception as exc:
-    print(f"[FarmingExpansion] Could not install: {exc}")
+    print(f"[RuntimeExtensions] Could not install: {exc}")
