@@ -71,6 +71,10 @@ class Gladiator(pygame.sprite.Sprite):
         # --- STAMINA SYSTEM ---
         self.max_stamina = 100
         self.current_stamina = 100
+        # Arcane strain: loitsimisen fyysinen/henkinen kuormitus.
+        self.max_strain = 100
+        self.current_strain = 0.0
+        self.strain_regen = 0.15
         self.stamina_regen = 0.25 # Hieman nopeampi palautuminen
 
         # Combat states
@@ -582,6 +586,10 @@ class Gladiator(pygame.sprite.Sprite):
         self.strength = int(self.base_attributes.get("str", 5))
         self.dexterity = int(self.base_attributes.get("dex", 5))
         self.intelligence = int(self.base_attributes.get("int", 5))
+        # Arcane strain -katto skaalaa kurilla/kestavyydella (INT).
+        self.max_strain = 80 + self.intelligence * 4
+        if getattr(self, "current_strain", 0.0) > self.max_strain:
+            self.current_strain = float(self.max_strain)
         self.defense = int(self.base_attributes.get("def_flat", 0))
 
         # Skill Tree effects
@@ -1383,6 +1391,8 @@ class Gladiator(pygame.sprite.Sprite):
 
         # --- RACIAL TIMERS ---
         if self.racial_cooldown > 0: self.racial_cooldown -= 1
+        if getattr(self, "current_strain", 0.0) > 0:
+            self.current_strain = max(0.0, self.current_strain - getattr(self, "strain_regen", 0.15))
         if self.stoneform_timer > 0: self.stoneform_timer -= 1
         if self.speed_buff_timer > 0: self.speed_buff_timer -= 1
         if getattr(self, 'frenzy_timer', 0) > 0: self.frenzy_timer -= 1
@@ -1644,7 +1654,7 @@ class Gladiator(pygame.sprite.Sprite):
             spell = self.equipment.get(slot)
             if not spell:
                 continue
-            if "heal" in str(getattr(spell, "name", "")).lower():
+            if getattr(spell, "is_heal", False) or "heal" in str(getattr(spell, "name", "")).lower():
                 heal_slots.append(slot)
             else:
                 offensive_slots.append(slot)
@@ -1681,6 +1691,10 @@ class Gladiator(pygame.sprite.Sprite):
             cost = getattr(spell, "mana_cost", 0)
             if self.current_mana < cost or self.spell_cooldowns.get(slot, 0) > 0:
                 continue
+            # Arcane strain: liian uupunut ei voi loitsia
+            strain_cost = float(getattr(spell, "strain", 0))
+            if getattr(self, "current_strain", 0.0) + strain_cost > getattr(self, "max_strain", 9999):
+                continue
             # Mana-varaus: älä polta parannukseen tarvittavaa manaa
             # damage-loitsuun
             if slot not in heal_slots and reserve_mana > 0:
@@ -1694,7 +1708,7 @@ class Gladiator(pygame.sprite.Sprite):
 
             # --- HEALING LOGIC ---
             # Jos loitsu on parannus, etsitään haavoittunut kaveri
-            if "heal" in spell_name:
+            if getattr(spell, "is_heal", False) or "heal" in spell_name:
                 best_ally = None
                 lowest_pct = 1.0
                 
@@ -1723,6 +1737,9 @@ class Gladiator(pygame.sprite.Sprite):
 
             if success:
                 self.spell_cooldowns[slot] = int(getattr(spell, "cooldown_max", 60))
+                self.current_strain = min(getattr(self, "max_strain", 9999),
+                                          getattr(self, "current_strain", 0.0)
+                                          + float(getattr(spell, "strain", 0)))
                 self._break_invisibility(manager)  # Loitsu paljastaa
                 return True
         return False

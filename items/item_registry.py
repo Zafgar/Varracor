@@ -203,6 +203,15 @@ def create_item(name):
     """
     name = str(name).strip()
 
+    # Data-driven loitsukirjasto (magic/spell_data.py) ennen luokkaskannausta
+    try:
+        from magic.library_spell import create_library_spell
+        _sp = create_library_spell(name)
+        if _sp is not None:
+            return _sp
+    except Exception:
+        pass
+
     for C in get_available_item_classes():
         try:
             if C.__name__ == name:
