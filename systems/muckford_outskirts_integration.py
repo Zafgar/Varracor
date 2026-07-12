@@ -16,24 +16,32 @@ def _patch_world_map_data() -> None:
         "Greywash channel and a player-developed survey post."
     )
     location["content_state"] = "playable"
+    # This is the complete current service list, not the older foundation-only
+    # snapshot. Keeping it here prevents a late import or focused metadata test
+    # from accidentally downgrading the newer story and fishing integration.
     location["services"] = (
         "foraging",
         "monster hunting",
         "survey-post development",
-        "fishing foundation",
+        "fishing",
+        "named marsh survey",
     )
     location["materials"] = (
         "Bogwort",
         "River Reed",
         "Driftwood",
         "Clay",
+        "Nightcap Fungus",
+        "marsh fish",
     )
     location["threats"] = (
-        "Marsh Rats",
-        "Drowned Crows",
+        "Tier 0 marsh ecology",
         "Greywash Troll",
         "flood ambushes",
+        "Whisper Pool Maw",
     )
+    location["boss"] = "Whisper Pool Maw"
+    location["story_state"] = "playable quest chain"
 
 
 def _patch_game_manager() -> None:
@@ -47,6 +55,7 @@ def _patch_game_manager() -> None:
         previous_init(self, *args, **kwargs)
         self.current_fishing_spots = []
         self.fishing_return_state = "forest_excursion"
+        self.pending_fishing_anchor = None
 
     def get_fishing_spots(self):
         return list(getattr(self, "current_fishing_spots", []))
@@ -104,16 +113,15 @@ def _patch_muckford_return_spawn() -> None:
 
 def install_muckford_outskirts_integration() -> None:
     global _INSTALLED
+    # Pure metadata is safe and should always be refreshed because focused tests
+    # and other runtime extensions may touch the same canonical location object.
+    _patch_world_map_data()
     if _INSTALLED:
         return
-    _patch_world_map_data()
     _patch_game_manager()
     _patch_forest_excursion()
     _patch_muckford_return_spawn()
     _INSTALLED = True
 
 
-# World-map metadata is pure data and safe to patch immediately. Doing this at
-# module import makes the description deterministic even when another runtime
-# extension installed the broader Muckford hooks earlier in the import graph.
 _patch_world_map_data()
