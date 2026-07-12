@@ -22,7 +22,7 @@ def create_team(tier):
     for i, name in enumerate(LOOTER_NAMES):
         gob = Goblin(name, 0, 0, t.color)
         gob.level = base_lvl
-        gob.dexterity += 4 + tier
+        gob.base_attributes["dex"] += 4 + tier
         group = "dagger" if i % 2 == 0 else "sword"
         gob.unlocked_skills.update([f"wp_{group}", "dex_speed"])
         t.equip_unit(gob, weapon_for(group, tier))

@@ -19,7 +19,7 @@ def create_team(tier):
 
     boss = Orc("Red Corla", 0, 0, t.color)
     boss.level = base_lvl + 1
-    boss.strength += 6
+    boss.base_attributes["str"] += 6
     boss.unlocked_skills.update(["wp_axe", "str_execute"])
     t.equip_unit(boss, weapon_for("axe", tier, elite=True))
     t.equip_unit(boss, "Padded Vest")
@@ -31,7 +31,7 @@ def create_team(tier):
     for name in ("Vench", "Dob the Hook"):
         man = Human(name, 0, 0, t.color)
         man.level = base_lvl
-        man.strength += 2
+        man.base_attributes["str"] += 2
         man.unlocked_skills.update(["wp_axe"])
         t.equip_unit(man, weapon_for("axe", tier))
         t.equip_unit(man, "Padded Vest")
@@ -43,7 +43,7 @@ def create_team(tier):
     for name in ("Sly Ada", "Fenn"):
         bow = Human(name, 0, 0, t.color)
         bow.level = base_lvl
-        bow.dexterity += 3
+        bow.base_attributes["dex"] += 3
         bow.unlocked_skills.update(["wp_crossbow"])
         t.equip_unit(bow, weapon_for("crossbow", tier))
         t.equip_unit(bow, "Padded Vest")

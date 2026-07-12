@@ -19,7 +19,7 @@ def create_team(tier):
 
     cap = Human("Buckethead", 0, 0, t.color)
     cap.level = base_lvl + 1
-    cap.strength += 4
+    cap.base_attributes["str"] += 4
     cap.unlocked_skills.update(["wp_axe", "arm_heavy", "str_tank"])
     t.equip_unit(cap, weapon_for("axe", tier))
     t.equip_unit(cap, "Rusty Mail")
@@ -60,7 +60,7 @@ def create_team(tier):
 
     bow = Human("Rusty Sal", 0, 0, t.color)
     bow.level = base_lvl
-    bow.dexterity += 2
+    bow.base_attributes["dex"] += 2
     bow.unlocked_skills.update(["wp_crossbow"])
     t.equip_unit(bow, weapon_for("crossbow", tier))
     t.equip_unit(bow, "Padded Vest")

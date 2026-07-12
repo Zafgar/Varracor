@@ -29,7 +29,7 @@ def create_team(tier):
         else:
             u = Human(base_name, 0, 0, t.color)
         u.level = base_lvl
-        u.dexterity += 5
+        u.base_attributes["dex"] += 5
         u.unlocked_skills.update(["wp_dagger", "dex_dodge"])
 
         t.equip_unit(u, weapon_for("dagger", tier))

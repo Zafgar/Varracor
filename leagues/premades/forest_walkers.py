@@ -22,7 +22,7 @@ def create_team(tier):
 
     druid = Elf("Elowen", 0, 0, t.color)
     druid.level = base_lvl
-    druid.intelligence += 5
+    druid.base_attributes["int"] += 5
     druid.unlocked_skills.update(["wp_staff", "int_mana"])
     t.equip_unit(druid, weapon_for("staff", tier))
     t.equip_unit(druid, "Novice Robe")
@@ -34,7 +34,7 @@ def create_team(tier):
     for name in RANGER_NAMES:
         ranger = Elf(name, 0, 0, t.color)
         ranger.level = base_lvl
-        ranger.dexterity += 4
+        ranger.base_attributes["dex"] += 4
         ranger.unlocked_skills.update(["wp_bow", "dex_crit"])
         t.equip_unit(ranger, weapon_for("bow", tier))
         t.equip_unit(ranger, "Padded Vest")

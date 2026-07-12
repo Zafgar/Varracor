@@ -23,8 +23,8 @@ def create_team(tier):
     for i, name in enumerate(BRAWLER_NAMES):
         orc = Orc(name, 0, 0, t.color)
         orc.level = base_lvl
-        orc.strength += 4 + tier
-        orc.max_hp += 30
+        orc.base_attributes["str"] += 4 + tier
+        orc.base_attributes["max_hp"] += 30
         group = "mace" if i % 2 == 0 else "axe"
         orc.unlocked_skills.update([f"wp_{group}", "str_tank"])
         t.equip_unit(orc, weapon_for(group, tier))
