@@ -1222,6 +1222,10 @@ class Gladiator(pygame.sprite.Sprite):
         if getattr(self, 'shell_timer', 0) > 0:
             amount = int(amount * 0.25)
 
+        # Warded/Barkskin (buff-loitsut): -30% vahinko
+        if self.has_status("Warded"):
+            amount = int(amount * 0.7)
+
         # Werewolf Bloodmoon Frenzy: hyokkaaja lyo kovempaa
         if attacker is not None and getattr(attacker, 'frenzy_timer', 0) > 0:
             amount = int(amount * 1.2)

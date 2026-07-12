@@ -75,6 +75,65 @@ def test_strain_blocks_repeated_casting():
     assert not mage.try_cast_spells(foe, [mage, foe], manager=m)
 
 
+def test_all_five_schools_have_content():
+    from magic.spell_data import SPELL_LIBRARY
+    from collections import Counter
+    by_school = Counter(v["school"] for v in SPELL_LIBRARY.values())
+    for sk in ("pure", "holy", "necromancy", "druidism", "manipulation"):
+        assert by_school[sk] >= 5, f"{sk} too few spells: {by_school[sk]}"
+    assert len(SPELL_LIBRARY) >= 40
+
+
+def test_every_library_spell_resolves():
+    from magic.spell_data import SPELL_LIBRARY
+    from items.item_registry import create_item
+    for n in SPELL_LIBRARY:
+        assert create_item(n) is not None, f"{n} does not resolve"
+
+
+def test_lore_named_spells_present():
+    from magic.spell_data import SPELL_LIBRARY
+    for n in ("Spark Bolt", "Prime Equation", "Light Mend", "Resurrection Seal",
+              "Grave Chill", "Death Sovereignty", "Thorn Lash", "Worldroot Awakening",
+              "Minor Illusion", "Perfect Lie"):
+        assert n in SPELL_LIBRARY, f"lore spell {n} missing"
+
+
+def test_warded_buff_reduces_damage():
+    from units.human import Human
+    u = Human("T", 0, 0, PLAYER_TEAM)
+    u.defense = 0
+    u.current_hp = u.max_hp
+    u.apply_status("Warded", 300, 0)
+    before = u.current_hp
+    u.take_damage(50, "Physical")
+    lost = before - u.current_hp
+    assert 30 <= lost <= 40  # ~30% reduction
+
+
+def test_summon_spawns_ally():
+    from game_manager import GameManager
+    from items.item_registry import create_item
+    from units.human import Human
+    m = GameManager(); m.match_in_progress = True; m.current_arena = None
+    necro = Human("Necro", 300, 300, PLAYER_TEAM)
+    before = len(list(m.my_team))
+    create_item("Raise Servant").cast(necro, None, m)
+    assert len(list(m.my_team)) > before
+
+
+def test_debuff_applies_status():
+    from game_manager import GameManager
+    from items.item_registry import create_item
+    from units.human import Human
+    from units.orc import Orc
+    m = GameManager(); m.match_in_progress = True; m.current_arena = None
+    caster = Human("C", 300, 300, PLAYER_TEAM)
+    foe = Orc("F", 400, 300, ENEMY_TEAM)
+    create_item("Grave Chill").cast(caster, foe, m)
+    assert any(e["type"] == "Slow" for e in foe.status_effects)
+
+
 def test_strain_regenerates():
     from units.human import Human
     u = Human("Mage", 0, 0, PLAYER_TEAM)

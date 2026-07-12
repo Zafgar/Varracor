@@ -33,6 +33,9 @@ class LibrarySpell(Spell):
         self.damage = int(d.get("power", 12))       # vahinko TAI parannus
         self.scaling = dict(d.get("scaling", {"INT": 1.0}))
         self.status = d.get("status")               # (type, duration, dmg)
+        self.buff = d.get("buff")                    # {"type","duration"}
+        self.summon = d.get("summon")                # class name
+        self.summon_count = int(d.get("summon_count", 1))
         self.rarity = d.get("rarity", "Common")
         self.cost = int(d.get("cost", 40 * self.tier))
         self.description = d.get("desc", "")
@@ -46,9 +49,42 @@ class LibrarySpell(Spell):
     def _amount(self, caster):
         return int(self.damage + caster.intelligence * self.scaling.get("INT", 0.0))
 
+    def _summon(self, caster, manager):
+        import random
+        from settings import PLAYER_TEAM
+        from units.undead_skeleton import UndeadSkeleton
+        cls_map = {"UndeadSkeleton": UndeadSkeleton}
+        cls = cls_map.get(self.summon or "UndeadSkeleton", UndeadSkeleton)
+        on_player = getattr(caster, "team_color", None) == PLAYER_TEAM
+        grp = manager.my_team if on_player else manager.enemy_team
+        aw = getattr(getattr(manager, "current_arena", None), "width", 1920) or 1920
+        ah = getattr(getattr(manager, "current_arena", None), "height", 1080) or 1080
+        for _ in range(self.summon_count):
+            x = min(aw - 20, max(20, caster.rect.centerx + random.randint(-60, 60)))
+            y = min(ah - 20, max(20, caster.rect.centery + random.randint(-60, 60)))
+            minion = cls("Servant", x, y, caster.team_color)
+            grp.add(minion)
+            manager.all_units.add(minion)
+            manager.vfx.create_spawn_fog(x, y)
+
     def cast(self, caster, target, manager, target_pos=None):
         if manager is None:
             return False
+
+        # --- BUFF (Warded/Barkskin ym.) - kohdistuu itseen ---
+        if self.kind == "buff":
+            b = self.buff or {"type": "Warded", "duration": 300}
+            caster.apply_status(b.get("type", "Warded"), int(b.get("duration", 300)), 0)
+            manager.vfx.show_damage(caster.rect.centerx, caster.rect.top - 20,
+                                    self.name, color=self.projectile_color)
+            return True
+
+        # --- SUMMON (Raise Servant ym.) ---
+        if self.kind == "summon":
+            self._summon(caster, manager)
+            manager.vfx.show_damage(caster.rect.centerx, caster.rect.top - 20,
+                                    self.name, color=self.projectile_color)
+            return True
 
         # --- HEAL ---
         if self.kind == "heal":
