@@ -531,9 +531,44 @@ class LeagueEngine:
             s.tick_simulation(budget_ms, max_matches)
 
     def get_scout_report(self, enemy_team) -> List[str]:
-        if not enemy_team: return ["No opponent."]
+        """Tiedusteluraportti: nayttaa tiimin todellisen identiteetin
+        (tyyli, maine, kokoonpano) ja arvioi uhan pelaajan tehoon nahden."""
+        if not enemy_team:
+            return ["No opponent."]
         name = getattr(enemy_team, "name", "Enemy")
-        return [f"Opponent: {name}", "Style: Standard", "Threat: Medium"]
+        lines = [f"Opponent: {name}"]
+
+        style = getattr(enemy_team, "style", None)
+        if style:
+            lines.append(f"Style: {style}")
+
+        roster = _safe_roster(enemy_team)
+        if roster:
+            from collections import Counter
+            races = Counter(getattr(u, "race_name", "?") for u in roster)
+            comp = ", ".join(f"{n}x {r}" for r, n in races.most_common())
+            avg_lvl = sum(getattr(u, "level", 1) for u in roster) / len(roster)
+            lines.append(f"Squad: {len(roster)} fighters (avg Lv {avg_lvl:.0f})")
+            lines.append(comp)
+
+            enemy_pow = sum(_unit_power(u) for u in roster) / len(roster)
+            player_pow = 120.0  # sama vakio kuin LeagueSeason._team_power pelaajalle
+            ratio = enemy_pow / max(1.0, player_pow)
+            if ratio < 0.85:
+                threat = "Low - you outclass them"
+            elif ratio < 1.1:
+                threat = "Even - a real fight"
+            elif ratio < 1.35:
+                threat = "High - they have the edge"
+            else:
+                threat = "Severe - heavily favored"
+            lines.append(f"Threat: {threat}")
+
+        rep = getattr(enemy_team, "reputation", None)
+        if rep:
+            lines.append("")
+            lines.append(f'"{rep}"')
+        return lines
 
     # --- HALL OF FAME SUPPORT (TOP 10) ---
     def get_top_10_gladiators(self, player_roster=None):

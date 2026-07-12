@@ -179,9 +179,9 @@ class PrepareMenu(BaseMenu):
             elif is_selected:
                 draw_text("READY", font_small, GREEN, screen, cx + 230, cy + 35)
 
-            # Varusteet (Lyhyesti)
-            weapon = getattr(unit, "weapon", None)
-            w_name = weapon.name if weapon else "Fists"
+            # Varusteet (Lyhyesti) - ase on equipment["main_hand"], ei unit.weapon
+            weapon = unit.equipment.get("main_hand") if hasattr(unit, "equipment") else None
+            w_name = getattr(weapon, "name", None) or "Fists"
             draw_text(f"W: {w_name}", font_small, (150, 150, 100), screen, cx + 150, cy + 12)
 
         # --- RIGHT SIDE: ENEMY TEAM ---
@@ -207,10 +207,12 @@ class PrepareMenu(BaseMenu):
                 draw_text(f"Class: {u_class}", font_small, (200, 150, 150), screen, cx + 10, cy + 35)
                 
                 # Varusteet (Tärkeä! Pelaaja näkee mitä vihulla on)
-                weapon = getattr(unit, "weapon", None)
-                armor = getattr(unit, "armor", None)
-                w_name = weapon.name if weapon else "Unknown"
-                a_name = armor.name if armor else "None"
+                # Ase/panssari ovat equipmentissa, ei unit.weapon/unit.armor.
+                eq = getattr(unit, "equipment", {})
+                weapon = eq.get("main_hand")
+                armor = eq.get("body")
+                w_name = getattr(weapon, "name", None) or "Fists"
+                a_name = getattr(armor, "name", None) or "None"
                 
                 draw_text(f"Weapon: {w_name}", font_small, (200, 200, 100), screen, cx + 10, cy + 55)
                 draw_text(f"Armor: {a_name}", font_small, (180, 180, 200), screen, cx + 10, cy + 70)
