@@ -128,6 +128,14 @@ class Team:
             unit.unlocked_skills.add(f"armor_{req_a}")
             unit.unlocked_skills.add(f"prof_{req_a}")
 
+        # Kilvet vaativat "shield"-proficiencyn weapon_masteriesissa (ks.
+        # can_equip_item_to_slot). Kilvella on armor_group/type "shield",
+        # EI weapon_group, joten yllaoleva ei kata tata -> lisataan tassa.
+        # Ilman tata premade-tiimien kilvet EIVAT koskaan varustu.
+        if str(getattr(it, "type", "")).lower() == "shield" or req_a == "shield":
+            unit.weapon_masteries.add("shield")
+            unit.unlocked_skills.add("arm_shield")
+
         # Equip
         try:
             unit.equip_item(it)

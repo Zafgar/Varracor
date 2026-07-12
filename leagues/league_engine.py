@@ -75,12 +75,42 @@ def _safe_roster(team: object, size: int | None = None) -> List[object]:
     return []
 
 
+def _weapon_damage(u: object) -> float:
+    """Efektiivinen aseen vahinko (base + stat-skaalaus). Nyrkit ~3."""
+    try:
+        w = u.equipment.get("main_hand")
+        if w is not None and hasattr(w, "calculate_damage"):
+            stats = {"str": getattr(u, "strength", 10),
+                     "dex": getattr(u, "dexterity", 10),
+                     "int": getattr(u, "intelligence", 10)}
+            return float(w.calculate_damage(stats))
+    except Exception:
+        pass
+    return 3.0
+
+
+def _has_shield(u: object) -> bool:
+    try:
+        for it in getattr(u, "equipment", {}).values():
+            if it is not None and getattr(it, "armor_group", "") == "shield":
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def _unit_power(u: object) -> float:
-    if not u: return 0.0
+    """Yksikon voima. Level painaa eniten alussa (12/lvl), mutta gear
+    (aseen vahinko, panssari/defense, kilpi) vaikuttaa merkittavasti.
+    Nain liigasimulaatio ja tiedustelu heijastavat todellista vahvuutta."""
+    if not u:
+        return 0.0
     lvl = float(getattr(u, "level", 1) or 1)
     hp = float(getattr(u, "max_hp", 100) or 100)
-    st = float(getattr(u, "strength", 10) or 10)
-    return lvl * 15.0 + hp * 0.05 + st * 1.2
+    dmg = _weapon_damage(u)
+    dfn = float(getattr(u, "defense", 0) or 0)
+    shield = 8.0 if _has_shield(u) else 0.0
+    return lvl * 12.0 + hp * 0.06 + dmg * 1.6 + dfn * 2.0 + shield
 
 
 def _elo_expected(elo_a: float, elo_b: float) -> float:
@@ -530,7 +560,7 @@ class LeagueEngine:
         for s in self.seasons.values():
             s.tick_simulation(budget_ms, max_matches)
 
-    def get_scout_report(self, enemy_team) -> List[str]:
+    def get_scout_report(self, enemy_team, player_roster=None) -> List[str]:
         """Tiedusteluraportti: nayttaa tiimin todellisen identiteetin
         (tyyli, maine, kokoonpano) ja arvioi uhan pelaajan tehoon nahden."""
         if not enemy_team:
@@ -552,7 +582,12 @@ class LeagueEngine:
             lines.append(comp)
 
             enemy_pow = sum(_unit_power(u) for u in roster) / len(roster)
-            player_pow = 120.0  # sama vakio kuin LeagueSeason._team_power pelaajalle
+            # Pelaajan todellinen voima roosterista (jos annettu), muuten perustaso.
+            if player_roster:
+                pr = [u for u in player_roster if u]
+                player_pow = (sum(_unit_power(u) for u in pr) / len(pr)) if pr else 120.0
+            else:
+                player_pow = 120.0
             ratio = enemy_pow / max(1.0, player_pow)
             if ratio < 0.85:
                 threat = "Low - you outclass them"

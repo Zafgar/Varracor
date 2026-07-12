@@ -61,6 +61,14 @@ class LeagueMenu(BaseMenu):
         if self.selected_mode == "TOTAL": return None
         return self.manager.league_engine.get_next_opponent(self.selected_mode)
 
+    def _player_roster(self):
+        """Pelaajan taistelijat scout-uhka-arviota varten."""
+        roster = []
+        if getattr(self.manager, "player_character", None):
+            roster.append(self.manager.player_character)
+        roster.extend(list(self.manager.my_team))
+        return roster
+
     def handle_event(self, event):
         mouse_pos = pygame.mouse.get_pos()
         le = self.manager.league_engine
@@ -254,7 +262,7 @@ class LeagueMenu(BaseMenu):
             else:
                 enemy = self._effective_enemy()
                 if enemy:
-                    for i, line in enumerate(le.get_scout_report(enemy)):
+                    for i, line in enumerate(le.get_scout_report(enemy, self._player_roster())):
                         _dt(screen, line, sx2, sy2 + 40 + i*22, font_small, (200, 200, 200))
                     
                     self.btn_fight.check_hover(mouse_pos)
