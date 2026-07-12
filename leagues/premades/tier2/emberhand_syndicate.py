@@ -13,7 +13,8 @@ def create_team(tier):
         "in things the Collegium would frown upon.",
         [
             {"name": "Adept Lysa", "race": "Elf", "weapon": "staff",
-             "armor": "cloth", "int": 5, "lvl": 1, "skills": ["int_mana"]},
+             "armor": "cloth", "int": 5, "lvl": 1, "skills": ["int_mana"],
+             "spells": ["Firebolt", "Minor Heal"]},
             {"name": "Bost", "race": "Human", "weapon": "sword", "shield": True,
              "armor": "heavy"},
             {"name": "Karth", "race": "Human", "weapon": "sword", "shield": True},

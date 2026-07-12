@@ -136,6 +136,20 @@ def build_team(name, color, tier, style, reputation, roster, motto=""):
 
         u.calculate_final_stats()
         u.current_hp = u.max_hp
+
+        # Loitsut (Tier 2+): asetetaan calc:n JALKEEN, koska calc nollaa
+        # spell_slots/max_spell_tier skilleista.
+        spells = spec.get("spells")
+        if spells:
+            u.spell_slots_unlocked = set(range(1, min(len(spells), 3) + 1))
+            u.max_spell_tier = max(getattr(u, "max_spell_tier", 0), 1)
+            u.max_mana = max(getattr(u, "max_mana", 20), 45)
+            u.current_mana = u.max_mana
+            for i, sp in enumerate(spells[:3], start=1):
+                it = create_item(sp)
+                if it:
+                    u.equipment[f"spell{i}"] = it
+
         t.members.append(u)
     return t
 
