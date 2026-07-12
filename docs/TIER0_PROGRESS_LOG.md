@@ -13,86 +13,107 @@ Completed:
 - recorded NPC, quest, resource, creature, boss, graphics, VFX, audio,
   persistence and test requirements for every planned area;
 - added a persistent player-facing Tier 0 tracker inside `npc_state`;
-- migrated existing team registration, Forest Road, Whisper Marsh visits,
-  Survey Post stages, fishing readiness and mine-key facts into the tracker;
 - exposed Tier 0 advice, phase, objectives and development queue through
   `GameManager`;
-- added a command-line development report;
-- set `low_fields` as the next implementation focus.
-
-Previously completed foundations now represented honestly in the registry:
-
-- Muckford city and opening progression;
-- Forest Road combat tutorial;
-- Whisper Marsh procedural water and development;
-- level 1–5 marsh monster ecology and code-rendered graphics;
-- Old Muckford Mine partial foundation;
-- Rattlebridge partial city foundation.
+- added a command-line development report.
 
 ## 2026-07-12 — Muckford Low Fields playable batch
 
 Completed:
 
 - added a 3200 x 2200 freely traversable Low Fields map;
-- added a Muckford west gate, return spawn and a south-east foot route into
-  Whisper Marsh;
-- registered the Low Fields world-map node and both local travel routes;
-- kept entry open at every level while displaying the recommended Lv 1-3 risk;
-- added procedural crop fields, roads, fences, irrigation water, carts, bridges,
-  work markers, burrow mounds, drifting seeds, flies and low mist;
-- added Farmer Gus, Saint Lumen runner Lysa Reedrunner and three stable field
-  workers with local dialogue;
-- added the restoration chain: repair irrigation, defend the grain cart, seal
-  three Mud Mite burrows and build the lower footbridge;
-- added daily renewable Carrot, Potato, Onion, River Reed, Clay and Softwood
-  nodes that cannot be harvested repeatedly on the same world day;
-- added Mud Mites, Reed Skitters, Marsh Rats and a quest-specific grain-cart
-  attack using the existing Tier 0 AI ecology;
-- added persistent projects, burrows, quest counters, one-time supplies and
-  completion rewards inside the existing save-compatible `npc_state`;
-- added focused Low Fields tests and expanded the Muckford CI workflow;
-- validated the complete Muckford suite: 31 tests passed and `main.py` imported
-  successfully in the headless runner.
+- added Muckford and Whisper Marsh travel routes;
+- added generated fields, irrigation, fences, carts, bridges and field VFX;
+- added Farmer Gus, Lysa Reedrunner and three stable field workers;
+- added irrigation, grain-cart, burrow and footbridge restoration objectives;
+- added daily Carrot, Potato, Onion, River Reed, Clay and Softwood nodes;
+- added Mud Mites, Reed Skitters and Marsh Rats;
+- added persistent projects and focused tests.
 
-Still planned for Low Fields:
+Still planned:
 
-- The Burrow-Mother optional level 3 field boss;
-- dedicated field ambience and creature audio beyond the existing reusable
-  sound cues;
-- final painted replacement assets after gameplay tuning.
+- optional Burrow-Mother field boss;
+- dedicated field ambience and final painted replacement assets.
 
 ## 2026-07-12 — Whisper Marsh story, fishing and boss batch
 
 Completed:
 
-- added Surveyor Kessa Fenmark, Hamo's field contact Brik Sealrunner and named
-  ferryman Noll as persistent marsh NPCs;
-- replaced the random ferryman rescue with a save-backed named quest stage;
-- linked the full Survey Post chain to explicit story progression;
-- added three persistent Whisper Pool survey markers;
-- added separate Greywash Channel and Whisper Pool fish tables;
-- added a playable cast, bite, hook and line-tension fishing minigame without
-  requiring finished fishing art;
-- added persistent fish catches and first-catch progression;
-- created the code-rendered Whisper Pool Maw boss with a second phase that calls
-  three Mire-Lurker Spawn;
-- added boss rewards: 60 SP, 5 reputation and a Whisper Maw Scale;
-- integrated the minigame through the existing regional-state factory without
-  adding a fragile duplicate main-loop state;
-- hardened shared Whisper Marsh world-map metadata against import-order changes;
-- added focused story, fishing, factory, metadata and boss tests;
-- validated the expanded suite: 39 tests passed and `main.py` imported
-  successfully in the headless runner.
+- added Surveyor Kessa Fenmark, Brik Sealrunner and Ferryman Noll;
+- replaced the random ferryman event with a persistent named quest;
+- linked the Survey Post to explicit story progression;
+- added three Whisper Pool survey markers;
+- added Greywash Channel and Whisper Pool fish tables;
+- added cast, bite, hook and line-tension fishing gameplay;
+- added persistent catches and first-catch progression;
+- added the code-rendered two-phase Whisper Pool Maw boss;
+- validated the expanded suite with 39 passing tests.
 
-Still planned for Whisper Marsh:
+Still planned:
 
-- dedicated ambience, fishing sounds and voiced NPC lines;
-- final painted fish, NPC and Whisper Pool Maw assets after gameplay tuning.
+- dedicated ambience, fishing sounds, voiced lines and final painted assets.
 
-Next production focus — Drowned Chapel:
+## 2026-07-12 — Drowned Chapel playable batch
 
-1. Build the flooded chapel, graveyard, bell tower and quarantine camp map.
-2. Add Sister-Medic Rhea Ashford and rescueable pilgrims.
-3. Implement Water-risen enemies, disease pressure and holy field objectives.
-4. Add medicine-chest recovery, pilgrim rescue and tainted-water investigation.
-5. Implement The Bell-Drowned Pilgrim boss and persistent chapel recovery.
+Completed:
+
+- added a 3300 x 2200 flooded chapel, nave, graveyard, bell tower and quarantine
+  camp connected physically to Whisper Marsh;
+- kept the route open while displaying the Lv 3-5 danger warning;
+- added Sister-Medic Rhea Ashford, Brother Iven and three rescueable pilgrims;
+- added medicine-chest recovery, pilgrim rescue, three tainted-water samples and
+  three Saint Lumen ward braziers;
+- added persistent taint exposure and a safe quarantine brazier;
+- added daily Medicinal Herb, Grave-Lotus, Sanctified Wax and River Clay nodes;
+- added Water-risen Pilgrims, Flooded Acolytes and Bell Wraiths with generated
+  graphics and existing combat-AI integration;
+- added the two-phase Bell-Drowned Pilgrim, bell-wave attack and persistent
+  chapel recovery rewards;
+- validated the expanded suite with 47 passing tests.
+
+Still planned:
+
+- dedicated holy, bell and quarantine audio;
+- final painted chapel, NPC and monster assets.
+
+## 2026-07-12 — Old Muckford Mine restoration batch
+
+Completed:
+
+- retained Marda's debt-and-key gate and the existing mine road;
+- replaced the small cave interior at runtime with a 3800 x 2400 multi-chamber
+  mine containing entrance works, abandoned galleries, collapsed rails and the
+  Webbed Depths;
+- added Foreman Torra Flintvein and missing miners Durn Coalhand, Pell Rook and
+  Sava Brasspin with stable lore names and stage-aware dialogue;
+- added the restoration chain: light three Coal lanterns, rescue three miners,
+  clear three collapses with a pickaxe, destroy four egg sacs, defeat the Cave
+  Broodmother and restart the entrance winch;
+- added daily Iron Ore, Coal, Stone, Chipped Ruby and Silver Ore depletion and
+  respawn tracking;
+- added a permanent mine-road clear state and daily restored-mine production of
+  two Iron Ore and one Coal into Muckford city storage;
+- added Grave Pickmen, Rail Wraiths, Web Crawlers, Crystal Husks and Brood Guards
+  spanning levels 3-6 with generated animation sets and distinct AI roles;
+- replaced the old boss encounter with a level 7, 1080 HP three-phase Cave
+  Broodmother that summons Web Crawlers and Brood Guards, emits Web Bursts and
+  triggers cavern-collapse waves;
+- added dynamic player and lantern darkness, dust, collapse hazards, web gates,
+  mine supports, carts, rails and production machinery;
+- added boss and production rewards, deeds, Tier 0 events and save persistence;
+- validated compilation, the content report, `main.py` import and the complete
+  Muckford suite: 57 tests passed in the headless GitHub runner.
+
+Still planned for the mine:
+
+- dedicated mining, undead, web and collapse ambience;
+- final painted mine, miner and creature assets after gameplay tuning.
+
+Next production focus — Muckford Warrens:
+
+1. Build the sewer, food tunnels, collapsed cellars and Vortex-waste nest map.
+2. Add Hamo, Old Rinna Net and the missing Muckford Ratcatchers.
+3. Implement persistent food-cache recovery and nest destruction.
+4. Add violet-eyed rat swarms, Rat Riders and Waste Gnawers.
+5. Connect cleared warrens to reduced Muckford rat raids.
+6. Implement the Rat King as the main local Tier 0 crisis boss.
