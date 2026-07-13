@@ -40,6 +40,9 @@ from systems.greywash_ford_integration import (
 from systems.kingsreach_toll_integration import (
     install_kingsreach_toll_integration,
 )
+from systems.tier0_finale_integration import (
+    install_tier0_finale_integration,
+)
 
 # Outskirts, local areas, ecology, story and world tracking use idempotent
 # runtime wrappers plus pure registries. Install them eagerly so import order
@@ -54,6 +57,7 @@ install_old_muckford_mine_integration()
 install_muckford_warrens_integration()
 install_greywash_ford_integration()
 install_kingsreach_toll_integration()
+install_tier0_finale_integration()
 
 _INSTALLED = False
 
@@ -73,6 +77,7 @@ def install_muckford_opening_integration() -> None:
     install_muckford_warrens_integration()
     install_greywash_ford_integration()
     install_kingsreach_toll_integration()
+    install_tier0_finale_integration()
     if _INSTALLED:
         return
     from systems.muckford_opening_core import install_muckford_opening_core
