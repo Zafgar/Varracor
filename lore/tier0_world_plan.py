@@ -9,8 +9,8 @@ from __future__ import annotations
 from collections import OrderedDict
 
 
-PLAN_VERSION = 7
-CURRENT_FOCUS = "tier0_finale"
+PLAN_VERSION = 8
+CURRENT_FOCUS = "rattlebridge_handoff"
 
 VALID_STATES = {"live", "partial", "next", "planned", "blocked"}
 CONTENT_DOMAINS = (
@@ -392,17 +392,52 @@ TIER0_AREAS = OrderedDict({
         quest_chains=(
             "Return the Crown Promotion Docket to Bram",
             "Validate Rookie Dust standings and crisis service",
-            "Fight or confirm the promotion match",
+            "Fight the promotion match",
             "Receive Bram's recommendation",
             "Complete the Muckford farewell ceremony",
             "Open the professional Rattlebridge road",
         ),
-        resources=("Tier 1 Charter", "Bram's Recommendation", "Stamped Crown Travel Papers", "Sponsor Letter"),
+        resources=("Tier 1 Charter", "Bram's Recommendation", "Stamped Crown Travel Papers", "Sera Quench Sponsor Letter"),
         creatures=("promotion rival team", "ceremonial guards"),
         boss="Rookie Dust promotion rival",
-        graphics=("Bram ledger scene", "Shanty Yard ceremony", "crowd", "Tier 1 banner", "departure caravan"),
-        vfx=("crowd scraps", "torchlight", "league banner", "ledger stamp", "promotion confetti"),
-        systems=("promotion validation", "branch-aware finale", "Bram recommendation", "farewell state", "Rattlebridge unlock"),
+        graphics=("code-drawn Shanty Yard ceremony", "animated crowd", "Tier 1 banner", "torches", "departure confetti"),
+        vfx=("crowd movement", "torchlight", "league banner", "ledger stamp", "promotion confetti"),
+        systems=(
+            "five-part promotion validation",
+            "Bram docket dialogue",
+            "single-step league promotion",
+            "branch-aware Marda, Hamo and Sera farewell",
+            "idempotent charter and reward grant",
+            "Crown-paper and ceremony travel gate",
+            "Rattlebridge unlock",
+        ),
+        deliverables=dict(MOSTLY_LIVE),
+    ),
+    "rattlebridge_handoff": _area(
+        "Rattlebridge Handoff",
+        9,
+        (6, 10),
+        "End Tier 0 inside the professional Scrapring circuit and begin the Tier 1 city arc.",
+        ("bridge approach", "city gates", "canal districts", "Scrapring district"),
+        "tier1_gate",
+        ("kingsreach_toll",),
+        dependencies=("tier0_finale", "kingsreach_toll"),
+        physical_gate="Stamped Crown papers, Bram's recommendation, completed farewell ceremony and formal Arena Tier 1 promotion.",
+        npcs=("Sera Quench", "Rattlebridge gate officials", "Scrapring sponsors", "canal workers", "Tier 1 innkeeper"),
+        quest_chains=(
+            "Present the Tier 1 Charter at the bridge gate",
+            "Register the promoted team",
+            "Find Tier 1 lodging",
+            "Meet Sera Quench",
+            "Enter the Scrapring",
+            "Accept the first professional contract",
+        ),
+        resources=("professional contracts", "Tier 1 gear access", "bridge scrap", "canal materials"),
+        creatures=("bridge raiders", "canal vermin", "professional rival teams"),
+        boss="Future Scrapring promotion rival",
+        graphics=("Rattlebridge approach", "city gate inspection", "bridge districts", "canals", "Scrapring"),
+        vfx=("canal water", "industrial smoke", "bridge traffic", "steam", "forge sparks"),
+        systems=("Tier 1 registration", "sponsors", "professional economy", "lodging", "contracts", "Scrapring league"),
         deliverables={
             "area": "next",
             "npcs": "next",
@@ -416,39 +451,6 @@ TIER0_AREAS = OrderedDict({
             "audio": "planned",
             "persistence": "next",
             "tests": "next",
-        },
-    ),
-    "rattlebridge_handoff": _area(
-        "Rattlebridge Handoff",
-        9,
-        (6, 10),
-        "End Tier 0 inside the professional Scrapring circuit.",
-        ("bridge approach", "city gates", "Scrapring district"),
-        "tier1_gate",
-        ("kingsreach_toll",),
-        dependencies=("tier0_finale", "kingsreach_toll"),
-        physical_gate="Formal Arena Tier 1 promotion.",
-        npcs=("Sera Quench", "Rattlebridge officials", "Scrapring sponsors"),
-        quest_chains=("Register the promoted team", "Find Tier 1 lodging", "Enter the Scrapring"),
-        resources=("professional contracts", "Tier 1 gear access"),
-        creatures=("bridge raiders",),
-        boss="Future Scrapring promotion rival",
-        graphics=("Rattlebridge city foundation", "bridge districts", "Scrapring"),
-        vfx=("canal water", "industrial smoke", "bridge traffic"),
-        systems=("Tier 1 league", "sponsors", "professional economy"),
-        deliverables={
-            "area": "partial",
-            "npcs": "partial",
-            "quests": "partial",
-            "dialogue": "partial",
-            "resources": "partial",
-            "creatures": "planned",
-            "boss": "planned",
-            "graphics": "partial",
-            "vfx": "partial",
-            "audio": "planned",
-            "persistence": "partial",
-            "tests": "partial",
         },
     ),
 })
