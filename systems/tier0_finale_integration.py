@@ -230,6 +230,40 @@ def _patch_loot_screen() -> None:
     LootScreenMenu._tier0_finale_installed = True
 
 
+def _patch_world_travel() -> None:
+    import systems.world_progression as world_progression
+
+    current = world_progression.location_status
+    if getattr(current, "_tier0_finale_wrapper", False):
+        return
+
+    def location_status(manager, location_id):
+        result = current(manager, location_id)
+        if str(location_id) != "rattlebridge":
+            return result
+        state = ensure_finale_state(manager)
+        flags = (
+            getattr(manager, "npc_state", {})
+            .get("tier0_world", {})
+            .get("story_flags", {})
+        )
+        inventory = getattr(manager, "inventory", {})
+        missing = []
+        if not flags.get("tier1_promoted"):
+            missing.append("formal Arena Tier 1 promotion")
+        if int(inventory.get("Stamped Crown Travel Papers", 0)) <= 0:
+            missing.append("Stamped Crown Travel Papers")
+        if not state.get("ceremony_complete"):
+            missing.append("Bram's Shanty Yard farewell and recommendation")
+        if missing:
+            result["can_travel"] = False
+            result["reason"] = "Rattlebridge professional gate requires " + ", ".join(missing) + "."
+        return result
+
+    location_status._tier0_finale_wrapper = True
+    world_progression.location_status = location_status
+
+
 def install_tier0_finale_integration() -> None:
     global _INSTALLED
     # Bram may be wrapped later by the opening integration, so every call checks
@@ -238,4 +272,5 @@ def install_tier0_finale_integration() -> None:
     _patch_bram_dialogue()
     _patch_league_menu()
     _patch_loot_screen()
+    _patch_world_travel()
     _INSTALLED = True
