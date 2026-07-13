@@ -28,13 +28,21 @@ POINTS_PER_WIN: Dict[str, int] = {
     "5v5": 6,
 }
 
-# --- CONFIG: VAADITUT PELIT ---
-# Pidä nämä pieninä testauksen ajan (esim. 2).
+# --- CONFIG: VAADITUT PELIT PER KAUSI ---
+# Kausi on KIERROSPOHJAINEN, ei sidottu kalenteripäiviin: kello tikittää
+# vapaasti (fast travel, lepo...) eikä pelaajan tarvitse odottaa päivän
+# vaihtumista - seuraava kierros on aina pelattavissa heti. Promo on aina
+# 5v5, ja 5v5-voitot antavat eniten Grand Slam -pisteitä (ks. POINTS_PER_WIN).
+# Tavoitetahti: uusi tiimi nousee tierin ~3-4 kauden työllä (vaikeus, ei
+# keinotekoinen portti, hoitaa hidastuksen).
 REQ_GAMES: Dict[str, int] = {
-    "1v1": 2,
-    "3v3": 2,
-    "5v5": 2,
+    "1v1": 6,
+    "3v3": 5,
+    "5v5": 5,
 }
+
+# Promotion-finaali pelataan aina täydellä joukkueella.
+PROMOTION_BATTLE_SIZE = 5
 
 # --- SEASON CYCLES ---
 SEASON_THEMES = ["Spring", "Summer", "Autumn", "Winter"]
@@ -166,10 +174,12 @@ class LeagueSeason:
         return team_id
 
     def get_standings_sorted(self) -> List[TeamRecord]:
-        recs = list(self.records.values())
-        recs.sort(key=lambda r: (r.points, r.elo, r.wins, -r.losses), reverse=True)
+        # Taustamatsit ratkaistaan ENNEN lajittelua - muuten palautettu
+        # järjestys on kierroksen jäljessä (vanha bugi).
         if AUTO_RESOLVE_ON_QUERY and self._pending_matches:
             self.resolve_pending(max_matches=9999)
+        recs = list(self.records.values())
+        recs.sort(key=lambda r: (r.points, r.elo, r.wins, -r.losses), reverse=True)
         return recs
 
     def _sorted_team_ids(self) -> List[str]:

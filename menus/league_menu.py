@@ -124,9 +124,10 @@ class LeagueMenu(BaseMenu):
             if self.btn_promote.is_clicked(event):
                 sound_system.play_sound("click")
                 self.manager.mode = "League"
+                from leagues.league_engine import PROMOTION_BATTLE_SIZE
                 self.manager.match_mode = "PROMOTION"
                 self.manager.current_enemy_team = opp_team
-                self.manager.battle_size = 5
+                self.manager.battle_size = PROMOTION_BATTLE_SIZE  # promo on aina 5v5
                 self.next_state = "prepare"
                 return
 
@@ -281,7 +282,9 @@ class LeagueMenu(BaseMenu):
             
             # --- UUSI TARKISTUS: ONKO VALMIS? ---
             if le.is_mode_complete(self.selected_mode):
-                _dt(screen, "Mode Complete! (2/2)", sx2, sy2 + 40, font_main, GREEN)
+                from leagues.league_engine import REQ_GAMES
+                req = REQ_GAMES.get(self.selected_mode, 0)
+                _dt(screen, f"Mode Complete! ({req}/{req})", sx2, sy2 + 40, font_main, GREEN)
                 _dt(screen, "Select another mode.", sx2, sy2 + 70, font_small, WHITE)
             else:
                 enemy = self._effective_enemy()

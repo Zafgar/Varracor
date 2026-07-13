@@ -1281,6 +1281,12 @@ class GameManager:
                     enemy_units=list(self.enemy_team),
                 )
             except Exception: pass
+            # Muiden parien taustamatsit ratkaistaan heti pelaajan matsin
+            # päätteeksi (sama kierros etenee kaikilla samaan aikaan).
+            try:
+                self.league_engine.get_standings(self.match_mode)
+            except Exception:
+                pass
 
             # Rattlebridge sponsors settle on every Tier 1 league match.
             if getattr(self, "current_arena_location", None) == "rattlebridge":
