@@ -103,6 +103,13 @@ tiedostot kuuluu pudottaa.
 - **Talouslore**: lore/world_data.py ECONOMY (valuutat SP/GP/PL/HC 100x-
   kertoimin, elinkustannukset, alueviennit, sponsorit/palkkiot/Oath of Debt).
 
+- **Mudwater Pond + kalastus** — koodipiirretty vesi (assets/tiles/water.py:
+  WaterBody = välimuistitettu pohja + animoidut aallot/kimallus/väreet,
+  carve_pond upottaa areenaan ja jättää laiturikaistan auki). Kalastus
+  systems/fishing.py: FishingSession (WAITING→BITE→hook), 5 suokalaa
+  MARKET_PRICES-myyntiin, vapa Kradilta, Angler-skillit Commander-puussa,
+  Mudwater Fish Stew -resepti keittiössä. E laiturilla = heitto/tartutus,
+  liike keskeyttää.
 - **Kaivosluola** (mine_cave_*.py) — kaivostien perältä (E suuaukolla, tie
   raivattava ensin). Pimeys + soihtuvalo pelaajan ympärillä, 8 rautaa,
   4 hiiltä, 2 rubiinisuonta, vahvistetut epäkuolleet leashilla (heräävät

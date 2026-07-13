@@ -308,9 +308,10 @@ class Commander(Gladiator):
         self.harvest_quality = 0.0
         self.husbandry = 0
         self.haggler = 0
+        self.fishing = 0
 
         _LIFE_INT_EFFECTS = ("mining_yield", "wood_yield", "harvest_yield",
-                             "husbandry", "haggler")
+                             "husbandry", "haggler", "fishing")
         _LIFE_FLOAT_EFFECTS = ("mining_speed", "chop_speed", "harvest_quality")
 
         for s_id in self.unlocked_skills:

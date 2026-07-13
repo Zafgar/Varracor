@@ -26,6 +26,8 @@ from crafting.swamp.scrap_pile import ScrapPile
 from quest_system import quest_manager
 from ai.life_ai import DIALOGUE_TOPICS
 from citys.mucford.market_stalls import MarketStall, build_market_row
+from assets.tiles.water import WaterBody
+from systems import fishing as fishing_system
 
 class MuckfordCityMenu(BaseMenu):
     def __init__(self, manager):
@@ -107,6 +109,12 @@ class MuckfordCityMenu(BaseMenu):
             self.arena.width // 2 - 50, 1150, spacing=270)
         for stall in self.market_stalls:
             self.arena.props.append(stall)
+
+        # --- KALASTUS (Mudwater Pond) ---
+        self.fishing_session = None
+        self.fishing_flash = 0     # "!"-huomio nykäisyn ajan
+        self._pond_water = next((p for p in self.arena.floor_props
+                                 if isinstance(p, WaterBody)), None)
 
         # --- RAT RAID -JÄRJESTELMÄ ---
         # Rat King lähettää parvia kylään kunnes hänet kukistetaan (quest hunt_01)
@@ -667,6 +675,49 @@ class MuckfordCityMenu(BaseMenu):
                 return
 
             if event.key == pygame.K_e:
+                # --- KALASTUS: kesken sessio -> E = tartutus ---
+                if self.fishing_session:
+                    fish = self.fishing_session.hook()
+                    spot = getattr(self.arena, "fishing_spot", None)
+                    if fish:
+                        self.manager.add_material(fish["name"], 1)
+                        self.manager.vfx.show_damage(
+                            self.player.rect.centerx, self.player.rect.top - 30,
+                            f"+1 {fish['name']}!", color=(150, 220, 255))
+                        self.manager.grant_hero_xp(3, self.player.rect.centerx,
+                                                   self.player.rect.top)
+                        sound_system.play_sound('coin')
+                        if self._pond_water and spot:
+                            self._pond_water.splash(*spot)
+                    else:
+                        self.manager.vfx.show_damage(
+                            self.player.rect.centerx, self.player.rect.top - 30,
+                            "Too early - it slipped away...", color=(200, 200, 200))
+                        sound_system.play_sound('error')
+                    self.fishing_flash = 0
+                    return
+
+                # --- KALASTUS: laiturilla E aloittaa ---
+                spot = getattr(self.arena, "fishing_spot", None)
+                if spot and math.hypot(self.player.rect.centerx - spot[0],
+                                       self.player.rect.centery - spot[1]) < 170:
+                    if fishing_system.has_rod(self.manager):
+                        skill = fishing_system.fishing_skill(self.player)
+                        self.fishing_session = fishing_system.FishingSession(skill)
+                        self.manager.vfx.show_damage(
+                            self.player.rect.centerx, self.player.rect.top - 30,
+                            "Cast... wait for the bite.", color=(150, 220, 255))
+                        sound_system.play_sound('click')
+                        if self._pond_water:
+                            self._pond_water.splash(*spot)
+                    else:
+                        self.manager.vfx.show_damage(
+                            self.player.rect.centerx, self.player.rect.top - 30,
+                            "Need a Fishing Rod (Krad's Oddments sells them).",
+                            color=(200, 120, 120))
+                        sound_system.play_sound('error')
+                    return
+
                 # Shanty Yard -portti -> liigavalikko
                 gate = getattr(self, "arena_gate", None)
                 if gate:
@@ -878,6 +929,13 @@ class MuckfordCityMenu(BaseMenu):
             if keys[pygame.K_d]: dx = speed
         
         if dx != 0 or dy != 0:
+            # Liikkuminen keskeyttää kalastuksen
+            if self.fishing_session:
+                self.fishing_session = None
+                self.fishing_flash = 0
+                self.manager.vfx.show_damage(
+                    self.player.rect.centerx, self.player.rect.top - 30,
+                    "Reeled in.", color=(180, 180, 180))
             self.player.animation_state = "run"
             self.player.facing_right = (dx > 0) if dx != 0 else self.player.facing_right
             
@@ -926,6 +984,23 @@ class MuckfordCityMenu(BaseMenu):
 
         # Munien kuoriutuminen poikasiksi
         self._update_eggs()
+
+        # --- KALASTUSSESSION ETENEMINEN ---
+        if self.fishing_session:
+            event_name = self.fishing_session.update()
+            if event_name == "bite":
+                self.fishing_flash = self.fishing_session.timer
+                sound_system.play_sound('click')
+                spot = getattr(self.arena, "fishing_spot", None)
+                if self._pond_water and spot:
+                    self._pond_water.splash(*spot)
+            elif event_name == "escaped":
+                self.fishing_flash = 0
+                self.manager.vfx.show_damage(
+                    self.player.rect.centerx, self.player.rect.top - 30,
+                    "It got away...", color=(200, 200, 200))
+        if self.fishing_flash > 0:
+            self.fishing_flash -= 1
 
         # Maailmankello ja sää etenevät kaupungissa
         if not self.manager.world_paused:
@@ -1388,6 +1463,39 @@ class MuckfordCityMenu(BaseMenu):
             dist = math.hypot(self.player.rect.centerx - door_x, self.player.rect.bottom - door_y)
             if dist < 100:
                 self.manager._draw_floating_prompt(screen, door_x, door_y - 40, "E", offset, "Enter Smithy")
+
+        # Kalastus: koho vedessä + prompt laiturilla
+        spot = getattr(self.arena, "fishing_spot", None)
+        if spot:
+            if self.fishing_session:
+                # Koho keinuu; nykäisyssä painuu pinnan alle + "!"
+                t = pygame.time.get_ticks() * 0.004
+                bob_y = spot[1] + math.sin(t) * 3
+                biting = self.fishing_session.state == "BITE"
+                if biting:
+                    bob_y += 7
+                bx = spot[0] - offset[0]
+                by = int(bob_y - offset[1])
+                pygame.draw.line(screen, (230, 230, 235),
+                                 (self.player.rect.centerx - offset[0],
+                                  self.player.rect.centery - 18 - offset[1]),
+                                 (bx, by - 4), 1)
+                pygame.draw.circle(screen, (210, 60, 50), (bx, by), 5)
+                pygame.draw.circle(screen, (235, 235, 235), (bx, by - 3), 3)
+                if biting:
+                    flash = (pygame.time.get_ticks() // 120) % 2 == 0
+                    if flash:
+                        draw_text("!", font_title, (255, 210, 80), screen,
+                                  bx - 6, by - 58)
+                    self.manager._draw_floating_prompt(
+                        screen, self.player.rect.centerx,
+                        self.player.rect.top - 26, "E", offset, "HOOK IT!")
+            elif math.hypot(self.player.rect.centerx - spot[0],
+                            self.player.rect.centery - spot[1]) < 170:
+                label = "Fish" if fishing_system.has_rod(self.manager) \
+                    else "Fish (need rod)"
+                self.manager._draw_floating_prompt(
+                    screen, spot[0], spot[1] - 36, "E", offset, label)
 
         # NPC Prompts (Chat)
         for npc in self.npcs:

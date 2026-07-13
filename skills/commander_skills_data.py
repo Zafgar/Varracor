@@ -86,6 +86,27 @@ COMMANDER_SKILL_TREE = {
         "effects": {"husbandry": 1, "dex": 1}
     },
 
+    # --- ANGLER BRANCH (Far Left, husbandryn yläpuoli) ---
+    # systems/fishing.py: -15 % odotus & +ikkuna / taso, harvinaiset kalat
+    "fishing_1": {
+        "name": "Angler",
+        "desc": "Patient hands: fish bite sooner and the hook window is longer.",
+        "pos": (-320, -120),
+        "cost": 1,
+        "min_level": 1,
+        "requires": ["husbandry_1"],
+        "effects": {"fishing": 1}
+    },
+    "fishing_2": {
+        "name": "Marsh Angler",
+        "desc": "You read the water: rare fish take the bait far more often.",
+        "pos": (-320, -220),
+        "cost": 2,
+        "min_level": 3,
+        "requires": ["fishing_1"],
+        "effects": {"fishing": 1, "dex": 1}
+    },
+
     # --- TRADE BRANCH (Far Right) ---
     # Vaikuttaa market-alueen liikkeiden hintoihin (systems/faction_reputation).
     "trade_1": {

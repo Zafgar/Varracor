@@ -164,11 +164,22 @@ def _tool(item):
     return s
 
 
+def _fishing_rod(item):
+    s = _surface(16, 52)
+    a = _accent(item)
+    pygame.draw.line(s, _WOOD, (3, 50), (12, 4), 3)
+    pygame.draw.line(s, (200, 200, 205), (12, 4), (14, 26), 1)
+    pygame.draw.arc(s, (185, 185, 192), (11, 24, 6, 6), 3.0, 6.0, 1)
+    pygame.draw.rect(s, a, (4, 42, 5, 3))
+    return s
+
+
 _BY_GROUP = {
     "sword": _sword, "dagger": _dagger, "axe": _axe, "mace": _mace,
     "spear": _spear, "bow": _bow, "crossbow": _crossbow, "staff": _staff,
     "book": _book, "shield": _shield, "pickaxe": _tool, "lumber_axe": _tool,
     "harvest_tool": _tool, "instrument": _book, "lute": _book,
+    "fishing_rod": _fishing_rod,
 }
 
 

@@ -118,6 +118,13 @@ MEAL_RECIPES = {
         "heal_pct": 1.0,
         "clear_injuries": True,
     },
+    "Mudwater Fish Stew": {
+        "ingredients": {"Mudfin": 2, "Bogwort": 1, "Onion": 1},
+        "description": "+15 max stamina and +1 DEF for 2 battles.",
+        "remaining_battles": 2,
+        "effects": {"max_stamina": 15, "defense": 1},
+        "heal_pct": 0.25,
+    },
     "Prime Guild Feast": {
         "ingredients": {"Quality Produce": 3, "Milk": 1, "Egg": 2},
         "description": "+2 STR, DEX and INT for 3 battles.",

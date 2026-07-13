@@ -3,15 +3,15 @@
 Generoitu komennolla `python tools/asset_scan.py` — aja uudelleen
 aina kun lisäät tiedostoja, niin lista pysyy ajan tasalla.
 
-- Koodissa viitattuja tiedostoja: **196**
+- Koodissa viitattuja tiedostoja: **197**
 - Löytyy levyltä: **0**
-- Puuttuu: **196**
+- Puuttuu: **197**
 
 Laita tiedosto täsmälleen alla olevaan polkuun (suhteessa pelin
 juurikansioon), niin peli löytää sen automaattisesti — koodia ei
 tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 
-## assets/gear/ (44 kpl)
+## assets/gear/ (45 kpl)
 
 | Tiedosto | Tyyppi | Käytetään tiedostossa |
 |---|---|---|
@@ -53,6 +53,7 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/gear/tools/bucket_milk.png` | kuva | items/tools/bucket.py, units/villager.py |
 | `assets/gear/tools/bucket_water.png` | kuva | items/tools/bucket.py, units/villager.py |
 | `assets/gear/tools/crude_harvest_sickle.png` | kuva | items/tools/harvest_tools.py |
+| `assets/gear/tools/fishing_rod.png` | kuva | items/tools/fishing_rod.py |
 | `assets/gear/tools/guild_harvest_scythe.png` | kuva | items/tools/harvest_tools.py |
 | `assets/gear/tools/iron_harvest_sickle.png` | kuva | items/tools/harvest_tools.py |
 | `assets/gear/tools/lute.png` | kuva | items/tools/bard_instrument.py |

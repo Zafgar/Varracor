@@ -194,6 +194,15 @@ class Arena:
             by = random.randint(street_top, street_bottom)
             self._add_prop(ScrapBarrel(bx, by))
 
+        # 5. MUDWATER POND (metsäaukiolla, kaakko)
+        # Koodipiirretty suolampi laitureineen - kalastuspaikka. carve_pond
+        # siivoaa alle jääneet puut ja lisää kulkuesteet (laituri jää auki).
+        from assets.tiles.water import carve_pond
+        pond_w, pond_h = 760, 460
+        pond_x = forest_x + forest_w // 2 - pond_w // 2
+        pond_y = forest_y + forest_h // 2 - pond_h // 2 + 60
+        carve_pond(self, (pond_x, pond_y, pond_w, pond_h), seed=17)
+
     def _generate_block(self, x1, y1, x2, y2):
         """Generoi taloja tiheään rypäkseen, jättäen kujia."""
         # Päivitetty vastaamaan uusia isompia taloja (480x280 - 640x400)
