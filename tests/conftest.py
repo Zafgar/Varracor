@@ -102,6 +102,37 @@ def _isolate_world_map(request):
         _set_routes(ambient_routes)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_quest_manager():
+    """Eristaa globaalin quest_manager-singletonin testien valilta.
+
+    quest_system.quest_manager on moduulitason singleton, jonka questien tila
+    (status/is_finished/progress) ja maine vuotivat testista toiseen. Esim.
+    Rat King -questin (hunt_01) valmistuminen jossain testissa esti raidien
+    alkamisen kaikissa myohemmissa testeissa (_rat_king_defeated lukee
+    globaalia). Snapshot ennen testia, palautus sen jalkeen."""
+    try:
+        from quest_system import quest_manager as qm
+    except Exception:
+        qm = None
+    if qm is None:
+        yield
+        return
+    snapshot = {
+        qid: (q.status, q.is_finished, q.progress)
+        for qid, q in qm.quests.items()
+    }
+    reputation = qm.reputation
+    yield
+    qm.reputation = reputation
+    for qid, (status, finished, progress) in snapshot.items():
+        q = qm.quests.get(qid)
+        if q is not None:
+            q.status = status
+            q.is_finished = finished
+            q.progress = progress
+
+
 @pytest.fixture(scope="session", autouse=True)
 def pygame_headless():
     pygame.init()

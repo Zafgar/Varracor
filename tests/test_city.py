@@ -342,18 +342,21 @@ def test_monster_loot_keys(manager):
 
 
 def test_forest_excursion_forage_and_exit(manager):
-    """Metsäretki: foragointi antaa Bogwortia ja pohjoisreuna palauttaa kaupunkiin."""
+    """Whisper Marsh -retki: Bogwort-node kerätään ja pohjoisreuna palauttaa
+    kaupunkiin. (Vanha herbs-lista korvautui MarshResourceNode-keräyksellä.)"""
     from citys.mucford.forest_excursion import ForestExcursionMenu
     fe = ForestExcursionMenu(manager)
     fe.on_enter()
     assert len(fe.monsters) > 0
-    assert len(fe.arena.herbs) > 0
+    bogworts = [n for n in fe.arena.resources
+                if n.resource_name == "Bogwort" and not n.harvested]
+    assert bogworts, "suolla pitäisi kasvaa Bogwortia"
 
-    herb = fe.arena.herbs[0]
-    manager.player_character.rect.center = herb.rect.center
-    fe._try_forage()
-    assert manager.inventory.get("Bogwort", 0) == 1
-    assert herb.harvested
+    node = bogworts[0]
+    manager.player_character.rect.center = node.rect.center
+    assert fe._try_gather() is True
+    assert manager.inventory.get("Bogwort", 0) >= 1
+    assert node.harvested
 
     # Pohjoisreuna palauttaa kaupunkiin
     manager.player_character.rect.top = 5
