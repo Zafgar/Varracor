@@ -233,6 +233,20 @@ def _patch_loot_screen() -> None:
 def _patch_world_travel() -> None:
     import systems.world_progression as world_progression
 
+    # Local Muckford integrations append routes and locations at runtime. Tests,
+    # hot reloads and older saves may temporarily retain a route whose local
+    # destination has not been restored to LOCATIONS yet. Treat that route as
+    # unrevealable instead of crashing the complete world refresh.
+    reveal_current = world_progression._route_reveal_allowed
+    if not getattr(reveal_current, "_runtime_location_safe", False):
+        def safe_route_reveal_allowed(manager, destination_id):
+            if str(destination_id) not in world_progression.LOCATIONS:
+                return False
+            return reveal_current(manager, destination_id)
+
+        safe_route_reveal_allowed._runtime_location_safe = True
+        world_progression._route_reveal_allowed = safe_route_reveal_allowed
+
     current = world_progression.location_status
     if getattr(current, "_tier0_finale_wrapper", False):
         return
