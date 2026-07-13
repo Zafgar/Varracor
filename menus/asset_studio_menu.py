@@ -31,7 +31,7 @@ from ui_kit import UIButton, draw_text, font_main, font_small, font_title
 
 ROW_H = 26
 FILTERS = ("ALL", "MISSING", "image", "sound", "music")
-TABS = ("ASSETS", "UNITS", "PROPS")
+TABS = ("ASSETS", "UNITS", "PROPS", "VFX")
 EQUIP_SLOTS = ("main_hand", "off_hand", "head", "body")
 SLOT_LABELS = {"main_hand": "WEAPON", "off_hand": "OFF-HAND",
                "head": "HELMET", "body": "ARMOR"}
@@ -131,6 +131,19 @@ class AssetStudioMenu(BaseMenu):
         self.pen_walk_dir = 1
         self.equip_lists = asset_studio.equipable_items()
         self.equip_index = {slot: -1 for slot in EQUIP_SLOTS}  # -1 = ei mitään
+        self.sprite_set = []          # valitun yksikön animaatioslotit
+        self.selected_sprite_row = None
+
+        # --- VFX ---
+        self.vfx_catalog = asset_studio.vfx_catalog()
+        self.vfx_scroll = 0
+        self.selected_vfx = None      # (nimi, laukaisin)
+        self.vfx_world = _StudioWorld()
+        self.vfx_anchor = None        # maailmapiste (prop-origo = 0,0)
+        self.vfx_loop = False
+        self.vfx_loop_timer = 0
+        self.vfx_backdrop_idx = -1    # -1 = ei taustapropia
+        self._vfx_backdrop = None
 
         # --- PROPS ---
         self.prop_classes = asset_studio.editable_prop_classes()
@@ -171,6 +184,17 @@ class AssetStudioMenu(BaseMenu):
         self.btn_chop = UIButton(bx, by, 140, 48, "CHOP", None, (200, 140, 80))
         self.btn_shake = UIButton(bx + 150, by, 140, 48, "SHAKE", None, (140, 190, 110))
         self.btn_variant = UIButton(bx + 300, by, 150, 48, "VARIANT", None, GRAY)
+
+        # VFX-toimintonapit
+        self.btn_fire = UIButton(bx, by, 130, 48, "FIRE", None, (210, 130, 80))
+        self.btn_loop = UIButton(bx + 140, by, 130, 48, "LOOP", None, (120, 170, 230))
+        self.btn_backdrop_prev = UIButton(bx + 280, by, 60, 48, "<", None, GRAY)
+        self.btn_backdrop_next = UIButton(bx + 350, by, 60, 48, ">", None, GRAY)
+
+        # UNITS-jaettu vasen palsta: yksiköt / spritesarja / inbox
+        self.unit_list_rect = pygame.Rect(40, 190, 700, 300)
+        self.sprite_panel_rect = pygame.Rect(40, 502, 700, 250)
+        self.unit_inbox_rect = pygame.Rect(40, 764, 700, 186)
 
     # ================================================================ helpers
     def _note(self, text):
@@ -227,6 +251,33 @@ class AssetStudioMenu(BaseMenu):
         self.pen_label = label
         self.pen_walking = False
         self.equip_index = {slot: -1 for slot in EQUIP_SLOTS}
+        self.sprite_set = asset_studio.unit_sprite_set(label)
+        self.selected_sprite_row = None
+
+    def _set_pen_state(self, action):
+        """Vaihda esikatteluyksikön animaatiotila (idle/run/attack/...)."""
+        u = self.pen_unit
+        if not u:
+            return
+        if action == "death":
+            u.is_dead = not getattr(u, "is_dead", False)
+            u._death_timer = 0
+            renderer = getattr(u, "renderer", None)
+            if renderer is not None:
+                renderer._dead_cache = None
+            return
+        u.is_dead = False
+        u.animation_state = action
+        if action == "attack":
+            u.attack_cooldown = getattr(u, "attack_speed", 60)
+            u.attack_vector = (10 if u.facing_right else -10, 0)
+        sprites = getattr(u, "sprites", {}) or {}
+        if action in sprites and not isinstance(sprites[action], dict):
+            img = sprites[action]
+            if isinstance(img, list):
+                img = img[0] if img else None
+            if img is not None:
+                u.image = img
 
     def _cycle_equip(self, slot, step):
         if not self.pen_unit:
@@ -321,11 +372,16 @@ class AssetStudioMenu(BaseMenu):
 
         if event.type == pygame.MOUSEWHEEL:
             mx, my = pygame.mouse.get_pos()
-            if self.list_rect.collidepoint(mx, my):
+            if self.tab == "UNITS":
+                if self.unit_list_rect.collidepoint(mx, my):
+                    self.unit_scroll = max(0, self.unit_scroll - event.y * 3)
+                elif self.unit_inbox_rect.collidepoint(mx, my):
+                    self.inbox_scroll = max(0, self.inbox_scroll - event.y * 3)
+            elif self.list_rect.collidepoint(mx, my):
                 if self.tab == "ASSETS":
                     self.scroll = max(0, self.scroll - event.y * 3)
-                elif self.tab == "UNITS":
-                    self.unit_scroll = max(0, self.unit_scroll - event.y * 3)
+                elif self.tab == "VFX":
+                    self.vfx_scroll = max(0, self.vfx_scroll - event.y * 3)
                 else:
                     self.prop_scroll = max(0, self.prop_scroll - event.y * 3)
             elif self.inbox_rect.collidepoint(mx, my) and self.tab == "ASSETS":
@@ -353,6 +409,8 @@ class AssetStudioMenu(BaseMenu):
             self._handle_assets_click(event, mx, my)
         elif self.tab == "UNITS":
             self._handle_units_click(event, mx, my)
+        elif self.tab == "VFX":
+            self._handle_vfx_click(event, mx, my)
         else:
             self._handle_props_click(event, mx, my)
 
@@ -404,11 +462,48 @@ class AssetStudioMenu(BaseMenu):
                 self._note("Select an existing sound/music file.")
 
     def _handle_units_click(self, event, mx, my):
-        if self.list_rect.collidepoint(mx, my):
-            idx = self.unit_scroll + (my - self.list_rect.y) // ROW_H
+        if self.unit_list_rect.collidepoint(mx, my):
+            idx = self.unit_scroll + (my - self.unit_list_rect.y) // ROW_H
             if 0 <= idx < len(self.unit_factories):
                 self._spawn_pen_unit(*self.unit_factories[idx])
             return
+        # Spritesarja: rivin valinta + ASSIGN inbox-tiedostosta
+        sp = self.sprite_panel_rect
+        if sp.collidepoint(mx, my):
+            assign_rect = pygame.Rect(sp.right - 220, sp.bottom - 46, 200, 36)
+            if assign_rect.collidepoint(mx, my):
+                if self.selected_sprite_row is None or not self.selected_inbox:
+                    self._note("Pick an animation row AND an inbox file.")
+                    sound_system.play_sound("error")
+                    return
+                row = self.sprite_set[self.selected_sprite_row]
+                ok, msg = asset_studio.assign_asset(self.selected_inbox,
+                                                    row["path"])
+                self._note(msg)
+                sound_system.play_sound("coin" if ok else "error")
+                if ok:
+                    # Lataa yksikkö uudelleen jotta uusi sprite näkyy heti
+                    label = self.pen_label
+                    factory = dict(self.unit_factories).get(label)
+                    self.inbox = asset_studio.list_inbox()
+                    if factory:
+                        self._spawn_pen_unit(label, factory)
+                return
+            idx = (my - sp.y - 40) // ROW_H
+            if 0 <= idx < len(self.sprite_set):
+                self.selected_sprite_row = idx
+            return
+        if self.unit_inbox_rect.collidepoint(mx, my):
+            idx = self.inbox_scroll + (my - self.unit_inbox_rect.y - 34) // ROW_H
+            if 0 <= idx < len(self.inbox):
+                self.selected_inbox = self.inbox[idx]["name"]
+            return
+        # Tilanapit (idle/run/attack/... /death)
+        for rect, action in getattr(self, "_state_chip_rects", []):
+            if rect.collidepoint(mx, my):
+                self._set_pen_state(action)
+                sound_system.play_sound("click")
+                return
         # Varusterivit: < nimi > -nuolet
         if self.pen_unit and hasattr(self.pen_unit, "equipment"):
             ex = self.pen_rect.x + 20
@@ -486,6 +581,58 @@ class AssetStudioMenu(BaseMenu):
             self._note(f"Variant {self._prop_variant}")
             return
 
+    # ---------------------------------------------------------------- vfx
+    def _vfx_offset(self):
+        """Offset jolla maailmapiste (0,0) osuu VFX-penkin keskelle."""
+        return (-(self.pen_rect.centerx), -(self.pen_rect.centery + 60))
+
+    def _set_vfx_backdrop(self, step):
+        self.vfx_backdrop_idx = max(-1, min(len(self.prop_classes) - 1,
+                                            self.vfx_backdrop_idx + step))
+        self._vfx_backdrop = None
+        if self.vfx_backdrop_idx >= 0:
+            _name, cls = self.prop_classes[self.vfx_backdrop_idx]
+            try:
+                self._vfx_backdrop = cls(0, 0)
+            except Exception:
+                self._vfx_backdrop = None
+
+    def _fire_vfx(self):
+        if not self.selected_vfx or not self.vfx_anchor:
+            self._note("Pick an effect and click a spot in the pen.")
+            return
+        name, trigger = self.selected_vfx
+        try:
+            trigger(self.vfx_world.vfx, *self.vfx_anchor)
+        except Exception as exc:
+            self._note(f"{name} failed: {exc}")
+
+    def _handle_vfx_click(self, event, mx, my):
+        if self.list_rect.collidepoint(mx, my):
+            idx = self.vfx_scroll + (my - self.list_rect.y) // ROW_H
+            if 0 <= idx < len(self.vfx_catalog):
+                self.selected_vfx = self.vfx_catalog[idx]
+            return
+        if self.btn_fire.is_clicked(event):
+            self._fire_vfx()
+            return
+        if self.btn_loop.is_clicked(event):
+            self.vfx_loop = not self.vfx_loop
+            self._note("Loop " + ("ON (fires every 0.5 s)" if self.vfx_loop
+                                  else "OFF"))
+            return
+        if self.btn_backdrop_prev.is_clicked(event):
+            self._set_vfx_backdrop(-1)
+            return
+        if self.btn_backdrop_next.is_clicked(event):
+            self._set_vfx_backdrop(1)
+            return
+        if self.pen_rect.collidepoint(mx, my):
+            ox, oy = self._vfx_offset()
+            self.vfx_anchor = (mx + ox, my + oy)
+            self._fire_vfx()
+            return
+
     # ================================================================ update
     def update(self):
         super().update()
@@ -493,7 +640,9 @@ class AssetStudioMenu(BaseMenu):
         for btn in (self.btn_leave, self.btn_assign, self.btn_play,
                     self.btn_save_hb, self.btn_reset_hb, self.btn_attack,
                     self.btn_walk, self.btn_flip, self.btn_block,
-                    self.btn_chop, self.btn_shake, self.btn_variant):
+                    self.btn_chop, self.btn_shake, self.btn_variant,
+                    self.btn_fire, self.btn_loop, self.btn_backdrop_prev,
+                    self.btn_backdrop_next):
             btn.update_hover(pos)
         if self.feedback_timer > 0:
             self.feedback_timer -= 1
@@ -514,6 +663,18 @@ class AssetStudioMenu(BaseMenu):
                     self.pen_walk_dir = -1
                 elif u.rect.centerx < ax - span:
                     self.pen_walk_dir = 1
+
+        # VFX-penkin simulointi
+        if self.tab == "VFX":
+            if self.vfx_loop and self.selected_vfx and self.vfx_anchor:
+                self.vfx_loop_timer -= 1
+                if self.vfx_loop_timer <= 0:
+                    self.vfx_loop_timer = 30
+                    self._fire_vfx()
+            try:
+                self.vfx_world.vfx.update(None)
+            except Exception:
+                pass
 
         # PROPS-maailman simulointi (animaatiot, tippuneet objektit, VFX)
         if self.tab == "PROPS" and self._prop_instance and self._prop_world:
@@ -551,6 +712,8 @@ class AssetStudioMenu(BaseMenu):
             self._draw_assets(screen)
         elif self.tab == "UNITS":
             self._draw_units(screen)
+        elif self.tab == "VFX":
+            self._draw_vfx(screen)
         else:
             self._draw_props(screen)
 
@@ -636,7 +799,8 @@ class AssetStudioMenu(BaseMenu):
 
     # ---------------------------------------------------------------- units
     def _draw_units(self, screen):
-        lr = self.list_rect
+        # 1) Yksikkölista
+        lr = self.unit_list_rect
         pygame.draw.rect(screen, (24, 24, 30), lr, border_radius=8)
         pygame.draw.rect(screen, (70, 70, 82), lr, 2, border_radius=8)
         max_rows = lr.h // ROW_H
@@ -648,8 +812,49 @@ class AssetStudioMenu(BaseMenu):
             if self.pen_label == label:
                 pygame.draw.rect(screen, (52, 52, 66), (lr.x + 2, y, lr.w - 4, ROW_H))
             draw_text(label, font_small, WHITE, screen, lr.x + 16, y + 4)
-        draw_text("Click a unit to spawn it in the pen.", font_small, GRAY,
-                  screen, lr.x, lr.bottom + 8)
+
+        # 2) Spritesarja (animaatiotilat + status + ASSIGN)
+        sp = self.sprite_panel_rect
+        pygame.draw.rect(screen, (26, 26, 32), sp, border_radius=8)
+        pygame.draw.rect(screen, (70, 70, 82), sp, 2, border_radius=8)
+        draw_text("SPRITE SET (per animation state)", font_small,
+                  (170, 200, 220), screen, sp.x + 16, sp.y + 10)
+        if not self.sprite_set:
+            draw_text("Pick a unit above.", font_small, GRAY, screen,
+                      sp.x + 16, sp.y + 44)
+        for ri, row in enumerate(self.sprite_set):
+            y = sp.y + 40 + ri * ROW_H
+            if y + ROW_H > sp.bottom - 50:
+                break
+            if self.selected_sprite_row == ri:
+                pygame.draw.rect(screen, (52, 52, 66), (sp.x + 2, y, sp.w - 4, ROW_H))
+            color = GREEN if row["exists"] else RED
+            pygame.draw.circle(screen, color, (sp.x + 16, y + ROW_H // 2), 5)
+            draw_text(row["action"].upper(), font_small, WHITE, screen,
+                      sp.x + 30, y + 4)
+            draw_text(row["path"], font_small, (150, 150, 160), screen,
+                      sp.x + 120, y + 4)
+        assign_rect = pygame.Rect(sp.right - 220, sp.bottom - 46, 200, 36)
+        pygame.draw.rect(screen, (46, 76, 46), assign_rect, border_radius=6)
+        pygame.draw.rect(screen, GREEN, assign_rect, 1, border_radius=6)
+        draw_text("ASSIGN TO STATE", font_small, WHITE, screen,
+                  assign_rect.x + 26, assign_rect.y + 9)
+        draw_text("(death = fallen idle sprite, no own slot)", font_small, GRAY,
+                  screen, sp.x + 16, sp.bottom - 38)
+
+        # 3) Inbox
+        ib = self.unit_inbox_rect
+        pygame.draw.rect(screen, (24, 28, 24), ib, border_radius=8)
+        pygame.draw.rect(screen, (86, 110, 86), ib, 2, border_radius=8)
+        draw_text(f"INBOX ({len(self.inbox)}): pick file, then a state, then ASSIGN",
+                  font_small, (150, 200, 160), screen, ib.x + 16, ib.y + 8)
+        max_ib = (ib.h - 42) // ROW_H
+        for vi, f in enumerate(self.inbox[self.inbox_scroll:self.inbox_scroll + max_ib]):
+            y = ib.y + 34 + vi * ROW_H
+            if f["name"] == self.selected_inbox:
+                pygame.draw.rect(screen, (46, 60, 46), (ib.x + 2, y, ib.w - 4, ROW_H))
+            draw_text(f"{f['name']}  ({f['kind']})", font_small, WHITE, screen,
+                      ib.x + 16, y + 4)
 
         pen = self.pen_rect
         pygame.draw.rect(screen, (22, 26, 22), pen, border_radius=8)
@@ -707,17 +912,102 @@ class AssetStudioMenu(BaseMenu):
         pygame.draw.rect(screen, (58, 70, 58),
                          (view_x, view_y, vw * self.PEN_SCALE, vh * self.PEN_SCALE), 1)
 
+        # Tilanapit: spritesarjan tilat + death
+        self._state_chip_rects = []
+        actions = [r["action"] for r in self.sprite_set] or \
+            ["idle", "run", "attack", "hurt"]
+        actions = actions + ["death"]
+        cx = pen.x + 20
+        cy = self.btn_attack.rect.y - 66
+        for action in actions:
+            w = max(64, font_small.size(action.upper())[0] + 22)
+            rect = pygame.Rect(cx, cy, w, 30)
+            active = (getattr(u, "animation_state", "") == action or
+                      (action == "death" and getattr(u, "is_dead", False)))
+            pygame.draw.rect(screen, (58, 52, 40) if active else (36, 36, 44),
+                             rect, border_radius=7)
+            pygame.draw.rect(screen, GOLD_COLOR if active else (100, 100, 112),
+                             rect, 1, border_radius=7)
+            draw_text(action.upper(), font_small, WHITE, screen,
+                      rect.x + 11, rect.y + 6)
+            self._state_chip_rects.append((rect, action))
+            cx += w + 8
+
         state = []
+        if getattr(u, "is_dead", False):
+            state.append("dead")
         if getattr(u, "attack_cooldown", 0) > 0:
             state.append("attacking")
         if self.pen_walking:
             state.append("walking")
         if getattr(u, "is_blocking", False):
             state.append("blocking")
-        draw_text("state: " + (", ".join(state) or "idle"), font_small, GRAY,
-                  screen, pen.x + 20, self.btn_attack.rect.y - 28)
+        draw_text("state: " + (", ".join(state) or
+                               getattr(u, "animation_state", "idle")),
+                  font_small, GRAY, screen, pen.x + 20,
+                  self.btn_attack.rect.y - 28)
 
         for btn in (self.btn_attack, self.btn_walk, self.btn_flip, self.btn_block):
+            btn.draw(screen)
+
+    # ---------------------------------------------------------------- vfx
+    def _draw_vfx(self, screen):
+        lr = self.list_rect
+        pygame.draw.rect(screen, (24, 24, 30), lr, border_radius=8)
+        pygame.draw.rect(screen, (70, 70, 82), lr, 2, border_radius=8)
+        max_rows = lr.h // ROW_H
+        self.vfx_scroll = max(0, min(self.vfx_scroll,
+                                     max(0, len(self.vfx_catalog) - max_rows)))
+        for vi, (name, _fn) in enumerate(
+                self.vfx_catalog[self.vfx_scroll:self.vfx_scroll + max_rows]):
+            y = lr.y + vi * ROW_H
+            if self.selected_vfx and self.selected_vfx[0] == name:
+                pygame.draw.rect(screen, (52, 52, 66), (lr.x + 2, y, lr.w - 4, ROW_H))
+            draw_text(name, font_small, WHITE, screen, lr.x + 16, y + 4)
+        draw_text("Click an effect, then click a spot in the pen.",
+                  font_small, GRAY, screen, lr.x, lr.bottom + 8)
+
+        pen = self.pen_rect
+        pygame.draw.rect(screen, (22, 24, 28), pen, border_radius=8)
+        pygame.draw.rect(screen, (70, 70, 82), pen, 2, border_radius=8)
+        offset = self._vfx_offset()
+
+        clip_before = screen.get_clip()
+        screen.set_clip(pen.inflate(-6, -6))
+        try:
+            # Valinnainen taustaprop (esim. talo jonka piippuun savu asetellaan)
+            if self._vfx_backdrop is not None:
+                try:
+                    self._vfx_backdrop.draw_on_screen(screen, offset)
+                except Exception:
+                    pass
+            self.vfx_world.vfx.draw_floor(screen, offset)
+            self.vfx_world.vfx.draw_top(screen, offset)
+        finally:
+            screen.set_clip(clip_before)
+
+        title = self.selected_vfx[0] if self.selected_vfx else "no effect selected"
+        draw_text(title, font_main, GOLD_COLOR, screen, pen.x + 20, pen.y + 16)
+        backdrop = (self.prop_classes[self.vfx_backdrop_idx][0]
+                    if self.vfx_backdrop_idx >= 0 else "none")
+        draw_text(f"backdrop: {backdrop}", font_small, GRAY, screen,
+                  pen.x + 20, pen.y + 48)
+
+        if self.vfx_anchor:
+            ax, ay = self.vfx_anchor
+            sx, sy = ax - offset[0], ay - offset[1]
+            pygame.draw.line(screen, (240, 210, 120), (sx - 9, sy), (sx + 9, sy), 1)
+            pygame.draw.line(screen, (240, 210, 120), (sx, sy - 9), (sx, sy + 9), 1)
+            draw_text(f"anchor: dx={ax} dy={ay} (from prop origin 0,0)",
+                      font_main, WHITE, screen, pen.x + 20,
+                      self.btn_fire.rect.y - 58)
+        loop_txt = "LOOP: ON" if self.vfx_loop else "LOOP: OFF"
+        draw_text(loop_txt, font_small,
+                  GREEN if self.vfx_loop else GRAY, screen,
+                  self.btn_loop.rect.x + 8, self.btn_loop.rect.y - 24)
+
+        for btn in (self.btn_fire, self.btn_loop, self.btn_backdrop_prev,
+                    self.btn_backdrop_next):
             btn.draw(screen)
 
     # ---------------------------------------------------------------- props

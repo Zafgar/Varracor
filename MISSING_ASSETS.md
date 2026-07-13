@@ -3,9 +3,9 @@
 Generoitu komennolla `python tools/asset_scan.py` — aja uudelleen
 aina kun lisäät tiedostoja, niin lista pysyy ajan tasalla.
 
-- Koodissa viitattuja tiedostoja: **194**
+- Koodissa viitattuja tiedostoja: **196**
 - Löytyy levyltä: **0**
-- Puuttuu: **194**
+- Puuttuu: **196**
 
 Laita tiedosto täsmälleen alla olevaan polkuun (suhteessa pelin
 juurikansioon), niin peli löytää sen automaattisesti — koodia ei
@@ -120,6 +120,13 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | Tiedosto | Tyyppi | Käytetään tiedostossa |
 |---|---|---|
 | `assets/portraits/goblin/neutral.png` | kuva | npc/gambler_npc.py |
+
+## assets/races/ (2 kpl)
+
+| Tiedosto | Tyyppi | Käytetään tiedostossa |
+|---|---|---|
+| `assets/races/human/human_idle_1.png` | kuva | tests/test_asset_studio.py |
+| `assets/races/orc/orc_idle_1.png` | kuva | tests/test_asset_studio.py |
 
 ## assets/sfx/ (35 kpl)
 
@@ -303,15 +310,26 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/portraits/{self.npc_id}/{emotion}.png` — npc/base_npc.py
 - `assets/portraits/{self.school_key}` — npc/school_keeper.py
 - `assets/races/animals` — units/farm_animals.py
+- `assets/races/animals/chicken_{act}.png` — systems/asset_studio.py
+- `assets/races/animals/cow_1_{act}.png` — systems/asset_studio.py
 - `assets/races/cave/broodmother/broodmother` — units/cave_spider.py
 - `assets/races/dwarf/dwarf` — units/dwarf.py
+- `assets/races/dwarf/dwarf_{act}_1.png` — systems/asset_studio.py
 - `assets/races/elf` — units/elf_bard.py
+- `assets/races/elf/elf_{act}_1.png` — systems/asset_studio.py
 - `assets/races/forest/troll/troll` — units/troll.py
+- `assets/races/forest/troll/troll_{act}_1.png` — systems/asset_studio.py
 - `assets/races/gnome/gnome` — units/gnome.py
+- `assets/races/gnome/gnome_{act}_1.png` — systems/asset_studio.py
 - `assets/races/goblin/goblin` — units/goblin.py
+- `assets/races/goblin/goblin_{act}_1.png` — systems/asset_studio.py
 - `assets/races/human/human` — units/human.py
+- `assets/races/human/human_{act}_1.png` — systems/asset_studio.py
 - `assets/races/human/mardashant` — units/marda_shant.py
 - `assets/races/orc/orc` — units/orc.py
+- `assets/races/orc/orc_{act}_1.png` — systems/asset_studio.py
+- `assets/races/rat/giant_rat_{act}.png` — systems/asset_studio.py
+- `assets/races/rat/rat_king_{act}.png` — systems/asset_studio.py
 - `assets/races/swamp/frog/attack_{i}.wav` — sound_manager.py
 - `assets/races/swamp/frog/attack{i}.wav` — sound_manager.py
 - `assets/races/swamp/frog/frog` — units/giant_frog.py
@@ -326,11 +344,15 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/races/swamp/leech/hurt{i}.wav` — sound_manager.py
 - `assets/races/swamp/leech/leech` — units/bog_leech.py
 - `assets/races/tortle/tortle` — units/tortle.py
+- `assets/races/tortle/tortle_{act}_1.png` — systems/asset_studio.py
 - `assets/races/undead/skeleton/skeleton` — units/undead_skeleton.py
+- `assets/races/undead/skeleton/skeleton_{act}.png` — systems/asset_studio.py
 - `assets/races/undead/skeleton_archer/skeleton_archer` — units/undead_skeleton_archer.py
 - `assets/races/undead/zombie/zombie` — units/undead_zombie.py
+- `assets/races/undead/zombie/zombie_{act}.png` — systems/asset_studio.py
 - `assets/races/vortex/Mnemonicdevourer` — units/mnemonic_devourer.py
 - `assets/races/werewolf/werewolf` — units/werewolf.py
+- `assets/races/werewolf/werewolf_{act}_1.png` — systems/asset_studio.py
 - `assets/sfx/bard/bard_song_{i}.wav` — sound_manager.py
 - `assets/sfx/nature/grass_moving_loop_{i}.wav` — sound_manager.py
 - `assets/sfx/nature/tree_loop_windy_{i}.wav` — sound_manager.py

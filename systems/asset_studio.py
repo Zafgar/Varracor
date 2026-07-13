@@ -156,6 +156,50 @@ def _reload_prop_overrides():
         print(f"[AssetStudio] Override reload failed: {exc}")
 
 
+# Yksiköiden spritesarjat: polkukaava + animaatiotilat. Studio näyttää
+# jokaisen tilan statuksen ja asentaa inbox-tiedostot suoraan oikeaan
+# polkuun. Death piirretään pelissä kaatamalla idle-kuva (ei omaa slottia).
+_RACE_ACTS = ("idle", "run", "attack", "hurt", "cast")
+UNIT_SPRITE_SETS = {
+    "Human": ("assets/races/human/human_{act}_1.png", _RACE_ACTS),
+    "Orc": ("assets/races/orc/orc_{act}_1.png", _RACE_ACTS),
+    "Elf": ("assets/races/elf/elf_{act}_1.png", _RACE_ACTS),
+    "Goblin": ("assets/races/goblin/goblin_{act}_1.png", _RACE_ACTS),
+    "Dwarf": ("assets/races/dwarf/dwarf_{act}_1.png", _RACE_ACTS),
+    "Gnome": ("assets/races/gnome/gnome_{act}_1.png", _RACE_ACTS),
+    "Werewolf": ("assets/races/werewolf/werewolf_{act}_1.png", _RACE_ACTS),
+    "Tortle": ("assets/races/tortle/tortle_{act}_1.png", _RACE_ACTS),
+    "Troll": ("assets/races/forest/troll/troll_{act}_1.png", _RACE_ACTS),
+    "Villager": ("assets/races/human/human_{act}_1.png", _RACE_ACTS),
+    "UndeadSkeleton": ("assets/races/undead/skeleton/skeleton_{act}.png",
+                       ("idle", "run", "attack", "hit")),
+    "UndeadZombie": ("assets/races/undead/zombie/zombie_{act}.png",
+                     ("idle", "run", "attack", "hit")),
+    "GiantRat": ("assets/races/rat/giant_rat_{act}.png",
+                 ("run", "attack", "hurt")),
+    "RatKing": ("assets/races/rat/rat_king_{act}.png",
+                ("idle", "run", "attack", "hurt", "rage", "spit")),
+    "Cow": ("assets/races/animals/cow_1_{act}.png",
+            ("idle", "walk", "eat", "moo")),
+    "Chicken": ("assets/races/animals/chicken_{act}.png",
+                ("idle", "walk")),
+}
+
+
+def unit_sprite_set(label):
+    """Yksikön animaatiotilat: [{action, path, exists}] tai []."""
+    entry = UNIT_SPRITE_SETS.get(label)
+    if not entry:
+        return []
+    pattern, acts = entry
+    rows = []
+    for act in acts:
+        path = pattern.format(act=act)
+        rows.append({"action": act, "path": path,
+                     "exists": os.path.exists(os.path.join(ROOT, path))})
+    return rows
+
+
 def preview_unit_factories():
     """Studion UNITS-penkin yksiköt: (nimi, factory(x, y)) aakkosissa.
 
@@ -243,6 +287,46 @@ def equipable_items():
     for names in slots.values():
         names.sort()
     return slots
+
+
+def vfx_catalog():
+    """Studion VFX-penkin efektit: (nimi, laukaisin(vfx, x, y)).
+
+    Laukaisin kutsuu VFXManagerin create-metodia ankkuripisteeseen;
+    suuntaefektit (salama, tulipallo) ammutaan viistosti pisteeseen.
+    """
+    def simple(method):
+        def fire(vfx, x, y):
+            getattr(vfx, method)(x, y)
+        return fire
+
+    def beam(method, ox=-120, oy=-90):
+        def fire(vfx, x, y):
+            getattr(vfx, method)((x + ox, y + oy), (x, y))
+        return fire
+
+    return [
+        ("Smoke", simple("create_smoke")),
+        ("Steam", simple("create_steam")),
+        ("Flies", simple("create_flies")),
+        ("Impact Sparks", simple("create_impact_sparks")),
+        ("Blood", simple("create_blood")),
+        ("Explosion", simple("create_explosion")),
+        ("Fireburst", simple("create_fireburst")),
+        ("Heal", simple("create_heal_effect")),
+        ("Falling Leaves", simple("create_falling_leaves")),
+        ("Mud Bubble", simple("create_mud_bubble")),
+        ("Musical Note", simple("create_musical_note")),
+        ("Shockwave", simple("create_shockwave")),
+        ("Tavern Dust", simple("create_tavern_dust")),
+        ("Void Particles", simple("create_void_particles")),
+        ("Power Shot Impact", simple("create_power_shot_impact")),
+        ("Seam Cut", simple("create_seam_cut")),
+        ("Lightning", beam("create_lightning")),
+        ("Arrow", beam("create_arrow")),
+        ("Power Arrow", beam("create_power_arrow")),
+        ("Warp Seam", beam("create_warp_seam", ox=-90, oy=0)),
+    ]
 
 
 def editable_prop_classes():
