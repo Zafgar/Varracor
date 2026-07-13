@@ -138,3 +138,80 @@ def test_drop_sponsor_is_persisted_in_state():
     assert not sponsors.is_signed(m, "quench_promotions")
     # Quench applies a small drop penalty (5)
     assert m.reputation == rep0 - sponsors.SPONSORS["quench_promotions"]["drop_rep_penalty"]
+
+
+# ----------------------------------------------------------------------
+# Lore-laajennus: alignment, kuukausistipendit, Gutter Ledgerin velka
+# ----------------------------------------------------------------------
+class _Clock:
+    def __init__(self, year=3, day=1):
+        self.year = year
+        self.day = day
+        self.minutes = 8 * 60.0
+
+    def advance_day(self):
+        self.day += 1
+
+
+def test_every_sponsor_has_lore_fields():
+    for sid, s in sponsors.SPONSORS.items():
+        assert s.get("alignment") in ("crown", "kharak", "lupine",
+                                      "neutral", "underworld"), sid
+        assert int(s.get("monthly", -1)) >= 0, sid
+        assert int(s.get("tier", 0)) >= 1, sid
+
+
+def test_monthly_stipends_accrue_by_calendar():
+    m = _Mgr(engine_tier=2, reputation=100, gold=0)
+    m.world_clock = _Clock(year=3, day=1)
+    sponsors.sign_sponsor(m, "ironspan_union")   # monthly 25
+    sponsors.sign_sponsor(m, "quench_promotions")  # monthly 40
+    gold0 = m.gold
+    # Alle kuukausi -> ei maksua
+    m.world_clock.day = 20
+    assert sponsors.collect_due_stipends(m)["gold"] == 0
+    # Kaksi täyttä kuukautta (56 pv) -> 2 * (25+40)
+    m.world_clock.day = 1 + 56
+    paid = sponsors.collect_due_stipends(m)
+    assert paid["months"] == 2
+    assert paid["gold"] == 2 * (25 + 40)
+    assert m.gold == gold0 + paid["gold"]
+    # Uusi kutsu heti perään ei tuplamaksa
+    assert sponsors.collect_due_stipends(m)["gold"] == 0
+
+
+def test_gutter_ledger_open_to_broke_teams_and_records_debt():
+    m = _Mgr(engine_tier=2, reputation=0, gold=0)
+    assert "gutter_ledger" in sponsors.available_sponsors(m)
+    ok, _ = sponsors.sign_sponsor(m, "gutter_ledger")
+    assert ok
+    win = {"won": True, "any_ally_died": False,
+           "ally_survivors": 3, "ally_total": 3, "enemies_defeated": 1}
+    sponsors.on_league_match_end(m, win)
+    sponsors.on_league_match_end(m, win)
+    state = sponsors.ensure_sponsor_state(m)
+    assert state["ledger_debt"] == 2
+
+
+def test_gutter_ledger_calls_in_debt_on_drop():
+    m = _Mgr(engine_tier=2, reputation=50, gold=0)
+    sponsors.sign_sponsor(m, "gutter_ledger")
+    win = {"won": True, "any_ally_died": False,
+           "ally_survivors": 3, "ally_total": 3, "enemies_defeated": 1}
+    for _ in range(3):
+        sponsors.on_league_match_end(m, win)
+    rep0 = m.reputation
+    ok, msg = sponsors.drop_sponsor(m, "gutter_ledger")
+    assert ok and "debt" in msg.lower()
+    assert m.reputation == rep0 - 3 * sponsors.LEDGER_DEBT_REP_PER_PAYOUT
+    # Velka EI nollaudu - questline-koukku säilyy
+    assert sponsors.ensure_sponsor_state(m)["ledger_debt"] == 3
+
+
+def test_monthly_stipend_grows_ledger_debt():
+    m = _Mgr(engine_tier=2, reputation=0, gold=0)
+    m.world_clock = _Clock(year=3, day=1)
+    sponsors.sign_sponsor(m, "gutter_ledger")
+    m.world_clock.day = 1 + 28
+    sponsors.collect_due_stipends(m)
+    assert sponsors.ensure_sponsor_state(m)["ledger_debt"] == 1

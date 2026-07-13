@@ -39,6 +39,11 @@ class SponsorGalleryMenu(BaseMenu):
     def on_enter(self):
         self.manager.current_arena_location = "rattlebridge"
         sponsors.ensure_sponsor_state(self.manager)
+        paid = sponsors.collect_due_stipends(self.manager)
+        if paid.get("gold"):
+            self.feedback = (f"Monthly stipends collected: +{paid['gold']}g "
+                             f"({paid['months']} month(s)).")
+            self.feedback_timer = 260
 
     # ------------------------------------------------------------------
     def _act(self):
@@ -123,14 +128,27 @@ class SponsorGalleryMenu(BaseMenu):
             "dominant": "Win with most of the team standing.",
             "spectacle": "Win with a defeated opponent for the crowd.",
         }.get(s["demand"], s["demand"])
+        align_desc = {
+            "crown": "Crown Dominion interests",
+            "kharak": "Horned Throne interests",
+            "lupine": "Lupine Warden interests",
+            "neutral": "Politically neutral",
+            "underworld": "Underworld money",
+        }.get(s.get("alignment", "neutral"), s.get("alignment", ""))
         rows = [
             (f"Signing bonus: {s['signing_bonus']}g", WHITE),
-            (f"Win stipend: {s['stipend']}g  |  Rep/win: {s['rep_per_win']:+d}", WHITE),
+            (f"Monthly stipend: {s.get('monthly', 0)}g / 28 days", WHITE),
+            (f"Win bonus: {s['stipend']}g  |  Rep/win: {s['rep_per_win']:+d}", WHITE),
             (f"Requires: Tier {s['required_tier']}, Rep {s['required_rep']}", (200, 200, 210)),
             (f"Demand each match: {demand_desc}", (230, 205, 150)),
+            (f"Alignment: {align_desc}", (170, 180, 210)),
         ]
         if s.get("drop_rep_penalty"):
             rows.append((f"Dropping costs {s['drop_rep_penalty']} reputation.", (210, 150, 150)))
+        if s.get("debt_per_payout"):
+            debt = int(sponsors.ensure_sponsor_state(self.manager).get("ledger_debt", 0))
+            rows.append((f"Every payout is recorded as debt (current: {debt}). "
+                         "Debts are always called in.", (200, 130, 170)))
         for i, (line, col) in enumerate(rows):
             draw_text(line, font_small, col, screen, x, y2 + i * 26)
 

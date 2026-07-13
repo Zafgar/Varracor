@@ -1282,6 +1282,8 @@ class GameManager:
                     from systems import sponsors
                     result = sponsors.build_match_result(win, list(self.last_fighters))
                     self.last_sponsor_settlement = sponsors.on_league_match_end(self, result)
+                    # Erääntyneet kuukausistipendit (28 pv jakso) samalla.
+                    sponsors.collect_due_stipends(self)
                 except Exception:
                     self.last_sponsor_settlement = None
 

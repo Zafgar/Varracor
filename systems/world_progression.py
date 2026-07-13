@@ -109,7 +109,49 @@ def ensure_world_state(manager) -> dict:
     state["travel_history"] = history if isinstance(history, list) else []
     notices = state.get("unlock_notices")
     state["unlock_notices"] = notices if isinstance(notices, list) else []
+    links = state.get("fast_travel_links")
+    state["fast_travel_links"] = links if isinstance(links, list) else []
     return state
+
+
+# ----------------------------------------------------------------------
+# Fast travel
+# ----------------------------------------------------------------------
+# Ensivierailu kaupunkiin avaa pysyvän nopean reitin (lore: paikallinen
+# sponsori/liitto operoi linjaa). Data-ohjattu tulevia kaupunkeja varten.
+FAST_TRAVEL_UNLOCKS = {
+    "rattlebridge": {
+        "between": ("muckford", "rattlebridge"),
+        "label": "Ironspan Union freight wagon",
+        "hours": 6,
+        "notice": ("The Ironspan Union opens its freight line: fast travel "
+                   "between Muckford and Rattlebridge."),
+    },
+}
+
+
+def has_fast_travel(manager, a: str, b: str) -> bool:
+    state = ensure_world_state(manager)
+    return route_key(a, b) in state["fast_travel_links"]
+
+
+def unlock_fast_travel(manager, a: str, b: str) -> bool:
+    """Avaa pysyvän fast travel -linkin. True jos linkki oli uusi."""
+    state = ensure_world_state(manager)
+    return _append_unique(state["fast_travel_links"], route_key(a, b))
+
+
+def _fast_travel_route(manager, current: str, location_id: str):
+    """Synteettinen reitti fast travel -linkille (tai None)."""
+    if not has_fast_travel(manager, current, location_id):
+        return None
+    for spec in FAST_TRAVEL_UNLOCKS.values():
+        if {current, location_id} == set(spec["between"]):
+            return {"a": current, "b": location_id,
+                    "hours": int(spec.get("hours", 6)), "danger": 1,
+                    "label": spec["label"]}
+    return {"a": current, "b": location_id, "hours": 6, "danger": 1,
+            "label": "fast caravan"}
 
 
 def league_lore_tier(manager) -> int:
@@ -228,12 +270,18 @@ def mark_location_visited(
     if location_id not in LOCATIONS:
         raise KeyError(f"Unknown world location: {location_id}")
     state = ensure_world_state(manager)
+    first_visit = location_id not in state["visited_locations"]
     _append_unique(state["discovered_locations"], location_id)
     _append_unique(state["visited_locations"], location_id)
     if surveyed:
         _append_unique(state["surveyed_locations"], location_id)
     if set_current:
         state["current_location"] = location_id
+    # Ensivierailu avaa kaupungin fast travel -linjan (sponsorin operoima).
+    spec = FAST_TRAVEL_UNLOCKS.get(location_id)
+    if spec and first_visit:
+        if unlock_fast_travel(manager, *spec["between"]):
+            manager.pending_fast_travel_notice = spec["notice"]
     return refresh_world_progression(manager)
 
 
@@ -283,6 +331,12 @@ def location_status(manager, location_id: str) -> dict:
     route_discovered = bool(
         route and route_key(current, location_id) in state["discovered_routes"]
     )
+    if route is None:
+        # Avattu fast travel -linja korvaa puuttuvan suoran tien.
+        fast = _fast_travel_route(manager, current, location_id)
+        if fast is not None:
+            route = fast
+            route_discovered = True
     tier = league_lore_tier(manager)
     rep = _reputation(manager)
     level = party_level(manager)
