@@ -740,6 +740,12 @@ class GameManager:
                 self.current_arena = get_arena_for(
                     self._get_league_tier(),
                     getattr(self, "current_arena_location", None))
+                # Rattlebridgen matseihin arvotaan kiertävä sponsoritavoite.
+                try:
+                    from systems.match_objectives import roll_match_objective
+                    roll_match_objective(self)
+                except Exception:
+                    self.current_match_objective = None
 
         elif self.mode == "Arena":
             tier = 1 if self.league_level < 3 else 2
@@ -1286,6 +1292,14 @@ class GameManager:
                     sponsors.collect_due_stipends(self)
                 except Exception:
                     self.last_sponsor_settlement = None
+                # Sponsoritavoite arvioidaan settlementin jälkeen: esitys
+                # rakentaa brändin (bonus + kärsivällisyys), muttei pelasta
+                # jo katkennutta sopimusta.
+                try:
+                    from systems.match_objectives import evaluate_match_objective
+                    evaluate_match_objective(self, win, list(self.last_fighters))
+                except Exception:
+                    self.last_objective_result = None
 
         self.calculate_rewards(win)
         self.loot_gained = dict(self.round_rewards.get("loot", {}))

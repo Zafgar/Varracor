@@ -77,6 +77,7 @@ class ScrapringArena(BaseArena):
     def __init__(self):
         super().__init__("The Scrapring")
         self.floor_color = (46, 42, 38)  # öljyinen metallilattia
+        self.player_hazard_hits = 0     # sponsor-objectivet seuraavat tätä
         self.width = SCREEN_WIDTH
         self.height = SCREEN_HEIGHT
 
@@ -135,6 +136,11 @@ class ScrapringArena(BaseArena):
                 pass
         return "heavy" in str(getattr(armor, "armor_group", "")).lower()
 
+    def _count_hazard_hit(self, unit):
+        """Sponsor-objectivet (Hazard Dance) laskevat pelaajan osumat."""
+        if getattr(unit, "team_color", None) == PLAYER_TEAM:
+            self.player_hazard_hits = getattr(self, "player_hazard_hits", 0) + 1
+
     def update(self, all_units):
         for g in self.gears:
             g.step()
@@ -152,6 +158,7 @@ class ScrapringArena(BaseArena):
                     u.take_damage(14, "Physical")
                     if getattr(u, "stun_timer", 0) < 20:
                         u.stun_timer = 20
+                    self._count_hazard_hit(u)
 
         # Steam bursts: purkauksen aikana venttiilin päällä palaa
         for s in self.steam_vents:
@@ -161,6 +168,7 @@ class ScrapringArena(BaseArena):
                 if u.rect.colliderect(s.rect):
                     u.take_damage(6, "Fire")
                     u.apply_status("Burn", 90, 2)
+                    self._count_hazard_hit(u)
 
         # Magnet plates: metallihaarniska juuttuu (Slow niin kauan kuin päällä)
         for plate in self.magnet_plates:

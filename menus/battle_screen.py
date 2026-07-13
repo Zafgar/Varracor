@@ -70,6 +70,20 @@ class BattleScreen(GameplayScreen):
         if self.show_loot:
             self.draw_loot_popup(screen)
 
+        # 1.7 Sponsoritavoite-banneri (Rattlebridgen Tier 1 -matsit)
+        objective = getattr(self.manager, "current_match_objective", None)
+        if objective and not self.manager.match_over:
+            name = f"SPONSOR OBJECTIVE: {objective['name'].upper()}"
+            desc = objective["desc"]
+            width = max(font_main.size(name)[0], font_small.size(desc)[0]) + 44
+            banner = pygame.Rect(SCREEN_WIDTH // 2 - width // 2, 14, width, 66)
+            pygame.draw.rect(screen, (20, 18, 24), banner, border_radius=10)
+            pygame.draw.rect(screen, (200, 150, 90), banner, 2, border_radius=10)
+            draw_text(name, font_main, (230, 185, 110), screen,
+                      banner.x + 22, banner.y + 8)
+            draw_text(desc, font_small, WHITE, screen,
+                      banner.x + 22, banner.y + 40)
+
         # 2. UI Overlay (Napit jne.)
         self.btn_pause.draw(screen)
         
@@ -104,7 +118,20 @@ class BattleScreen(GameplayScreen):
             res_color = GREEN if res_text == "VICTORY" else RED
             
             draw_text(res_text, font_title, res_color, screen, SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2 - 50)
-            draw_text("Click to continue...", font_main, WHITE, screen, SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2 + 20)
+            # Sponsoritavoitteen tulos (jos matsissa oli tavoite)
+            obj_result = getattr(self.manager, "last_objective_result", None)
+            if obj_result:
+                if obj_result.get("completed"):
+                    line = (f"Sponsor objective '{obj_result['name']}' COMPLETE  "
+                            f"+{obj_result['gold']}g, +{obj_result['reputation']} rep")
+                    color = (150, 220, 150)
+                else:
+                    line = f"Sponsor objective '{obj_result['name']}' missed."
+                    color = (200, 160, 120)
+                draw_text(line, font_main, color, screen,
+                          SCREEN_WIDTH//2 - font_main.size(line)[0]//2,
+                          SCREEN_HEIGHT//2 + 10)
+            draw_text("Click to continue...", font_main, WHITE, screen, SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2 + 50)
 
     def draw_loot_popup(self, screen):
         cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
