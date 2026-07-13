@@ -53,7 +53,13 @@ def _patch_bram_dialogue() -> None:
     from npc.base_npc import DialogueChoice, DialogueNode
     from npc.dwarf_league_manager import DwarfLeagueManager
 
-    if getattr(DwarfLeagueManager, "_tier0_finale_installed", False):
+    # Opening integration may replace Bram's methods after this integration was
+    # imported. Mark the actual wrappers rather than the class so this function
+    # can safely re-wrap the newest methods and remain the outermost story layer.
+    if (
+        getattr(DwarfLeagueManager.get_dialogue_root, "_tier0_finale_wrapper", False)
+        and getattr(DwarfLeagueManager.get_nodes, "_tier0_finale_wrapper", False)
+    ):
         return
     previous_root = DwarfLeagueManager.get_dialogue_root
     previous_nodes = DwarfLeagueManager.get_nodes
@@ -77,8 +83,7 @@ def _patch_bram_dialogue() -> None:
     def get_nodes(self, context):
         nodes = previous_nodes(self, context)
         memory = context.get("memory", {})
-        state = finale_state_from_memory(memory)
-        flags = (memory.get("tier0_world") or {}).get("story_flags", {})
+        finale_state_from_memory(memory)
         defeated = set((memory.get("tier0_world") or {}).get("defeated_bosses", ()))
         crisis = "a major Muckford crisis" if defeated else "the work still waiting outside the Yard"
         nodes["tier0_docket"] = DialogueNode(
@@ -136,9 +141,10 @@ def _patch_bram_dialogue() -> None:
         )
         return nodes
 
+    get_dialogue_root._tier0_finale_wrapper = True
+    get_nodes._tier0_finale_wrapper = True
     DwarfLeagueManager.get_dialogue_root = get_dialogue_root
     DwarfLeagueManager.get_nodes = get_nodes
-    DwarfLeagueManager._tier0_finale_installed = True
 
 
 def _promotion_click(event, button) -> bool:
@@ -226,8 +232,8 @@ def _patch_loot_screen() -> None:
 
 def install_tier0_finale_integration() -> None:
     global _INSTALLED
-    if _INSTALLED:
-        return
+    # Bram may be wrapped later by the opening integration, so every call checks
+    # the actual live method markers and repairs ordering if necessary.
     _patch_game_manager()
     _patch_bram_dialogue()
     _patch_league_menu()
