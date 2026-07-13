@@ -36,6 +36,10 @@ from units.villager import Villager
 
 class RattlebridgeCityMenu(BaseMenu):
     POPULATION = 72
+    # Lore: kääpiöt, gnomit ja örkit ovat Rattlebridgessä yleisiä
+    # (Ironspan Union, Scrapringin nikkarit, sillan raskas rahti).
+    POPULATION_RACES = ("Human", "Human", "Human", "Dwarf", "Dwarf",
+                        "Orc", "Gnome", "Goblin", "Elf")
 
     def __init__(self, manager):
         super().__init__(manager)
@@ -113,12 +117,11 @@ class RattlebridgeCityMenu(BaseMenu):
         self.player.facing_right = True
 
     def _spawn_population(self):
-        races = ("Human", "Human", "Human", "Dwarf", "Goblin", "Elf")
         districts = tuple(DISTRICTS)
         for index in range(self.POPULATION):
             district_id = self.rng.choice(districts)
             x, y = self.city.random_walkable_point(district_id)
-            race = self.rng.choice(races)
+            race = self.rng.choice(self.POPULATION_RACES)
             npc = Villager(get_random_name(race), race, x, y, GREEN)
             npc.rattle_role = self.rng.choice((
                 "Bridge Worker",
@@ -128,6 +131,9 @@ class RattlebridgeCityMenu(BaseMenu):
                 "Union Laborer",
                 "Caravan Guard",
                 "Sponsor Runner",
+                "Gear Tender",
+                "Lantern Lighter",
+                "Quarantine Sister",
             ))
             npc.home_district = district_id
             npc.sim_state = "IDLE"
