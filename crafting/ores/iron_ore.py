@@ -165,6 +165,14 @@ class IronOre(pygame.sprite.Sprite):
             if tier > 1 and random.random() < 0.15:
                 dropped_ore += 1
 
+        # Path of the Vein: XP sankarin iskuista
+        if manager is not None:
+            try:
+                from systems import commander_progression as _prog
+                _prog.on_ore_mined(manager, attacker, dropped_ore)
+            except Exception:
+                pass
+
         # 5. Arvo harvinainen droppi (Gem / Stone)
         dropped_rare = None
         # 2% chance for a Gem (laskettu 5% -> 2%)

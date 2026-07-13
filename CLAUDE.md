@@ -114,11 +114,16 @@ tiedostot kuuluu pudottaa.
   kalareseptit keittiössä. E laiturilla = heitto/tartutus, liike keskeyttää.
 - **Commander Paths** (systems/commander_progression.py) — jokainen
   tekeminen on OMA kykypuunsa omalla XP:llä: combat (tapot/voitot),
-  arcane (loitsut), fishing (saaliit), building (lukittu, House Building
-  tulossa). Tasot 1-30, milestone-perkit vaikuttavat sankariin
-  (_progression_effects, apply_to_hero kutsutaan XP:stä ja latauksessa).
-  Seuranta: PATHS-nappi Manager-valikossa (menus/paths_menu.py).
-  HUOM: farming/cooking EIVÄT ole Commander-polkuja.
+  Vortex-magia (loitsut; AVAA spell slotit 1-3 ja tierit I-IV
+  tasovaatimusten takaa - Vortex on ehkä ainoa magia jonka Commander
+  oppii), fishing (saaliit), mining (malmi-iskut), smithing (taonta;
+  Sparing Hammer säästää materiaaleja), forestry (hakkuut), building
+  (lukittu, House Building tulossa). Tasot 1-30, milestone-perkit
+  vaikuttavat sankariin (_progression_effects, apply_to_hero kutsutaan
+  XP:stä ja latauksessa). Seuranta: PATHS-nappi Manager-valikossa
+  (menus/paths_menu.py). HUOM: farming/cooking EIVÄT ole Commander-
+  polkuja. Aseiden level_required koskee Commanderia kuten muitakin
+  (gladiator.can_equip_item_to_slot; cheat-tila ohittaa).
 - **Kaivosluola** (mine_cave_*.py) — kaivostien perältä (E suuaukolla, tie
   raivattava ensin). Pimeys + soihtuvalo pelaajan ympärillä, 8 rautaa,
   4 hiiltä, 2 rubiinisuonta, vahvistetut epäkuolleet leashilla (heräävät

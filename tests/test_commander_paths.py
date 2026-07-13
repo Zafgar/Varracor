@@ -26,12 +26,81 @@ def _manager():
 
 
 def test_paths_defined_with_milestones():
-    assert set(prog.PATHS) == {"combat", "arcane", "fishing", "building"}
+    assert set(prog.PATHS) == {"combat", "arcane", "fishing", "building",
+                               "mining", "smithing", "forestry"}
     assert prog.PATHS["building"]["locked"] is True
     for path_id, spec in prog.PATHS.items():
         levels = [m[0] for m in spec["milestones"]]
         assert levels == sorted(levels), f"{path_id}: milestonet nousevassa"
         assert levels[-1] <= prog.MAX_LEVEL
+
+
+def test_vortex_path_unlocks_spell_slots_behind_levels():
+    """Spell slotit ja tierit ovat Vortex-polun tasovaatimusten takana:
+    L1 = slot 1 + tier I, L8 = slot 2, L16 = slot 3, L30 = tier IV."""
+    m = _manager()
+    hero = m.player_character
+    prog.apply_to_hero(m)
+
+    class _Spell:
+        slot_type = "spell"
+        type = "spell"
+        tier = 1
+    assert 1 in hero.spell_slots_unlocked and hero.max_spell_tier >= 1
+    ok, _ = hero.can_equip_item_to_slot("spell1", _Spell())
+    assert ok, "First Sigil avaa slotin 1 heti"
+    ok2, why = hero.can_equip_item_to_slot("spell2", _Spell())
+    assert not ok2 and "locked" in why.lower()
+
+    prog.get_path(m, "arcane")["level"] = 16
+    prog.apply_to_hero(m)
+    assert {1, 2, 3} <= hero.spell_slots_unlocked
+    prog.get_path(m, "arcane")["level"] = 30
+    prog.apply_to_hero(m)
+    assert hero.max_spell_tier >= 4, "Abyssal Gate avaa tier IV:n"
+
+
+def test_weapon_level_requirements_gate_commander():
+    """Aseiden level_required koskee Commanderia kuten muitakin
+    gladiaattoreita (ei-cheat)."""
+    m = _manager()
+    hero = m.player_character
+    from items.swords.vortex_blade import VortexBlade
+    ok, why = hero.can_equip_item_to_slot("main_hand", VortexBlade())
+    assert not ok and "Level 30" in why
+    hero.level = 30
+    ok2, _ = hero.can_equip_item_to_slot("main_hand", VortexBlade())
+    assert ok2
+
+
+def test_craft_paths_gain_xp_from_doing():
+    m = _manager()
+    hero = m.player_character
+
+    prog.on_ore_mined(m, hero, dropped=1)
+    assert prog.get_path(m, "mining")["xp"] == 8
+    prog.on_ore_mined(m, object(), dropped=1)  # muu kuin sankari
+    assert prog.get_path(m, "mining")["xp"] == 8
+
+    prog.on_tree_chopped(m, hero, felled=False)
+    prog.on_tree_chopped(m, hero, felled=True)
+    assert prog.get_path(m, "forestry")["xp"] == 8
+
+    from loot_data import BLUEPRINTS
+    name = next(iter(BLUEPRINTS))
+    recipe = BLUEPRINTS[name]
+    m.gold = 5000
+    for mat, count in recipe["mats"].items():
+        m.add_material(mat, count)
+    assert m.craft_item(name, None) is True
+    assert prog.get_path(m, "smithing")["xp"] > 0
+
+    # Milestone-efektit valuvat elämäntaitoattribuutteihin
+    prog.get_path(m, "mining")["level"] = 8
+    prog.get_path(m, "forestry")["level"] = 9
+    prog.apply_to_hero(m)
+    assert hero.mining_yield >= 1
+    assert hero.wood_yield >= 1
 
 
 def test_xp_levels_and_milestone_effects_apply_to_hero():

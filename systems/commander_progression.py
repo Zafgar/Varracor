@@ -46,26 +46,89 @@ PATHS = {
         ),
     },
     "arcane": {
-        "name": "Path of the Weave",
-        "desc": "Every cast attunes the Commander to the Weave - and one day, the Abyss.",
+        # Vortex-magia on (ehkä) ainoa magia jonka Commander oppii - polku
+        # AVAA spell slotit ja tierit tasovaatimusten takaa.
+        "name": "Path of the Vortex",
+        "desc": "Vortex magic may be the only magic a Commander ever learns. Casting deepens it.",
         "color": (150, 110, 220),
         "xp_base": 22, "xp_slope": 13,
         "locked": False,
         "milestones": (
-            (3, "mana_well", "Mana Well", "+10 max mana",
+            (1, "first_sigil", "First Sigil", "Spell Slot 1 + Spell Tier I",
+             {"unlock_spell_slot": [1], "max_spell_tier": 1, "max_mana": 5}),
+            (4, "mana_well", "Mana Well", "+10 max mana",
              {"max_mana": 10}),
-            (6, "steady_weave", "Steady Weave", "+0.05 mana regen",
-             {"mana_regen": 0.05}),
-            (10, "deep_reserves", "Deep Reserves", "+15 max mana, +1 INT",
-             {"max_mana": 15, "int": 1}),
-            (15, "strainhardened", "Strain-Hardened", "+20 max strain",
-             {"max_strain": 20}),
-            (20, "twin_current", "Twin Current", "+0.10 mana regen",
-             {"mana_regen": 0.10}),
+            (8, "second_sigil", "Second Sigil", "Spell Slot 2",
+             {"unlock_spell_slot": [2], "mana_regen": 0.05}),
+            (12, "vortex_tier_2", "Vortex Tier II", "Spell Tier II, +1 INT",
+             {"max_spell_tier": 2, "int": 1}),
+            (16, "third_sigil", "Third Sigil", "Spell Slot 3, +15 max strain",
+             {"unlock_spell_slot": [3], "max_strain": 15}),
+            (20, "vortex_tier_3", "Vortex Tier III", "Spell Tier III, +0.10 regen",
+             {"max_spell_tier": 3, "mana_regen": 0.10}),
             (25, "veilsight", "Veilsight", "+2 INT, +20 max mana",
              {"int": 2, "max_mana": 20}),
-            (30, "abyssal_gate", "Abyssal Gate", "The Abyss notices you. (Abyssal magic hook)",
-             {"max_strain": 30, "int": 2}),
+            (30, "abyssal_gate", "Abyssal Gate", "Spell Tier IV. The Abyss notices you.",
+             {"max_spell_tier": 4, "max_strain": 25, "int": 2}),
+        ),
+    },
+    "mining": {
+        "name": "Path of the Vein",
+        "desc": "Every ore struck teaches the stone's language.",
+        "color": (170, 150, 130),
+        "xp_base": 20, "xp_slope": 12,
+        "locked": False,
+        "milestones": (
+            (4, "sure_strike", "Sure Strike", "Better ore chance per hit",
+             {"mining_speed": 0.05}),
+            (8, "ore_sense", "Ore Sense", "+1 mining yield",
+             {"mining_yield": 1}),
+            (14, "stone_shoulders", "Stone Shoulders", "+1 STR, +10 max HP",
+             {"str": 1, "max_hp": 10}),
+            (20, "deep_delver", "Deep Delver", "Even better ore chance",
+             {"mining_speed": 0.08}),
+            (26, "gem_eye", "Gem Eye", "+1 mining yield",
+             {"mining_yield": 1}),
+            (30, "heart_of_the_vein", "Heart of the Vein", "+2 STR, ore mastery",
+             {"str": 2, "mining_speed": 0.07, "mining_yield": 1}),
+        ),
+    },
+    "smithing": {
+        "name": "Path of the Anvil",
+        "desc": "Forged blades remember the hand that made them.",
+        "color": (215, 140, 70),
+        "xp_base": 24, "xp_slope": 14,
+        "locked": False,
+        "milestones": (
+            (5, "apprentice_hammer", "Apprentice Hammer", "+1 STR",
+             {"str": 1}),
+            (10, "sparing_hammer", "Sparing Hammer", "15% chance to save materials when forging",
+             {}),
+            (16, "temper_master", "Temper Master", "+1 DEF, +10 max HP",
+             {"defense": 1, "max_hp": 10}),
+            (23, "anvil_rhythm", "Anvil Rhythm", "+15 max stamina",
+             {"max_stamina": 15}),
+            (30, "runesmith", "Runesmith", "+2 STR, +1 DEF (rune forging hook)",
+             {"str": 2, "defense": 1}),
+        ),
+    },
+    "forestry": {
+        "name": "Path of the Timber",
+        "desc": "The marsh forest yields to a practiced axe.",
+        "color": (120, 170, 90),
+        "xp_base": 20, "xp_slope": 12,
+        "locked": False,
+        "milestones": (
+            (4, "clean_swing", "Clean Swing", "Better wood chance per hit",
+             {"chop_speed": 0.06}),
+            (9, "heartwood", "Heartwood", "+1 wood from felled trees",
+             {"wood_yield": 1}),
+            (15, "lumber_back", "Lumber Back", "+15 max stamina",
+             {"max_stamina": 15}),
+            (22, "old_growth", "Old Growth", "Even better wood chance",
+             {"chop_speed": 0.08}),
+            (30, "forest_bond", "Forest Bond", "+1 wood, +1 STR",
+             {"wood_yield": 1, "str": 1}),
         ),
     },
     "fishing": {
@@ -169,6 +232,8 @@ def apply_to_hero(manager) -> None:
     if hero is None:
         return
     totals = {}
+    slots = set()
+    max_tier = 0
     for path_id, spec in PATHS.items():
         if spec.get("locked"):
             continue
@@ -176,7 +241,16 @@ def apply_to_hero(manager) -> None:
         for lvl, _pid, _name, _desc, effects in spec["milestones"]:
             if lvl <= level:
                 for key, val in effects.items():
-                    totals[key] = totals.get(key, 0) + val
+                    if key == "unlock_spell_slot":
+                        slots.update(int(x) for x in val)
+                    elif key == "max_spell_tier":
+                        max_tier = max(max_tier, int(val))
+                    else:
+                        totals[key] = totals.get(key, 0) + val
+    if slots:
+        totals["unlock_spell_slot"] = sorted(slots)
+    if max_tier:
+        totals["max_spell_tier"] = max_tier
     hero._progression_effects = totals
     try:
         hero.calculate_final_stats()
@@ -206,6 +280,33 @@ def on_player_spell_cast(manager, spell) -> None:
     cost = int(getattr(spell, "mana_cost", 5))
     if grant_xp(manager, "arcane", max(2, cost // 2)):
         _celebrate(manager, hero, "arcane")
+
+
+def on_ore_mined(manager, attacker, dropped: int) -> None:
+    """Mining-XP jokaisesta sankarin malmi-iskusta (dropista enemmän)."""
+    hero = getattr(manager, "player_character", None) if manager else None
+    if hero is None or attacker is not hero:
+        return
+    if grant_xp(manager, "mining", 2 + dropped * 6):
+        _celebrate(manager, hero, "mining")
+
+
+def on_tree_chopped(manager, attacker, felled: bool) -> None:
+    """Forestry-XP puun hakkuusta; kaadosta bonus."""
+    hero = getattr(manager, "player_character", None) if manager else None
+    if hero is None or attacker is not hero:
+        return
+    if grant_xp(manager, "forestry", 6 if felled else 2):
+        _celebrate(manager, hero, "forestry")
+
+
+def on_item_crafted(manager, recipe_cost: int) -> None:
+    """Smithing-XP taotusta esineestä (kalliimpi = enemmän oppia)."""
+    hero = getattr(manager, "player_character", None) if manager else None
+    if hero is None:
+        return
+    if grant_xp(manager, "smithing", 8 + max(0, int(recipe_cost)) // 10):
+        _celebrate(manager, hero, "smithing")
 
 
 def _celebrate(manager, hero, path_id):

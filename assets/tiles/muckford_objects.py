@@ -159,7 +159,15 @@ class MuckfordTree(HarvestableProp):
 
         # 2. Osuma
         self.current_hits -= 1
-        sound_system.play_sound("axe_1") 
+        sound_system.play_sound("axe_1")
+        # Path of the Timber: XP sankarin hakkuusta
+        if manager is not None:
+            try:
+                from systems import commander_progression as _prog
+                _prog.on_tree_chopped(manager, attacker,
+                                      felled=(self.current_hits <= 0))
+            except Exception:
+                pass 
         
         if manager:
             manager.vfx.create_impact_sparks(self.rect.centerx, self.rect.centery, color=(150, 100, 50), count=3)

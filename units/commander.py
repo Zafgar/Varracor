@@ -351,6 +351,17 @@ class Commander(Gladiator):
         self.mana_regen += float(pe.get("mana_regen", 0.0))
         self.crit_chance += float(pe.get("crit_chance", 0.0))
         self.max_strain += int(pe.get("max_strain", 0))
+        # Elamantaitopolut (mining/forestry) kasvattavat samoja attribuutteja
+        # kuin pistepuun taidot
+        self.mining_speed += float(pe.get("mining_speed", 0.0))
+        self.mining_yield += int(pe.get("mining_yield", 0))
+        self.chop_speed += float(pe.get("chop_speed", 0.0))
+        self.wood_yield += int(pe.get("wood_yield", 0))
+        # Path of the Vortex: spell slotit ja tierit tasovaatimusten takaa
+        for slot in pe.get("unlock_spell_slot", ()):
+            self.spell_slots_unlocked.add(int(slot))
+        self.max_spell_tier = max(self.max_spell_tier,
+                                  int(pe.get("max_spell_tier", 0)))
 
         # --- STAT SCALING (Attributes -> Pools) ---
         # Lisätään statsien vaikutus HP:hen ja Manaan

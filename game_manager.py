@@ -1771,6 +1771,17 @@ class GameManager:
             for mat, count in recipe['mats'].items():
                 self.inventory[mat] -= count
                 if self.inventory[mat] <= 0: del self.inventory[mat]
+            # Sparing Hammer (Path of the Anvil 10): 15 % mahdollisuus
+            # saada yksi materiaali takaisin
+            try:
+                from systems import commander_progression as _prog
+                import random as _random
+                if _prog.has_perk(self, "smithing", "sparing_hammer") and \
+                        recipe['mats'] and _random.random() < 0.15:
+                    saved = next(iter(recipe['mats']))
+                    self.add_material(saved, 1)
+            except Exception:
+                pass
 
         try:
             new_item = self._create_loot_item(recipe_name)
@@ -1778,6 +1789,13 @@ class GameManager:
                 self.equipment_bag.append(new_item)
         except Exception:
             self.add_material(recipe_name, 1)
+
+        # Path of the Anvil: XP jokaisesta taonnasta
+        try:
+            from systems import commander_progression as _prog
+            _prog.on_item_crafted(self, recipe.get('cost', 0))
+        except Exception:
+            pass
         return True
 
     def equip_from_bag(self, item):
