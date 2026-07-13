@@ -19,7 +19,10 @@ from sound_manager import sound_system
 from systems.faction_reputation import (
     discount_percent, get_faction_rep, on_purchase, shop_price,
 )
-from ui_kit import UIButton, draw_text, font_main, font_small, font_title, format_money
+from ui_kit import (
+    UIButton, draw_item_tooltip, draw_text, font_main, font_small, font_title,
+    format_money,
+)
 
 
 class DistrictShopMenu(BaseMenu):
@@ -33,6 +36,15 @@ class DistrictShopMenu(BaseMenu):
         self.feedback = ""
         self.feedback_timer = 0
         self.row_rects = []
+        # Esikatselukappaleet hover-infokorttia varten (luodaan kerran)
+        self._previews = {}
+        for entry in self.shop["goods"]:
+            if entry["kind"] == "item":
+                try:
+                    self._previews[entry["name"]] = create_item(
+                        entry.get("class", entry["name"]))
+                except Exception:
+                    self._previews[entry["name"]] = None
         self.btn_leave = UIButton(SCREEN_WIDTH - 260, SCREEN_HEIGHT - 96,
                                   210, 58, "LEAVE", None, GRAY)
 
@@ -128,11 +140,15 @@ class DistrictShopMenu(BaseMenu):
         # Tuoterivit
         self.row_rects = []
         y = panel.y + 140
-        draw_text("WARES (click to buy)", font_main, (150, 200, 165),
-                  screen, panel.x + 30, y - 34)
+        draw_text("WARES (click to buy, hover for details)", font_main,
+                  (150, 200, 165), screen, panel.x + 30, y - 34)
+        mouse_pos = pygame.mouse.get_pos()
+        hovered_entry = None
         for entry in self.shop["goods"]:
             row = pygame.Rect(panel.x + 26, y, panel.w - 52, 56)
-            hover = row.collidepoint(pygame.mouse.get_pos())
+            hover = row.collidepoint(mouse_pos)
+            if hover:
+                hovered_entry = entry
             pygame.draw.rect(screen, (44, 44, 52) if hover else (32, 33, 39),
                              row, border_radius=9)
             pygame.draw.rect(screen, awning, row, 2, border_radius=9)
@@ -164,3 +180,22 @@ class DistrictShopMenu(BaseMenu):
                       box.x + 18, box.y + 12)
 
         self.btn_leave.draw(screen)
+
+        # Hover-infokortti PÄÄLLIMMÄISENÄ: varusteista täysi item-kortti
+        # (statsit, level req), materiaaleista lyhyt kuvaus
+        if hovered_entry is not None:
+            mx, my = mouse_pos
+            tx = min(mx + 24, SCREEN_WIDTH - 340)
+            if hovered_entry["kind"] == "item":
+                preview = self._previews.get(hovered_entry["name"])
+                if preview is not None:
+                    draw_item_tooltip(screen, preview, tx, my + 16,
+                                      player_unit=self.manager.player_character)
+            else:
+                tip = pygame.Rect(tx, my + 16, 300, 54)
+                pygame.draw.rect(screen, (25, 25, 30), tip, border_radius=8)
+                pygame.draw.rect(screen, (120, 120, 135), tip, 2, border_radius=8)
+                draw_text(hovered_entry["name"], font_small, WHITE, screen,
+                          tip.x + 12, tip.y + 8)
+                draw_text("Material - stored in your inventory.", font_small,
+                          (160, 160, 170), screen, tip.x + 12, tip.y + 28)

@@ -191,6 +191,10 @@ def _patch_loot_screen() -> None:
                 if engine and int(getattr(engine, "tier", 1)) < 2:
                     engine.promote_player()
                 self.next_state = "promotion_ceremony"
+            elif getattr(self.manager, "mode", "") == "League":
+                # Liigamatsin jälkeen takaisin liigavalikkoon (sarjataulukko,
+                # seuraava vastustaja) - ei vanhaan hubiin
+                self.next_state = "league"
             else:
                 self.next_state = "hub"
             return

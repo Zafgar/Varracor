@@ -22,6 +22,9 @@ class ManagerMenu(BaseMenu):
         
         # UUSI NAPPI: Reputation (Sponsors-napin vasemmalla puolella)
         self.btn_rep = UIButton(SCREEN_WIDTH - 710, 30, 220, 50, "REPUTATION", None, (200, 100, 255))
+
+        # UUSI NAPPI: Team (areenatiimin hallinta - Team Quarters)
+        self.btn_team = UIButton(SCREEN_WIDTH - 940, 30, 220, 50, "TEAM", None, GREEN)
         
         self.slots_center_x = int(SCREEN_WIDTH * 0.30)
         self.slots_center_y = int(SCREEN_HEIGHT * 0.45)
@@ -99,7 +102,10 @@ class ManagerMenu(BaseMenu):
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.btn_back.rect.collidepoint(mouse_pos):
-                self.next_state = "hub"
+                # Palataan sinne mistä valikko avattiin (kaupunki C-näppäimellä
+                # tai hub) - valikko on toimintavalikko pelin sisällä
+                self.next_state = getattr(self.manager, "manager_return_state",
+                                          None) or "hub"
                 sound_system.play_sound('click')
                 return
             
@@ -115,6 +121,12 @@ class ManagerMenu(BaseMenu):
             
             if self.btn_rep.rect.collidepoint(mouse_pos):
                 self.next_state = "reputation"
+                sound_system.play_sound('click')
+                return
+
+            if self.btn_team.rect.collidepoint(mouse_pos):
+                self.manager.barracks_return_state = "manager_menu"
+                self.next_state = "barracks"
                 sound_system.play_sound('click')
                 return
 
@@ -245,6 +257,9 @@ class ManagerMenu(BaseMenu):
         
         self.btn_rep.check_hover(pygame.mouse.get_pos())
         self.btn_rep.draw(screen)
+
+        self.btn_team.check_hover(pygame.mouse.get_pos())
+        self.btn_team.draw(screen)
         
         draw_text("COMMANDER PROFILE", font_title, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 180, 30)
         

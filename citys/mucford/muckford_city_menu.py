@@ -658,6 +658,14 @@ class MuckfordCityMenu(BaseMenu):
             if event.key == pygame.K_p and CHEAT_MODE:
                 self.manager.world_paused = not self.manager.world_paused
 
+            # Commander-toimintavalikko (profiili, skillit, tiimi,
+            # sponsorit, maine) suoraan pelin sisältä - palaa kaupunkiin
+            if event.key == pygame.K_c:
+                self.manager.manager_return_state = "muckford_city"
+                self.next_state = "manager_menu"
+                sound_system.play_sound('click')
+                return
+
             if event.key == pygame.K_e:
                 # Shanty Yard -portti -> liigavalikko
                 gate = getattr(self, "arena_gate", None)
@@ -666,6 +674,7 @@ class MuckfordCityMenu(BaseMenu):
                     door_y = gate.rect.bottom
                     if math.hypot(self.player.rect.centerx - door_x,
                                   self.player.rect.bottom - door_y) < 110:
+                        self.manager.league_return_state = "muckford_city"
                         self.next_state = "league"
                         sound_system.play_sound('click')
                         return
@@ -677,6 +686,7 @@ class MuckfordCityMenu(BaseMenu):
                     door_y = barracks.rect.bottom
                     if math.hypot(self.player.rect.centerx - door_x,
                                   self.player.rect.bottom - door_y) < 110:
+                        self.manager.barracks_return_state = "muckford_city"
                         self.next_state = "barracks"
                         sound_system.play_sound('click')
                         return
@@ -1471,7 +1481,7 @@ class MuckfordCityMenu(BaseMenu):
         if self.show_map:
             self._draw_city_map(screen)
         else:
-            draw_text("[M] Map", font_small, (180, 180, 180), screen, 20, SCREEN_HEIGHT - 30)
+            draw_text("[M] Map   [C] Commander", font_small, (180, 180, 180), screen, 20, SCREEN_HEIGHT - 30)
 
         # Smeltery Overlay
         if self.active_smeltery:

@@ -381,6 +381,12 @@ class RattlebridgeCityMenu(BaseMenu):
                 self.next_state = "world_map"
                 sound_system.play_sound("click")
                 return
+            # Commander-toimintavalikko pelin sisältä - palaa kaupunkiin
+            if event.key == pygame.K_c and not self.dialogue_npc:
+                self.manager.manager_return_state = "rattlebridge_city"
+                self.next_state = "manager_menu"
+                sound_system.play_sound("click")
+                return
             if event.key == pygame.K_ESCAPE:
                 if self.dialogue_npc:
                     self._close_dialogue()
@@ -697,7 +703,7 @@ class RattlebridgeCityMenu(BaseMenu):
             draw_text(self.ambient_text, font_small, (35, 32, 28), screen,
                       bubble.x + 13, bubble.y + 8)
 
-        draw_text("WASD move  SHIFT sprint  E interact  M local map  TAB world map",
+        draw_text("WASD move  SHIFT sprint  E interact  M local map  TAB world map  C commander",
                   font_small, (215, 210, 195), screen, 24, 22)
 
     def draw(self, screen):

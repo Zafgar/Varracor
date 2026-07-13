@@ -362,6 +362,8 @@ class ChatMenu(BaseMenu):
         for eff in choice_obj.effects:
             self.apply_effect(eff)
             if eff == "enter_league":
+                # Liigasta palataan sinne mistä dialogi avattiin
+                self.manager.league_return_state = self.return_state
                 self.next_state = "league"
 
         if self.next_state: return

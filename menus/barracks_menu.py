@@ -30,7 +30,8 @@ class BarracksMenu(BaseMenu):
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            self.next_state = "muckford_city"
+            self.next_state = getattr(self.manager, "barracks_return_state",
+                                      None) or "muckford_city"
             return
 
         if self.btn_equip.is_clicked(event):
@@ -39,7 +40,8 @@ class BarracksMenu(BaseMenu):
             sound_system.play_sound('click')
             return
         if self.btn_back.is_clicked(event):
-            self.next_state = "muckford_city"
+            self.next_state = getattr(self.manager, "barracks_return_state",
+                                      None) or "muckford_city"
             sound_system.play_sound('click')
             return
 

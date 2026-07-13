@@ -128,7 +128,9 @@ class TownHub(BaseMenu):
         
         # 2. NAPPIEN LOGIIKKA
         if self.btn_league.update(): self.next_state = "dialogue:dwarf_league_manager"
-        if self.btn_manager.update(): self.next_state = "manager_menu"
+        if self.btn_manager.update():
+            self.manager.manager_return_state = "hub"
+            self.next_state = "manager_menu"
         if self.btn_guild.update(): self.next_state = "guild"
         if self.btn_shop.update(): self.next_state = "shop_locations"
         if self.btn_workshop.update(): self.next_state = "workshop_locations"

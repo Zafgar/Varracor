@@ -93,7 +93,11 @@ class LeagueMenu(BaseMenu):
 
         # --- Button Clicks ---
         if self.btn_back.is_clicked(event):
-            sound_system.play_sound("click"); self.next_state = "hub"; return
+            # Palataan sinne mistä liigaan tultiin (Shanty Yard -portti tms.)
+            sound_system.play_sound("click")
+            self.next_state = getattr(self.manager, "league_return_state",
+                                      None) or "hub"
+            return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.show_scout:
             self.show_scout = False
