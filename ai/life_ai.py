@@ -70,6 +70,39 @@ DIALOGUE_TOPICS = {
         "Mining in the dark. Always in the dark.",
         "Found a vein of iron, but the goblins took it."
     ],
+    # --- TORI (market district) ---
+    "market": [
+        "Fenwick's carrots are half mud. Still the best in town.",
+        "Don't haggle with Old Nel unless you have all day.",
+        "The armorer's prices drop if he likes your face. Or your fame.",
+        "Someone bought every potion off the shelf this morning. Worrying.",
+        "Fresh eggs at the stalls - if the chickens cooperated today.",
+        "The general store buys anything. ANYTHING. Don't ask.",
+        "I saw a fine blade at the weapon stall. Cost more than my roof.",
+        "Trade rumor: reputation opens purses. Be kind to shopkeepers."
+    ],
+    # --- KALASTUS (pond & jetty) ---
+    "fishing": [
+        "Mudgullet pulled my rod right in. Third one this month.",
+        "The old jetty creaks, but the fish don't mind.",
+        "Someone hooked a bottle with a message inside. Wouldn't say what it read.",
+        "Duskperch only bite when the light goes low. Patience.",
+        "They say something big circles the pond at night. Bigger than a fish.",
+        "A good rod makes a good angler. A great rod makes a liar honest.",
+        "Fish stew at the Cask tonight, if the pond is generous.",
+        "I fish to forget the debts. Works until I reel in a boot."
+    ],
+    # --- REKRYT JA LAHJAKKUUDET (talents) ---
+    "recruits": [
+        "New blades drift into the Sunk Cask every week. Some are gifted.",
+        "That girl by the well? Born with sword-hands, I swear it.",
+        "Commanders with a keen eye see what a fighter truly is.",
+        "Strong arms are common. A quick learner is worth double.",
+        "Heard a recruit turned down three teams. Waiting for the right one.",
+        "Old wounds lower the price, not the pride.",
+        "The tavern is where contracts are signed. The street is where they're found.",
+        "Every fighter has a story. The good ones have scars to match."
+    ],
     # --- MAAILMAN LORE (ks. docs/LORE.md) ---
     "kingdoms": [
         "King Alaric taxes everything. Even the mud, soon.",

@@ -223,7 +223,52 @@ class MuckfordCityMenu(BaseMenu):
                  # Kojun eteen
                  self.gathering_spots.append((p.rect.centerx, p.rect.bottom + 40))
 
+        # Kalastuslaituri on suosittu juttelupaikka (laiturin nokan ranta)
+        for tip in getattr(self.arena, "fishing_spots", []):
+            self.gathering_spots.append((tip[0] - 70, tip[1] + 50))
+            self.gathering_spots.append((tip[0] + 70, tip[1] + 70))
+
         self._update_camera()
+        self._spawn_prospects()
+
+    def _spawn_prospects(self):
+        """Rekryprospektit kaupungilla: 1-2 Sunk Caskin vapaata taistelijaa
+        haahuilee kokoontumispaikoilla. E avaa saman palkkausdialogin kuin
+        tavernassa - katu on löytöpaikka, taverna varma paikka.
+        Idempotentti: on_enter voi kutsua useita kertoja."""
+        for old in list(getattr(self, "prospects", [])):
+            if old in self.npcs:
+                self.npcs.remove(old)
+        self.prospects = []
+        pool = [u for u in getattr(self.manager, "recruit_options", [])
+                if u is not None]
+        if not pool or not self.gathering_spots:
+            return
+        count = min(2, len(pool))
+        picks = self.rng.sample(pool, count)
+        for unit in picks:
+            spot = self.rng.choice(self.gathering_spots)
+            unit.rect.center = (int(spot[0]) + self.rng.randint(-40, 40),
+                                int(spot[1]) + self.rng.randint(-20, 20))
+            unit.sim_state = "IDLE"
+            unit.sim_timer = self.rng.randint(30, 120)
+            unit.is_prospect = True
+            # Taisteluäly talteen kadun ajaksi (sama malli kuin tavernassa;
+            # hire_unit_by_reference -> _restore_unit_ai palauttaa sen)
+            if unit.ai_controller and not hasattr(unit, "_combat_ai_backup"):
+                unit._combat_ai_backup = unit.ai_controller
+                unit.ai_controller = None
+            self.npcs.append(unit)
+            self.prospects.append(unit)
+
+    def _cleanup_hired_prospects(self):
+        """Palkattu prospekti poistuu kadulta (siirtyi tiimiin)."""
+        for unit in list(getattr(self, "prospects", [])):
+            if unit in self.manager.my_team or unit not in self.manager.recruit_options:
+                unit.is_prospect = False
+                if unit in self.npcs:
+                    self.npcs.remove(unit)
+                self.prospects.remove(unit)
 
     def _spawn_population(self):
         self._spawn_guards()
@@ -897,6 +942,13 @@ class MuckfordCityMenu(BaseMenu):
                 for npc in self.npcs:
                     # YHDISTETTY TARKISTUS: Osuma JA logiikka
                     if self.player.rect.colliderect(npc.rect.inflate(60, 60)):
+                        # Rekryprospekti - sama palkkausdialogi kuin tavernassa
+                        if getattr(npc, "is_prospect", False):
+                            self.manager.open_recruit_dialogue(
+                                npc, return_state="muckford_city")
+                            self.next_state = "dialogue_active"
+                            return
+
                         # Hamo (bounty broker) - oma dialogi
                         if npc is getattr(self, "hamo", None) or npc.name == "Hamo":
                             self.next_state = "dialogue:hamo"
@@ -1038,6 +1090,9 @@ class MuckfordCityMenu(BaseMenu):
 
         # Päivitä pelaajan tilat (cooldowns, mana regen) ilman AI:ta
         self.player.update(self.arena.obstacles, self.manager)
+
+        # Palkatut prospektit pois kadulta (siirtyivät tiimiin)
+        self._cleanup_hired_prospects()
 
         # Kerätään kaikki yksiköt listaan NPC-logiikkaa varten
         all_units = [self.player] + self.npcs + self.animals
@@ -1693,6 +1748,19 @@ class MuckfordCityMenu(BaseMenu):
         fgate = self._forest_gate_rect()
         if self.player.rect.colliderect(fgate.inflate(60, 60)):
             self.manager._draw_floating_prompt(screen, fgate.centerx, fgate.top - 20, "E", offset, "Forest Trail")
+
+        # Rekryprospektit: kultatimantti pään päällä + prompt lähietäisyydellä
+        for unit in getattr(self, "prospects", []):
+            px = unit.rect.centerx - offset[0]
+            py = unit.rect.top - offset[1] - 16
+            if -60 < px < SCREEN_WIDTH + 60 and -60 < py < SCREEN_HEIGHT + 60:
+                pts = [(px, py - 7), (px + 5, py), (px, py + 7), (px - 5, py)]
+                pygame.draw.polygon(screen, (255, 215, 0), pts)
+                pygame.draw.polygon(screen, (120, 90, 20), pts, 1)
+            if self.player.rect.colliderect(unit.rect.inflate(60, 60)):
+                self.manager._draw_floating_prompt(
+                    screen, unit.rect.centerx, unit.rect.top - 34, "E",
+                    offset, f"Recruit: {unit.name}")
 
         # Kello, kalenteri ja sää (yläkeskellä - quest-paneeli vie
         # oikean yläkulman, joten kello ei saa jäädä sen alle)

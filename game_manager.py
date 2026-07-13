@@ -551,18 +551,19 @@ class GameManager:
         self.pending_dialogue_menu = menu
         return menu
 
-    def open_recruit_dialogue(self, unit):
-        """Avaa dialogin tietyn rekrytoitavan yksikön kanssa."""
+    def open_recruit_dialogue(self, unit, return_state="tavern_sunk_cask"):
+        """Avaa dialogin tietyn rekrytoitavan yksikön kanssa.
+        return_state: prospektit tavataan myös kaupungilla (muckford_city)."""
         npc = RecruitNPC(unit)
-        
+
         context = {
             "player": { "name": "Commander", "gold": self.gold },
             "reputation": self.reputation,
             "matches_played": self.matches_played, # Lisätty tieto otteluista
             "unit": unit
         }
-        
-        menu = ChatMenu(self, npc, context, return_state="tavern_sunk_cask")
+
+        menu = ChatMenu(self, npc, context, return_state=return_state)
         self.pending_dialogue_menu = menu
         return menu
 
