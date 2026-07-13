@@ -18,15 +18,15 @@ def create_team(tier):
         "you. Snares, sparks and steam soften a foe long before the bolt lands.",
         [
             {"name": "Pib Cogwhistle", "race": "Gnome", "weapon": "crossbow",
-             "elite": True, "dex": 3, "lvl": 1, "skills": ["dex_dodge"]},
+             "elite": True, "dex": 3, "lvl": 1, "skills": ["dex_dodge", "arena_instincts", "arena_instincts_2"]},
             {"name": "Wren Boltwright", "race": "Gnome", "weapon": "crossbow",
-             "dex": 3},
+             "dex": 3, "skills": ["arena_instincts"]},
             {"name": "Fizz Sparkspanner", "race": "Gnome", "weapon": "dagger",
-             "dex": 2},
+             "dex": 2, "skills": ["arena_instincts"]},
             {"name": "Durgan Coalvein", "race": "Dwarf", "weapon": "axe",
              "armor": "heavy", "shield": True, "def": 1, "str": 1},
             {"name": "Kesk Brasspin", "race": "Gnome", "weapon": "crossbow",
-             "dex": 2},
+             "dex": 2, "skills": ["arena_instincts"]},
         ],
         motto="Mind the gears.")
     t.manager = "Yorik Sparkspanner"

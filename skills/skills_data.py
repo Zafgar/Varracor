@@ -87,6 +87,24 @@ SKILL_TREE = {
         "branch": "Utility",
         "effects": {"cooldown_mult": 0.95}
     },
+    "arena_instincts": {
+        "name": "Arena Instincts",
+        "desc": "Reads the arena: sidesteps telegraphed hazards (gears, steam) in auto-battles.",
+        "cost": 1,
+        "requires": [],
+        "pos": (780, 500),
+        "branch": "Utility",
+        "effects": {"hazard_sense": 1}
+    },
+    "arena_instincts_2": {
+        "name": "Arena Instincts II",
+        "desc": "Veteran footwork: also steps off magnet plates in metal armor.",
+        "cost": 2,
+        "requires": ["arena_instincts"],
+        "pos": (780, 620),
+        "branch": "Utility",
+        "effects": {"hazard_sense": 2}
+    },
 
     # --- DEX TREE (New) ---
     "dex_agility": {

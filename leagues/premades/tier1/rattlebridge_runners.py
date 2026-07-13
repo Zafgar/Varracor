@@ -14,7 +14,7 @@ def create_team(tier):
         [
             {"name": "Jax Merrin", "race": "Human", "weapon": "sword",
              "shield": True, "armor": "heavy", "elite": True, "lvl": 1, "str": 2,
-             "skills": ["str_tank"]},
+             "skills": ["str_tank", "arena_instincts"]},
             {"name": "Sila Vorn", "race": "Human", "weapon": "sword", "shield": True},
             {"name": "Brenna Kest", "race": "Human", "weapon": "spear", "def": 1},
             {"name": "Olek Ironside", "race": "Dwarf", "weapon": "crossbow", "dex": 2},

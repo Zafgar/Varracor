@@ -129,3 +129,81 @@ def test_hazard_dance_uses_arena_counter():
                                  "desc": "", "sponsor_line": ""}
     result = mo.evaluate_match_objective(m, True, [_Unit("A")])
     assert result["completed"] is False
+
+
+# ----------------------------------------------------------------------
+# Arena Instincts: kehitettava ympariston havainnointi (AI vaistaa vaarat)
+# ----------------------------------------------------------------------
+def test_arena_instincts_skills_exist_and_grant_sense():
+    from skills.skills_data import SKILL_TREE
+    from units.human import Human
+    assert SKILL_TREE["arena_instincts"]["effects"]["hazard_sense"] == 1
+    assert SKILL_TREE["arena_instincts_2"]["requires"] == ["arena_instincts"]
+    u = Human("Scout", 0, 0, PLAYER_TEAM)
+    assert getattr(u, "hazard_sense", 0) == 0
+    u.unlocked_skills.add("arena_instincts")
+    u.calculate_final_stats()
+    assert u.hazard_sense == 1
+    u.unlocked_skills.add("arena_instincts_2")
+    u.calculate_final_stats()
+    assert u.hazard_sense == 2
+
+
+def test_aware_fighter_sidesteps_telegraphed_gear():
+    from arenas.tier_1.scrapring_arena import ScrapringArena
+    from units.human import Human
+    arena = ScrapringArena()
+    gear = arena.gears[0]
+    aware = Human("Aware", 0, 0, PLAYER_TEAM)
+    aware.unlocked_skills.add("arena_instincts")
+    aware.calculate_final_stats()
+    blind = Human("Blind", 0, 0, PLAYER_TEAM)
+    aware.rect.center = gear.rect.center
+    blind.rect.center = gear.rect.center
+    hp_a, hp_b = aware.current_hp, blind.current_hp
+    # Telegraph-vaihe: 45 framea varoitusta, sitten isku
+    gear.phase, gear.timer = "warn", 45
+    for _ in range(45):
+        arena.update([aware, blind])
+    gear.phase, gear.timer = "slam", 24
+    arena.update([aware, blind])
+    assert aware.current_hp == hp_a, "instinktit vievät pois iskualueelta"
+    assert blind.current_hp < hp_b, "sokea taistelija ottaa osuman"
+
+
+def test_rank2_metal_fighter_steps_off_magnet_plate():
+    from arenas.tier_1.scrapring_arena import ScrapringArena
+
+    class _Metal:
+        def __init__(self, plate, sense):
+            import pygame
+            self.rect = pygame.Rect(0, 0, 30, 40)
+            self.rect.center = plate.center
+            self.is_dead = False
+            self.hazard_sense = sense
+            self.team_color = PLAYER_TEAM
+            self.armor = type("A", (), {"armor_group": "heavy"})()
+            self.statuses = []
+
+        def _armor_group_from_item(self, item):
+            return "heavy"
+
+        def apply_status(self, kind, duration, dmg=0):
+            self.statuses.append(kind)
+
+    arena = ScrapringArena()
+    plate = arena.magnet_plates[0]
+    veteran = _Metal(plate, sense=2)
+    rookie = _Metal(plate, sense=1)
+    for _ in range(120):
+        arena.update([veteran, rookie])
+    assert not veteran.rect.colliderect(plate), "rank 2 kävelee pois laatalta"
+    assert rookie.rect.colliderect(plate), "rank 1 ei vielä lue magneetteja"
+
+
+def test_cog_wardens_are_hazard_aware():
+    from leagues.premades.tier1.cog_wardens import create_team
+    team = create_team(2)
+    senses = {u.name: getattr(u, "hazard_sense", 0) for u in team.members}
+    assert senses["Pib Cogwhistle"] == 2
+    assert sum(1 for v in senses.values() if v >= 1) >= 4

@@ -213,6 +213,8 @@ class ScrapringMenu(BaseMenu):
             draw_text(line, font_main, (210, 205, 192),
                       screen, card.x + 30, y)
             y += 30
+        draw_text("Fighters with the Arena Instincts skill sidestep this on their own.",
+                  font_small, (150, 205, 170), screen, card.x + 30, y + 6)
 
         objective = pygame.Rect(right.x + 34, right.y + 525,
                                 right.w - 68, 145)

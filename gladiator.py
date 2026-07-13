@@ -573,6 +573,7 @@ class Gladiator(pygame.sprite.Sprite):
 
         self.crit_chance = 0.05
         self.range_bonus = 0
+        self.hazard_sense = 0
         self.cooldown_multiplier = 1.0
         self.mana_regen = self.base_mana_regen
 
@@ -619,6 +620,8 @@ class Gladiator(pygame.sprite.Sprite):
                 self.crit_chance += float(effects["crit_chance"])
             if "range_bonus" in effects:
                 self.range_bonus += int(effects["range_bonus"])
+            if "hazard_sense" in effects:
+                self.hazard_sense = max(self.hazard_sense, int(effects["hazard_sense"]))
 
             # Proficiencies
             if "weapon_prof" in effects:

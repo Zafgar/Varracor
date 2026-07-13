@@ -13,6 +13,7 @@ lore-vaaraa, jotka tekevät Tier 1:stä mekaanisesti erilaisen kuin Tier 0:
 Kaikki vaaramekaniikka ajetaan update(all_units):ssa (headless-testattava);
 piirto on erillään eikä vaikuta logiikkaan.
 """
+import math
 import pygame
 import random
 from settings import *
@@ -141,6 +142,45 @@ class ScrapringArena(BaseArena):
         if getattr(unit, "team_color", None) == PLAYER_TEAM:
             self.player_hazard_hits = getattr(self, "player_hazard_hits", 0) + 1
 
+    def _sidestep(self, unit, cx, cy, speed=3.4):
+        """Siirtää yksikköä poispäin vaaran keskipisteestä (esteet väistäen).
+
+        Arena Instincts -kyvyn (hazard_sense) väistörefleksi: AI-ohjatut
+        taistelijat lukevat telegraph-vaiheen ja astuvat sivuun ilman
+        pelaajan mikroa - automaattimatsit (1v1/3v3/5v5) hyötyvät samasta
+        kehityksestä kuin sankarilla pelatut.
+        """
+        dx = unit.rect.centerx - cx
+        dy = unit.rect.centery - cy
+        distance = math.hypot(dx, dy)
+        if distance < 1:
+            dx, dy, distance = 1.0, 0.0, 1.0
+        step_x = int(round(dx / distance * speed)) or (1 if dx >= 0 else -1)
+        step_y = int(round(dy / distance * speed))
+        moved = unit.rect.move(step_x, step_y)
+        for obstacle in self.obstacles:
+            rect = getattr(obstacle, "rect", obstacle)
+            if moved.colliderect(rect):
+                return
+        unit.rect = moved
+
+    def _apply_hazard_awareness(self, units):
+        """Hazard sense -yksiköt väistävät telegraphattuja vaaroja."""
+        for u in units:
+            sense = int(getattr(u, "hazard_sense", 0))
+            if sense <= 0:
+                continue
+            for g in self.gears:
+                if g.phase in ("warn", "slam") and u.rect.colliderect(g.rect.inflate(34, 34)):
+                    self._sidestep(u, g.cx, g.cy)
+            for s in self.steam_vents:
+                if s.phase in ("hiss", "burst") and u.rect.colliderect(s.rect.inflate(24, 24)):
+                    self._sidestep(u, s.rect.centerx, s.rect.centery)
+            if sense >= 2 and self._is_metal_armored(u):
+                for plate in self.magnet_plates:
+                    if u.rect.colliderect(plate):
+                        self._sidestep(u, plate.centerx, plate.centery, speed=1.6)
+
     def update(self, all_units):
         for g in self.gears:
             g.step()
@@ -148,6 +188,7 @@ class ScrapringArena(BaseArena):
             s.step()
 
         units = [u for u in (all_units or []) if not getattr(u, "is_dead", False)]
+        self._apply_hazard_awareness(units)
 
         # Crushing gears: iskun aikana ruudussa olevat murskautuvat
         for g in self.gears:
@@ -214,7 +255,6 @@ class ScrapringArena(BaseArena):
             self._draw_gear(screen, g)
 
     def _draw_gear(self, screen, g):
-        import math
         if g.phase == "warn":
             col = (150, 110, 60)
         elif g.slamming:
