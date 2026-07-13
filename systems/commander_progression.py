@@ -78,6 +78,9 @@ PATHS = {
         "color": (170, 150, 130),
         "xp_base": 20, "xp_slope": 12,
         "locked": False,
+        "tools": ((1, "Weak Pickaxe"), (5, "Bogiron Pickaxe"),
+                  (9, "Steelhead Pickaxe"), (14, "Duskforged Pickaxe"),
+                  (19, "Vortexbite Pickaxe")),
         "milestones": (
             (4, "sure_strike", "Sure Strike", "Better ore chance per hit",
              {"mining_speed": 0.05}),
@@ -118,6 +121,9 @@ PATHS = {
         "color": (120, 170, 90),
         "xp_base": 20, "xp_slope": 12,
         "locked": False,
+        "tools": ((1, "Weak Lumber Axe"), (5, "Bogiron Lumber Axe"),
+                  (9, "Steelhead Lumber Axe"), (14, "Duskforged Lumber Axe"),
+                  (19, "Vortexfell Lumber Axe")),
         "milestones": (
             (4, "clean_swing", "Clean Swing", "Better wood chance per hit",
              {"chop_speed": 0.06}),
@@ -133,20 +139,22 @@ PATHS = {
     },
     "fishing": {
         "name": "Path of the Line",
-        "desc": "Patience by the water. Rods T1-T5 unlock at levels 1/7/13/20/26.",
+        "desc": "Patience by the water. A new rod every few levels.",
         "color": (110, 180, 200),
         "xp_base": 18, "xp_slope": 12,
         "locked": False,
+        # Työkalutikkaat: uusi väline ~4 tason välein (yksi per areenatier)
+        "tools": ((1, "Fishing Rod"), (5, "Bogwood Rod"),
+                  (9, "Ironwire Rod"), (14, "Duskwillow Rod"),
+                  (19, "Vortexline Rod")),
         "milestones": (
-            (5, "quick_wrists", "Quick Wrists", "Reeling builds less tension",
+            (4, "quick_wrists", "Quick Wrists", "Reeling builds less tension",
              {}),
-            (7, "bogwood_grip", "Bogwood Grip", "Tier 2 rods usable", {}),
             (10, "sharp_hook", "Sharp Hook", "Treasure bites more often", {}),
-            (13, "ironwire_grip", "Ironwire Grip", "Tier 3 rods usable", {}),
             (18, "double_catch", "Double Catch", "Chance to land two fish",
              {}),
-            (20, "duskwillow_grip", "Duskwillow Grip", "Tier 4 rods usable", {}),
-            (26, "vortexline_grip", "Vortexline Grip", "Tier 5 rods usable", {}),
+            (24, "steady_line", "Steady Line", "+10 max stamina",
+             {"max_stamina": 10}),
             (30, "master_of_line", "Master of the Line", "The water hides nothing from you.",
              {}),
         ),
@@ -280,6 +288,27 @@ def on_player_spell_cast(manager, spell) -> None:
     cost = int(getattr(spell, "mana_cost", 5))
     if grant_xp(manager, "arcane", max(2, cost // 2)):
         _celebrate(manager, hero, "arcane")
+
+
+def next_tool(manager, path_id: str):
+    """Seuraava avautuva työkalu (taso, nimi) tai None jos kaikki auki."""
+    spec = PATHS.get(path_id, {})
+    level = get_path(manager, path_id)["level"]
+    for lvl, name in spec.get("tools", ()):
+        if lvl > level:
+            return (lvl, name)
+    return None
+
+
+def tool_allowed(manager, attacker, tool, path_id: str, attr: str):
+    """Onko työkalu käyttäjänsä tasolle sallittu? Palauttaa (ok, req).
+    Koskee vain sankaria - NPC:t saavat käyttää mitä vain."""
+    hero = getattr(manager, "player_character", None) if manager else None
+    if hero is None or attacker is not hero:
+        return True, 0
+    req = int(getattr(tool, attr, 1) or 1)
+    level = get_path(manager, path_id)["level"]
+    return level >= req, req
 
 
 def on_ore_mined(manager, attacker, dropped: int) -> None:

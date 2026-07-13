@@ -157,6 +157,23 @@ class MuckfordTree(HarvestableProp):
                 sound_system.play_sound("error")
             return
 
+        # Path of the Timber -tasovaatimus (vain sankarille)
+        if manager is not None:
+            try:
+                from systems import commander_progression as _prog
+                ok, req = _prog.tool_allowed(manager, attacker, tool,
+                                             "forestry",
+                                             "forestry_level_required")
+                if not ok:
+                    manager.vfx.show_damage(self.rect.centerx,
+                                            self.rect.top - 40,
+                                            f"Requires Timber level {req}!",
+                                            color=(200, 50, 50))
+                    sound_system.play_sound("error")
+                    return
+            except Exception:
+                pass
+
         # 2. Osuma
         self.current_hits -= 1
         sound_system.play_sound("axe_1")
@@ -174,7 +191,8 @@ class MuckfordTree(HarvestableProp):
             manager.vfx.create_falling_leaves(self.rect.centerx, self.rect.centery)
 
         # 3. Resurssi per isku (Chance) - Lumberjack II:n chop_speed parantaa
-        if random.random() < 0.4 + float(getattr(attacker, "chop_speed", 0.0)):
+        if random.random() < 0.4 + float(getattr(attacker, "chop_speed", 0.0)) \
+                + (int(getattr(tool, "tool_tier", 1)) - 1) * 0.05:
             if manager:
                 manager.add_material(self.resource_name, 1)
                 manager.vfx.show_damage(self.rect.centerx, self.rect.top - 40, f"+1 {self.resource_name}", color=(150, 255, 100))

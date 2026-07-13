@@ -134,6 +134,21 @@ class IronOre(pygame.sprite.Sprite):
                 sound_system.play_sound("error")
             return
 
+        # Path of the Vein -tasovaatimus (vain sankarille)
+        if manager is not None:
+            try:
+                from systems import commander_progression as _prog
+                ok, req = _prog.tool_allowed(manager, attacker, tool,
+                                             "mining", "mining_level_required")
+                if not ok:
+                    manager.vfx.show_damage(self.rect.centerx, self.rect.top,
+                                            f"Requires Vein level {req}!",
+                                            color=(200, 50, 50))
+                    sound_system.play_sound("error")
+                    return
+            except Exception:
+                pass
+
         # 2. Vähennä kestävyyttä
         self.current_hits -= 1
         self.hit_timer = 10 # Väläytä "hit" kuvaa 10 framea (n. 0.16s)

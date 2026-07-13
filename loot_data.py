@@ -85,6 +85,19 @@ BLUEPRINTS = {
         'cost': 25,
         'mats': {'Iron Bar': 2, 'Swamp Wood': 1}
     },
+    # --- TIER 2 -TYOKALUT (Path of the Vein/Timber lvl 5) ---
+    'Bogiron Pickaxe': {
+        'type': 'weapon',
+        'desc': 'Tier 2 pickaxe. Requires Vein level 5 to swing.',
+        'cost': 20,
+        'mats': {'Iron Bar': 2, 'Swamp Wood': 2}
+    },
+    'Bogiron Lumber Axe': {
+        'type': 'weapon',
+        'desc': 'Tier 2 lumber axe. Requires Timber level 5 to swing.',
+        'cost': 20,
+        'mats': {'Iron Bar': 2, 'Swamp Wood': 2}
+    },
     'Iron Mace': {
         'type': 'weapon',
         'desc': 'Crushes armor and bone alike.',

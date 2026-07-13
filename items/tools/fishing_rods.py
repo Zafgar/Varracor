@@ -1,7 +1,6 @@
 # items/tools/fishing_rods.py
 """Vavat tier 2-5. Korkeampi tier avaa uudet kalat (systems/fishing.py
-FISH_SPECIES) ja vaatii opitun kalastustason (fishing_level_required,
-1-30). Tier 1 -perusvapa on items/tools/fishing_rod.py (FishingRod).
+FISH_SPECIES) ja vaatii opitun kalastustason (fishing_level_required). Tier 1 -perusvapa on items/tools/fishing_rod.py (FishingRod).
 
 Tier 2 myydään Kradilla; tier 3-5 on tarkoitus sijoittaa ylempien
 tierien kaupunkeihin/palkinnoiksi - ne ovat rekisterissä valmiina.
@@ -20,7 +19,7 @@ class BogwoodRod(FishingRod):
         self.cost = 45
         self.description = "Cured bogwood with a braided gut line."
         self.tool_tier = 2
-        self.fishing_level_required = 7
+        self.fishing_level_required = 5
 
 
 class IronwireRod(FishingRod):
@@ -33,7 +32,7 @@ class IronwireRod(FishingRod):
         self.cost = 120
         self.description = "Iron wire leader - pike teeth mean nothing."
         self.tool_tier = 3
-        self.fishing_level_required = 13
+        self.fishing_level_required = 9
 
 
 class DuskwillowRod(FishingRod):
@@ -46,7 +45,7 @@ class DuskwillowRod(FishingRod):
         self.cost = 300
         self.description = "Bends double without breaking. The deep ones pull hard."
         self.tool_tier = 4
-        self.fishing_level_required = 20
+        self.fishing_level_required = 14
 
 
 class VortexlineRod(FishingRod):
@@ -59,4 +58,4 @@ class VortexlineRod(FishingRod):
         self.cost = 900
         self.description = "The line hums near the Vortex. So do the fish."
         self.tool_tier = 5
-        self.fishing_level_required = 26
+        self.fishing_level_required = 19

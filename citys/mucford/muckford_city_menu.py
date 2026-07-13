@@ -285,6 +285,22 @@ class MuckfordCityMenu(BaseMenu):
                     self.npcs.append(v)
                     break
 
+    def _pet_chicken(self, hen):
+        """Kanan silitys: joskus irtoaa höyhen (cooldown per kana)."""
+        import random as _random
+        cd = int(getattr(hen, "_feather_cd", 0))
+        if cd <= 0 and _random.random() < 0.5:
+            hen._feather_cd = 1800  # ~30 s ennen seuraavaa
+            self.manager.add_material("Feather", 1)
+            self.manager.vfx.show_damage(hen.rect.centerx, hen.rect.top - 16,
+                                         "+1 Feather", color=(235, 235, 220))
+            self.manager.grant_hero_xp(1, hen.rect.centerx, hen.rect.top)
+        else:
+            hen._feather_cd = max(0, cd)
+            self.manager.vfx.show_damage(hen.rect.centerx, hen.rect.top - 16,
+                                         "Cluck!", color=(220, 220, 200))
+        sound_system.play_sound('hover')
+
     def _resolve_catch(self, fish, spot):
         """Saaliin ratkaisu: aarre koukussa? tuplasaalis? XP + tason nousu."""
         rng = self.fishing_session.rng if self.fishing_session else None
@@ -914,6 +930,8 @@ class MuckfordCityMenu(BaseMenu):
                     if self.player.rect.colliderect(cow.rect.inflate(40, 40)):
                         if isinstance(cow, Cow):
                             self._interact_cow(cow)
+                        elif isinstance(cow, Chicken):
+                            self._pet_chicken(cow)
                         return
 
                 # 4. Lannan keräys ja vienti
@@ -1045,6 +1063,12 @@ class MuckfordCityMenu(BaseMenu):
 
         # Munien kuoriutuminen poikasiksi
         self._update_eggs()
+
+        # Höyhen-cooldownit
+        for animal in self.animals:
+            cd = getattr(animal, "_feather_cd", 0)
+            if cd > 0:
+                animal._feather_cd = cd - 1
 
         # --- KALASTUSSESSION ETENEMINEN ---
         if self.fishing_session:

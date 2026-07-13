@@ -222,9 +222,9 @@ def test_rod_tiers_gate_fish_pools_and_require_level():
     import random as _r
     from items.item_registry import create_item
     m = _manager()
-    tiers = {"FishingRod": (1, 1), "BogwoodRod": (2, 7),
-             "IronwireRod": (3, 13), "DuskwillowRod": (4, 20),
-             "VortexlineRod": (5, 26)}
+    tiers = {"FishingRod": (1, 1), "BogwoodRod": (2, 5),
+             "IronwireRod": (3, 9), "DuskwillowRod": (4, 14),
+             "VortexlineRod": (5, 19)}
     for cls, (tier, req) in tiers.items():
         rod = create_item(cls)
         assert rod is not None, cls

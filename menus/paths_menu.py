@@ -103,9 +103,39 @@ class PathsMenu(BaseMenu):
             draw_text(f"{state['xp']} / {need} XP", font_small,
                       (200, 200, 205), screen, bar.x, bar.y + 20)
 
+        # Työkalutikkaat: milloin seuraava välinetier aukeaa
+        trunk_top = rect.y + 190
+        tools = spec.get("tools", ())
+        if tools:
+            ty = rect.y + 156
+            draw_text("TOOLS", font_small, (170, 170, 178), screen,
+                      rect.x + 18, ty)
+            ty += 18
+            next_seen = False
+            for lvl, name in tools:
+                unlocked = (not locked) and level >= lvl
+                is_next = (not locked) and not unlocked and not next_seen
+                if is_next:
+                    next_seen = True
+                if unlocked:
+                    dot_col, txt_col = color, WHITE
+                elif is_next:
+                    dot_col, txt_col = color, color
+                else:
+                    dot_col, txt_col = (70, 70, 78), (110, 110, 118)
+                pygame.draw.circle(screen, dot_col, (rect.x + 26, ty + 8), 4,
+                                   0 if unlocked else 1)
+                draw_text(f"{lvl}  {name}", font_small, txt_col, screen,
+                          rect.x + 38, ty)
+                ty += 18
+            nxt = prog.next_tool(self.manager, path_id) if not locked else None
+            if nxt:
+                draw_text(f"Next tool at level {nxt[0]}", font_small,
+                          color, screen, rect.x + 18, ty + 2)
+            trunk_top = ty + 26
+
         # Puun runko + milestone-nodet
         trunk_x = rect.x + 40
-        trunk_top = rect.y + 190
         trunk_bottom = rect.bottom - 30
         pygame.draw.line(screen, (70, 66, 58), (trunk_x, trunk_top),
                          (trunk_x, trunk_bottom), 4)

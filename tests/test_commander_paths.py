@@ -204,6 +204,97 @@ def test_paths_menu_draws_and_registered():
     assert '"paths": PathsMenu' in src
 
 
+def test_tool_ladders_defined_and_resolvable():
+    """Työkalutikkaat: uusi väline ~4 tason välein (1/5/9/14/19),
+    kaikki työkalut löytyvät rekisteristä ja Paths-UI tietää seuraavan."""
+    from items.item_registry import create_item
+    m = _manager()
+    for path_id in ("mining", "forestry", "fishing"):
+        tools = prog.PATHS[path_id]["tools"]
+        levels = [lvl for lvl, _ in tools]
+        assert levels == [1, 5, 9, 14, 19], f"{path_id}: väärä tahti"
+        gaps = [b - a for a, b in zip(levels, levels[1:])]
+        assert all(3 <= g <= 5 for g in gaps), f"{path_id}: 3-5 tason välit"
+        for _lvl, name in tools:
+            assert create_item(name) is not None, f"{name} puuttuu rekisteristä"
+    # next_tool kertoo seuraavan avauksen
+    assert prog.next_tool(m, "mining") == (5, "Bogiron Pickaxe")
+    prog.get_path(m, "mining")["level"] = 9
+    assert prog.next_tool(m, "mining") == (14, "Duskforged Pickaxe")
+    prog.get_path(m, "mining")["level"] = 30
+    assert prog.next_tool(m, "mining") is None
+
+
+def test_tool_level_gates_mining_and_forestry():
+    """Liian vaativa hakku/kirves ei toimi sankarilla ennen tasoa -
+    NPC:t saavat käyttää mitä vain."""
+    from items.item_registry import create_item
+    m = _manager()
+    hero = m.player_character
+    pick = create_item("SteelheadPickaxe")   # vaatii Vein 9
+    ok, req = prog.tool_allowed(m, hero, pick, "mining",
+                                "mining_level_required")
+    assert not ok and req == 9
+    prog.get_path(m, "mining")["level"] = 9
+    ok2, _ = prog.tool_allowed(m, hero, pick, "mining",
+                               "mining_level_required")
+    assert ok2
+    # NPC ohittaa
+    ok3, _ = prog.tool_allowed(m, object(), pick, "mining",
+                               "mining_level_required")
+    assert ok3
+
+    axe = create_item("VortexfellLumberAxe")  # vaatii Timber 19
+    ok4, req4 = prog.tool_allowed(m, hero, axe, "forestry",
+                                  "forestry_level_required")
+    assert not ok4 and req4 == 19
+
+
+def test_ore_and_tree_reject_too_advanced_tool_in_world():
+    """Kenttätesti: malmi ja puu näyttävät vaatimuksen eivätkä anna
+    resursseja liian vaativalla työkalulla."""
+    import main  # noqa: F401
+    from game_manager import GameManager
+    from items.item_registry import create_item
+    from crafting.ores.iron_ore import IronOre
+    from assets.tiles.muckford_objects import MuckfordTree
+    m = GameManager()
+    hero = m.player_character
+
+    ore = IronOre(0, 0)
+    hits0 = ore.current_hits
+    ore.take_hit(hero, create_item("VortexbitePickaxe"), m)
+    assert ore.current_hits == hits0, "isku estyi tasovaatimukseen"
+    ore.take_hit(hero, create_item("WeakPickaxe"), m)
+    assert ore.current_hits == hits0 - 1, "perushakku toimii tasolla 1"
+
+    tree = MuckfordTree(0, 0)
+    th0 = tree.current_hits
+    tree.chop(hero, create_item("DuskforgedLumberAxe"), m)
+    assert tree.current_hits == th0, "hakkuu estyi tasovaatimukseen"
+
+
+def test_chicken_petting_gives_feathers():
+    m = _manager()
+    from citys.mucford.muckford_city_menu import MuckfordCityMenu
+    from units.farm_animals import Chicken
+    city = MuckfordCityMenu(m)
+    city.on_enter()
+    hen = Chicken(500, 500)
+    hen._feather_cd = 0
+    import random as _r
+    _r.seed(1)
+    got = 0
+    for _ in range(20):
+        hen._feather_cd = 0
+        before = m.inventory.get("Feather", 0)
+        city._pet_chicken(hen)
+        got += m.inventory.get("Feather", 0) - before
+    assert got >= 5, "silittäminen tuottaa höyheniä"
+    from lore.world_data import MARKET_PRICES
+    assert MARKET_PRICES["sell"]["Feather"] == 1
+
+
 def test_progression_reapplied_on_save_load():
     import save_manager
     m = _manager()

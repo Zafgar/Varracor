@@ -465,6 +465,7 @@ MARKET_PRICES = {
         "Duskgill": 42, "Silver Eelmother": 60,
         "Vortex Koi": 120, "Blind Abyss Sturgeon": 150,
         # Kalastuksen sivusaaliit
+        "Feather": 1,
         "Waterlogged Boot": 1, "Snagged Scrap": 2, "Old Message Bottle": 6,
         "Rusted Ring": 12, "Abyssal Droplet": 40,
     },
