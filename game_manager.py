@@ -1567,18 +1567,6 @@ class GameManager:
         self.recruit_options = []
         possible_classes = [Human, Orc, Elf, Goblin]
         
-        # Trait definitions: (Name, Stat, Amount, Cost)
-        possible_traits = [
-            ("Strong", "str", 2, 30),
-            ("Weak", "str", -1, -15),
-            ("Fast", "dex", 2, 30),
-            ("Slow", "dex", -1, -15),
-            ("Intelligent", "int", 2, 30),
-            ("Dull", "int", -1, -15),
-            ("Tough", "max_hp", 20, 30),
-            ("Fragile", "max_hp", -10, -15)
-        ]
-
         for i in range(6):
             UnitClass = random.choice(possible_classes)
             
@@ -1595,27 +1583,15 @@ class GameManager:
             else: 
                 u = UnitClass(name, 0, 0, GREEN)
             
-            # Random weapon affinity perk (35% chance) - näkyy kortilla
-            if random.random() < 0.35:
-                group = random.choice(["sword", "axe", "mace", "spear",
-                                       "dagger", "bow", "crossbow", "staff"])
-                bonus = random.choice([0.10, 0.15, 0.20])
-                u.weapon_affinities[group] = u.weapon_affinities.get(group, 1.0) * (1 + bonus)
-                u.traits.append(f"{group.capitalize()} Affinity +{int(bonus * 100)}%")
-                u.cost += int(bonus * 200)
+            # Synnynnäiset lahjakkuudet (systems/talents.py): jokainen
+            # rekry on uniikki - 1-3 talenttia + mahdollinen heikkous.
+            # Nimet näkyvät kortilla; tarkat numerot vaativat Commanderin
+            # Appraiser's Eye -taidon.
+            from systems.talents import roll_talents, apply_talents
+            talents, quirk = roll_talents()
+            u.cost += apply_talents(u, talents, quirk)
+            u.cost = max(15, u.cost)
 
-            # Random Traits (30% chance for a trait)
-            if random.random() < 0.3:
-                trait_name, stat, amount, cost_mod = random.choice(possible_traits)
-                if trait_name not in u.traits:
-                    u.traits.append(trait_name)
-                    if stat in u.base_attributes:
-                        u.base_attributes[stat] += amount
-                    u.cost += cost_mod
-                    # Recalculate to apply stat changes
-                    u.calculate_final_stats()
-                    u.current_hp = u.max_hp
-            
             self.recruit_options.append(u)
 
     def hire_recruit(self, index):

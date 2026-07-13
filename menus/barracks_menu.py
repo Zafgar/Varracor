@@ -124,6 +124,8 @@ class BarracksMenu(BaseMenu):
         start_x = 60
         start_y = 170
         mouse = pygame.mouse.get_pos()
+        # Appraiser's Eye (insight) paljastaa talenttien tarkat vaikutukset
+        insight = getattr(self.manager.player_character, "insight", 0) >= 1
         for i, unit in enumerate(roster):
             col = i % per_row
             row = i // per_row
@@ -133,7 +135,8 @@ class BarracksMenu(BaseMenu):
             hover = rect.collidepoint(mouse)
             self.card_rects.append((rect, unit))
             if hasattr(unit, "draw_info_card"):
-                unit.draw_info_card(screen, x, y, card_w, card_h, hover=hover)
+                unit.draw_info_card(screen, x, y, card_w, card_h, hover=hover,
+                                    show_talent_details=insight)
             else:
                 self.draw_soft_panel(screen, rect)
                 draw_text(getattr(unit, "name", "Unit"), font_main, WHITE,

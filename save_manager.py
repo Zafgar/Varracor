@@ -79,6 +79,8 @@ def _serialize_unit(u):
         "personality": getattr(u, "personality", None),
         "origin": getattr(u, "origin", None),
         "weapon_affinities": dict(getattr(u, "weapon_affinities", {})),
+        "talent_effects": dict(getattr(u, "talent_effects", {}) or {}),
+        "talent_details": list(getattr(u, "talent_details", []) or []),
         "base_attributes": dict(getattr(u, "base_attributes", {})),
         "cost": int(getattr(u, "cost", 0)),
         "training_count": int(getattr(u, "training_count", 0)),
@@ -128,6 +130,8 @@ def _apply_unit_state(unit, data):
         unit.origin = data["origin"]
     if data.get("weapon_affinities"):
         unit.weapon_affinities = dict(data["weapon_affinities"])
+    unit.talent_effects = dict(data.get("talent_effects", {}) or {})
+    unit.talent_details = list(data.get("talent_details", []) or [])
     if data.get("base_attributes"):
         unit.base_attributes = dict(data["base_attributes"])
     unit.cost = data.get("cost", unit.cost)

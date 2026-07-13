@@ -130,6 +130,10 @@ class Gladiator(pygame.sprite.Sprite):
         self.attackers = set()
         self.status_effects = []
         self.traits = []
+        # Synnynnäiset talentit (systems/talents.py): efektit joita
+        # calculate_final_stats kuluttaa + insight-gated kuvaukset
+        self.talent_effects = {}
+        self.talent_details = []
 
         # --- IDENTITY (luonne + tausta) ---
         # Vain rekrytoitavilla roduilla; bosseille/eläimille jää None.
@@ -263,10 +267,12 @@ class Gladiator(pygame.sprite.Sprite):
     def draw_health_bar(self, surface, offset=(0, 0)):
         self.renderer.draw_health_bar(surface, offset)
 
-    def draw_info_card(self, surface, x, y, w=200, h=260, bg_color=(30, 30, 35), border_color=(60, 60, 70), show_cost=False, hover=False, can_afford=True):
+    def draw_info_card(self, surface, x, y, w=200, h=260, bg_color=(30, 30, 35), border_color=(60, 60, 70), show_cost=False, hover=False, can_afford=True, show_talent_details=False):
         """
         Piirtää informatiivisen kortin yksiköstä (esim. Tavern/Roster -valikoihin).
         Näyttää: Nimi, Rotu, Level, HP/Mana, Statsit, Traitit.
+        show_talent_details: Commanderin Appraiser's Eye paljastaa talenttien
+        tarkat vaikutukset (muuten vain nimet näkyvät).
         """
         # Yritetään hakea fontit, tai käytetään oletusta
         try:
@@ -351,10 +357,42 @@ class Gladiator(pygame.sprite.Sprite):
             except Exception:
                 pass
         if self.traits:
-            t_y = start_y + row_h * row_i + 5
             t_str = ", ".join(self.traits[:3])
-            surface.blit(font_small.render(f"Traits: {t_str}", True, (255, 215, 0)), (col1, t_y))
-            
+            t_max = max(18, int((w - 20) / 8))
+            t_line = f"Traits: {t_str}"
+            if len(t_line) > t_max:
+                # Rivitys pilkun kohdalta, jotta nimet eivät katkea kesken
+                cut = t_line.rfind(", ", 0, t_max)
+                cut = cut if cut > 0 else t_max
+                t_rows = [t_line[:cut], t_line[cut:].lstrip(", ")[:t_max]]
+            else:
+                t_rows = [t_line]
+            for t_row in t_rows:
+                t_y = start_y + row_h * row_i + 5
+                surface.blit(font_small.render(t_row, True, (255, 215, 0)), (col1, t_y))
+                row_i += 1
+            # Talenttien tarkat vaikutukset vaativat Appraiser's Eye -taidon
+            details = getattr(self, "talent_details", None)
+            if details:
+                max_y = y + h - (30 if show_cost else 12)
+                if show_talent_details:
+                    # Katkaisu skaalautuu kortin leveyteen (ei ylivuotoa)
+                    max_chars = max(18, int((w - 20) / 8))
+                    for d in details:
+                        d_y = start_y + row_h * row_i + 5
+                        if d_y + 16 > max_y:
+                            break
+                        surface.blit(font_small.render(d[:max_chars], True,
+                                                       (185, 230, 185)),
+                                     (col1, d_y))
+                        row_i += 1
+                else:
+                    d_y = start_y + row_h * row_i + 5
+                    if d_y + 16 <= max_y:
+                        surface.blit(font_small.render(
+                            "? Appraiser's Eye reveals more", True,
+                            (130, 130, 150)), (col1, d_y))
+
         # 6. Hinta
         if show_cost:
             cost_y = h - 25
@@ -574,6 +612,8 @@ class Gladiator(pygame.sprite.Sprite):
         self.crit_chance = 0.05
         self.range_bonus = 0
         self.hazard_sense = 0
+        self.damage_reduction = 0.0
+        self.xp_mult = 1.0
         self.cooldown_multiplier = 1.0
         self.mana_regen = self.base_mana_regen
 
@@ -681,7 +721,8 @@ class Gladiator(pygame.sprite.Sprite):
         # No implicit spell tier: spell tier must be unlocked via skill tree.
 
         # Equipment stats & penalties
-        gear_spd_penalty = 0.0
+        gear_spd_penalty = 0
+        bonus_stamina = 0  # varusteiden stamina lisätään uudelleenlaskennan JÄLKEEN
         self.armor = None
         self.armor_name = "No Armor"
 
@@ -708,7 +749,7 @@ class Gladiator(pygame.sprite.Sprite):
                     elif k == "mana":
                         self.max_mana += v
                     elif k == "stamina":
-                        self.max_stamina += v
+                        bonus_stamina += v
                     elif k == "str":
                         self.strength += v
                     elif k == "dex":
@@ -737,6 +778,16 @@ class Gladiator(pygame.sprite.Sprite):
 
         # Final calculations
         self.max_stamina = 50 + (self.strength * 1.5) + (self.dexterity * 1.5)
+        self.max_stamina += bonus_stamina  # varusteet (bugikorjaus: ei jyrää)
+
+        # --- TALENTIT (synnynnäiset lahjat, systems/talents.py) ---
+        _tal = getattr(self, "talent_effects", {}) or {}
+        self.defense += int(_tal.get("defense", 0))
+        self.max_stamina += float(_tal.get("max_stamina", 0))
+        self.crit_chance += float(_tal.get("crit_chance", 0.0))
+        self.damage_reduction += float(_tal.get("damage_reduction", 0.0))
+        self.speed_multiplier *= float(_tal.get("speed_mult", 1.0))
+        self.xp_mult *= float(_tal.get("xp_mult", 1.0))
 
         dex_compensation = self.dexterity * 0.005
         final_speed_mod = float(gear_spd_penalty) + float(dex_compensation)
@@ -1232,6 +1283,11 @@ class Gladiator(pygame.sprite.Sprite):
         # Werewolf Bloodmoon Frenzy: hyokkaaja lyo kovempaa
         if attacker is not None and getattr(attacker, 'frenzy_timer', 0) > 0:
             amount = int(amount * 1.2)
+
+        # Talentti: Thick Skin yms. luontainen vahingonvähennys
+        dr = float(getattr(self, "damage_reduction", 0.0))
+        if dr > 0:
+            amount = int(amount * max(0.2, 1.0 - dr))
 
         final = max(1, int(amount) - int(self.defense))
         self.current_hp -= final
@@ -1766,7 +1822,7 @@ class Gladiator(pygame.sprite.Sprite):
     def add_xp(self, amount: int) -> bool:
         if self.level >= MAX_LEVEL:
             return False
-        gained = max(0, int(amount))
+        gained = max(0, int(round(amount * float(getattr(self, "xp_mult", 1.0)))))
         if gained <= 0:
             return False
         self.xp += gained

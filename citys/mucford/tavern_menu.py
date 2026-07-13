@@ -1024,7 +1024,9 @@ class TavernMenu(BaseMenu):
             can_afford = self.manager.gold >= unit.cost
             is_hover = pygame.Rect(x, y, card_w, card_h).collidepoint(mouse_pos)
             
-            unit.draw_info_card(screen, x, y, w=card_w, h=card_h, show_cost=True, hover=is_hover, can_afford=can_afford)
+            insight = getattr(self.manager.player_character, "insight", 0) >= 1
+            unit.draw_info_card(screen, x, y, w=card_w, h=card_h, show_cost=True, hover=is_hover, can_afford=can_afford,
+                                show_talent_details=insight)
             
         # Fade Overlay (Herääminen)
         if self.fade_alpha > 0:

@@ -128,6 +128,18 @@ COMMANDER_SKILL_TREE = {
         "effects": {"haggler": 1, "int": 2}
     },
 
+    # --- APPRAISER (Insight) ---
+    # Paljastaa taistelijoiden talenttien tarkat vaikutukset korteilla
+    "insight_1": {
+        "name": "Appraiser's Eye",
+        "desc": "See the exact effects of a fighter's innate talents.",
+        "pos": (460, 80),
+        "cost": 1,
+        "min_level": 2,
+        "requires": [],
+        "effects": {"insight": 1, "int": 1}
+    },
+
     # --- LUMBER AXE BRANCH (Right) ---
     "lumber_1": {
         "name": "Lumberjack I",
