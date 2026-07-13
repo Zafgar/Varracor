@@ -215,11 +215,47 @@ Still planned for Kingsreach Toll:
 - final painted gatehouse, tents, carts, NPCs and enemy assets after interactive
   performance and route-balance tuning.
 
-Next production focus — Tier 0 Finale:
+## 2026-07-13 — Tier 0 Finale batch
 
-1. Add Bram's Crown Promotion Docket dialogue and prerequisite validation.
-2. Connect existing Rookie Dust standings and promotion match to the finale state.
-3. Add branch-aware Marda, Hamo and Muckford-resident farewell dialogue.
-4. Build the Shanty Yard promotion ceremony and Bram recommendation handoff.
-5. Add persistent Tier 1 Charter, sponsor letter and western departure state.
-6. Open Rattlebridge only after both Crown papers and formal arena promotion.
+Completed:
+
+- added persistent finale state for the Crown Promotion Docket, league result,
+  ceremony, rewards and western departure;
+- required Kingsreach clearance, Stamped Crown Travel Papers, Bram's recorded
+  docket, one major Muckford crisis and Rookie Dust Top 2 qualification before
+  the final promotion match can begin;
+- added high-priority Bram dialogue for receiving the Crown docket, explaining
+  missing requirements and acknowledging the promotion victory;
+- connected the existing 1v1, 3v3 and 5v5 Grand Slam standings and promotion
+  rival directly to the finale gate;
+- fixed the existing promotion flow so one victory advances exactly once from
+  Rookie Dust to Scrapring instead of applying the tier increase twice;
+- rebuilt the promotion screen as a code-drawn Shanty Yard farewell with an arena
+  arch, Tier 1 banner, animated crowd, torches and confetti;
+- added seven branch-aware farewell pages from Bram, Marda, Hamo, Sera Quench's
+  representative and the Muckford crowd;
+- made the farewell mention the major crisis solved and the route selected at
+  Kingsreach Toll;
+- granted Bram's Recommendation, Tier 1 Charter, Sera Quench Sponsor Letter,
+  250 SP and 10 reputation exactly once;
+- required formal Tier 1 promotion, Stamped Crown papers and the completed
+  farewell ceremony at both the physical Kingsreach exit and world-map route;
+- made runtime-added world routes tolerant of lore-registry reload order instead
+  of crashing on a temporarily missing local destination;
+- validated compilation, the Tier 0 report, `main.py` import and the complete
+  Muckford suite: 96 tests passed in the headless GitHub runner.
+
+Still planned for the finale:
+
+- dedicated crowd, ledger-stamp, farewell and promotion music/audio;
+- final painted ceremony portraits and Tier 1 departure art after interactive
+  pacing and layout tuning.
+
+Next production focus — Rattlebridge Handoff:
+
+1. Build the bridge approach and professional Crown gate inspection.
+2. Present the Tier 1 Charter, Bram's Recommendation and sponsor letter in play.
+3. Add Sera Quench's first full meeting and Tier 1 registration dialogue.
+4. Add initial lodging, professional contract and sponsor onboarding quests.
+5. Connect the existing Rattlebridge districts into one persistent arrival arc.
+6. Begin the Scrapring Circuit without removing access back to Muckford.
