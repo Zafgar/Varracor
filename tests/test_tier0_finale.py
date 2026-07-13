@@ -27,6 +27,7 @@ from systems.tier0_finale import (
     return_docket_to_bram,
 )
 from systems.tier0_world_tracker import ensure_tier0_state, mark_tier0_event, tier0_phase
+from systems.world_progression import ensure_world_state, location_status, route_key
 
 
 class DummyLeague:
@@ -247,3 +248,29 @@ def test_complete_ceremony_is_safe_for_loaded_promoted_save():
     assert manager.gold == gold
     assert ensure_finale_state(manager)["ceremony_complete"] is True
     assert manager.inventory["Bram's Recommendation"] == 1
+
+
+def test_world_map_cannot_bypass_papers_promotion_or_farewell_to_rattlebridge():
+    manager = ready_manager(tier=2)
+    world = ensure_world_state(manager)
+    world["current_location"] = "kingsreach_toll"
+    for location_id in ("kingsreach_toll", "rattlebridge"):
+        if location_id not in world["discovered_locations"]:
+            world["discovered_locations"].append(location_id)
+    key = route_key("kingsreach_toll", "rattlebridge")
+    if key not in world["discovered_routes"]:
+        world["discovered_routes"].append(key)
+
+    status = location_status(manager, "rattlebridge")
+    assert status["can_travel"] is False
+    assert "promotion" in status["reason"]
+
+    return_docket_to_bram(manager)
+    mark_promotion_victory(manager)
+    status = location_status(manager, "rattlebridge")
+    assert status["can_travel"] is False
+    assert "farewell" in status["reason"]
+
+    complete_ceremony(manager)
+    status = location_status(manager, "rattlebridge")
+    assert status["can_travel"] is True
