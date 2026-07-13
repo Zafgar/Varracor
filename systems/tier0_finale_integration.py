@@ -184,13 +184,12 @@ def _patch_loot_screen() -> None:
             self.manager.apply_rewards()
             if self.manager.is_game_over:
                 self.next_state = "menu"
-            elif getattr(self.manager, "match_mode", "") == "PROMOTION" and self.manager.match_result == "VICTORY":
-                # GameManager.end_match already reports the promotion result. Only
-                # apply the tier change here as a compatibility fallback.
-                engine = getattr(self.manager, "league_engine", None)
-                if engine and int(getattr(engine, "tier", 1)) < 2:
-                    engine.promote_player()
-                self.next_state = "promotion_ceremony"
+            elif getattr(self.manager, "match_mode", "") == "PROMOTION":
+                # Grand Slam on best-of-3: sarjalogiikka päättää jatketaanko
+                # uudella kierroksella, juhlitaanko mestaruutta vai
+                # palataanko liigaan (systems/grand_slam_series.py).
+                from systems.grand_slam_series import handle_promotion_result
+                self.next_state = handle_promotion_result(self.manager)
             elif getattr(self.manager, "mode", "") == "League":
                 # Liigamatsin jälkeen takaisin liigavalikkoon (sarjataulukko,
                 # seuraava vastustaja) - ei vanhaan hubiin

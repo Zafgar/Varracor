@@ -740,9 +740,18 @@ class GameManager:
                     try: e.kill()
                     except Exception: pass
                     self.enemy_team.add(e)
-                self.current_arena = get_arena_for(
-                    self._get_league_tier(),
-                    getattr(self, "current_arena_location", None))
+                if getattr(self, "match_mode", "") == "PROMOTION":
+                    # Grand Slam -finaali pelataan aina isolla stadionilla
+                    # (katsomot, best-of-3 -jujut). Kierros määrää twistin.
+                    from arenas.tier_1.grand_slam_arena import GrandSlamArena
+                    from systems.grand_slam_series import get_series
+                    self.current_arena = GrandSlamArena()
+                    self.current_arena.set_twist(
+                        int(get_series(self).get("round", 1)))
+                else:
+                    self.current_arena = get_arena_for(
+                        self._get_league_tier(),
+                        getattr(self, "current_arena_location", None))
                 # Rattlebridgen matseihin arvotaan kiertävä sponsoritavoite.
                 try:
                     from systems.match_objectives import roll_match_objective
@@ -1282,15 +1291,19 @@ class GameManager:
                     "kills": u.stats.get("kills", 0)
                 })
 
-            try:
-                self.league_engine.report_match_result(
-                    mode=self.match_mode, player_win=win,
-                    enemy_team=self.current_enemy_team,
-                    match_stats=match_stats,
-                    player_fighters=list(self.last_fighters),
-                    enemy_units=list(self.enemy_team),
-                )
-            except Exception: pass
+            # HUOM: PROMOTION on best-of-3 -SARJA - yksittäistä kierrosta ei
+            # raportoida enginelle (report_match_result promotoisi heti 1.
+            # voitosta). Sarjan ratkaisu: systems/grand_slam_series.py.
+            if getattr(self, "match_mode", "") != "PROMOTION":
+                try:
+                    self.league_engine.report_match_result(
+                        mode=self.match_mode, player_win=win,
+                        enemy_team=self.current_enemy_team,
+                        match_stats=match_stats,
+                        player_fighters=list(self.last_fighters),
+                        enemy_units=list(self.enemy_team),
+                    )
+                except Exception: pass
             # Muiden parien taustamatsit ratkaistaan heti pelaajan matsin
             # päätteeksi (sama kierros etenee kaikilla samaan aikaan).
             try:
@@ -1804,8 +1817,17 @@ class GameManager:
 
     def _position_units(self, units, side: str):
         if not units: return
-        start_x = 100 if side == "left" else SCREEN_WIDTH - 150
-        start_y = 200
+        arena = self.current_arena
+        # Isot areenat (esim. Grand Slam -stadion) määrittelevät omat
+        # spawn-pisteensä; muuten käytetään ruutukoon oletuksia.
+        spawn = None
+        if arena is not None:
+            spawn = getattr(arena, "spawn_points", {}).get(side)
+        if spawn:
+            start_x, start_y = int(spawn[0]), int(spawn[1])
+        else:
+            start_x = 100 if side == "left" else SCREEN_WIDTH - 150
+            start_y = 200
         step_y = 70
         for i, u in enumerate(units):
             u.rect.topleft = (start_x, start_y + i * step_y)

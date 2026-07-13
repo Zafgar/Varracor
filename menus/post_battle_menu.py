@@ -196,14 +196,10 @@ class LootScreenMenu(BaseMenu):
             if self.manager.is_game_over:
                 self.next_state = "menu"
             
-            # --- NEW: Check for Promotion Victory ---
-            elif getattr(self.manager, "match_mode", "") == "PROMOTION" and self.manager.match_result == "VICTORY":
-                # Nosta tieriä jos ei vielä tehty
-                if hasattr(self.manager, "league_engine") and self.manager.league_engine:
-                    self.manager.league_engine.promote_player()
-                
-                # Siirry seremoniaan
-                self.next_state = "promotion_ceremony"
+            # --- GRAND SLAM: best-of-3 -sarjan kierros ratkesi ---
+            elif getattr(self.manager, "match_mode", "") == "PROMOTION":
+                from systems.grand_slam_series import handle_promotion_result
+                self.next_state = handle_promotion_result(self.manager)
 
             elif getattr(self.manager, "mode", "") == "League":
                 # Liigamatsin jälkeen takaisin liigavalikkoon (sarjataulukko,

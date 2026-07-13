@@ -116,7 +116,11 @@ class PrepareMenu(BaseMenu):
             if len(self.selected_units) > 0: # Ainakin 1 pitää olla
                 # Aloita taistelu valituilla
                 self.manager.start_match(self.selected_units, self.team_limit)
-                self.next_state = "battle"
+                # Grand Slam -finaali alkaa cinematic-juonnolla
+                if getattr(self.manager, "match_mode", "") == "PROMOTION":
+                    self.next_state = "finale_show"
+                else:
+                    self.next_state = "battle"
 
     def draw(self, screen):
         # 1. Tausta (Tumma)

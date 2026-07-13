@@ -138,9 +138,11 @@ class LeagueMenu(BaseMenu):
                 sound_system.play_sound("click")
                 self.manager.mode = "League"
                 from leagues.league_engine import PROMOTION_BATTLE_SIZE
+                from systems.grand_slam_series import begin_series
                 self.manager.match_mode = "PROMOTION"
                 self.manager.current_enemy_team = opp_team
                 self.manager.battle_size = PROMOTION_BATTLE_SIZE  # promo on aina 5v5
+                begin_series(self.manager)  # best-of-3 alkaa alusta
                 self.next_state = "prepare"
                 return
 
