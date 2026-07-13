@@ -125,7 +125,8 @@ class MagicSchoolMenu(BaseMenu):
         self.btn_back.check_hover(pygame.mouse.get_pos())
         self.btn_back.draw(screen)
         
-        draw_text("MAGIC SCHOOLS OF VARRAKOR", font_title, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 250, 40)
+        _t = font_title.render("MAGIC SCHOOLS OF VARRAKOR", True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         draw_text("Select a Collegium to study spells", font_main, (200, 200, 200), screen, SCREEN_WIDTH // 2 - 180, 90)
         
         mouse_pos = pygame.mouse.get_pos()

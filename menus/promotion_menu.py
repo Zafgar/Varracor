@@ -164,7 +164,7 @@ class PromotionMenu(BaseMenu):
         return lines
 
     def _draw_yard(self, screen):
-        screen.fill((25, 24, 29))
+        self.draw_themed_background(screen, "forge")
         horizon = int(SCREEN_HEIGHT * 0.44)
         pygame.draw.rect(screen, (54, 48, 44), (0, horizon, SCREEN_WIDTH, SCREEN_HEIGHT - horizon))
         pygame.draw.rect(screen, (76, 63, 49), (0, horizon + 90, SCREEN_WIDTH, SCREEN_HEIGHT - horizon - 90))

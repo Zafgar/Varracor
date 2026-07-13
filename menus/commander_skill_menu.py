@@ -108,11 +108,12 @@ class CommanderSkillMenu(BaseMenu):
         return None
 
     def draw(self, screen):
-        screen.fill((15, 20, 25))
+        self.draw_themed_background(screen, "guild")
         self.draw_themed_background(screen, mood="forge")
 
         # Header
-        draw_text("COMMANDER SKILLS", font_title, GOLD_COLOR, screen, SCREEN_WIDTH//2 - 150, 30)
+        _t = font_title.render("COMMANDER SKILLS", True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         draw_text(f"Skill Points: {self.unit.skill_points}", font_main, WHITE, screen, SCREEN_WIDTH//2 - 80, 80)
 
         # Draw Connections

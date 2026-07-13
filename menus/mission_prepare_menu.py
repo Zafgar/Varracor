@@ -112,7 +112,7 @@ class MissionPrepareMenu(BaseMenu):
                 self.next_state = "match_loading"
 
     def draw(self, screen):
-        screen.fill((15, 12, 18)) # Darker, moodier background
+        self.draw_themed_background(screen, "forge")
         
         mission = self.manager.selected_mission
         title = mission['title'] if mission else "Unknown Mission"

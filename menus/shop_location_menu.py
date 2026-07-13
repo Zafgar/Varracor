@@ -124,7 +124,8 @@ class ShopLocationMenu(BaseMenu):
         self.btn_back.check_hover(pygame.mouse.get_pos())
         self.btn_back.draw(screen)
         
-        draw_text("MARKET DISTRICT", font_title, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 150, 40)
+        _t = font_title.render("MARKET DISTRICT", True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         draw_text(f"Funds: {format_money(self.manager.gold)}", font_main, GOLD_COLOR, screen, 50, 50)
         
         # Clip area

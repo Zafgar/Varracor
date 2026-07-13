@@ -366,7 +366,7 @@ class ShopMenu(BaseMenu):
     # DRAW LOOP
     # -------------------------
     def draw(self, screen):
-        screen.fill((25, 20, 30))
+        self.draw_themed_background(screen, "city")
 
         title = "MARKETPLACE" if self.mode == "BUY" else "SELL ITEMS (50% Refund)"
         col = GOLD_COLOR if self.mode == "BUY" else (200, 100, 100)

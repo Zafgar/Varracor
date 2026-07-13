@@ -117,7 +117,7 @@ class RecruitMenu(BaseMenu):
                         sound_system.play_sound('error')
 
     def draw(self, screen):
-        screen.fill((15, 15, 20))
+        self.draw_themed_background(screen, "city")
         self.draw_themed_background(screen, mood="city")
         
         self.btn_back.check_hover(pygame.mouse.get_pos())
@@ -127,7 +127,8 @@ class RecruitMenu(BaseMenu):
             self.btn_cheat.check_hover(pygame.mouse.get_pos())
             self.btn_cheat.draw(screen)
         
-        draw_text("TRAVEL & RECRUITMENT", font_title, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 200, 30)
+        _t = font_title.render("TRAVEL & RECRUITMENT", True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         
         # --- LEFT: TIERS ---
         draw_text("SELECT CIRCUIT", font_main, WHITE, screen, 50, 110)

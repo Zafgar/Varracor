@@ -60,7 +60,8 @@ class SponsorMenu(BaseMenu):
         self.btn_back.draw(screen)
         
         # Header
-        draw_text("SPONSORSHIP CONTRACTS", font_title, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 200, 30)
+        _t = font_title.render("SPONSORSHIP CONTRACTS", True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         draw_text(f"Circuit: {TIER_0_NAME}  |  Overseer: {MANAGER_NAME}", font_main, (180, 180, 180), screen, SCREEN_WIDTH // 2 - 220, 80)
         
         # --- LEFT LIST ---

@@ -1,6 +1,6 @@
 import pygame
 from settings import *
-from ui_kit import UIButton, draw_panel, draw_text, font_title, font_main, font_small
+from ui_kit import UIButton, draw_panel, draw_text, font_title, font_header, font_main, font_small
 from menus.base_menu import BaseMenu
 from sound_manager import sound_system
 from items.item_registry import create_fists
@@ -498,12 +498,13 @@ class GuildMenu(BaseMenu):
     # DRAW
     # -------------------------
     def draw(self, screen):
-        screen.fill((20, 20, 28))
+        self.draw_themed_background(screen, "guild")
         mouse_pos = pygame.mouse.get_pos()
 
         self.btn_back.check_hover(mouse_pos)
         self.btn_back.draw(screen)
-        draw_text("GUILD HOUSE", font_title, WHITE, screen, SCREEN_WIDTH // 2 - 140, 40)
+        title = font_title.render("GUILD HOUSE", True, GOLD_COLOR)
+        self.draw_header_bar(screen, title, y=10)
 
         for b in self.tab_buttons:
             b.current_color = (90, 90, 120) if b.text == self.active_tab else (55, 55, 70)
@@ -567,7 +568,7 @@ class GuildMenu(BaseMenu):
         
         # Name & Level
         lvl, xp_text, pct = self._get_xp_ui(unit)
-        draw_text(unit.name, font_title, WHITE, screen, char_x + 20, s_y)
+        draw_text(unit.name, font_header, WHITE, screen, char_x + 20, s_y)
         draw_text(f"Lvl {lvl} {unit.race_name}", font_small, GOLD_COLOR, screen, char_x + 20, s_y + 35)
         
         # XP Bar

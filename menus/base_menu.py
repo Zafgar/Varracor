@@ -94,7 +94,7 @@ class BaseMenu:
         if key in self._bg_cache:
             return self._bg_cache[key]
 
-        top, bottom, _accent = self._theme_colors(mood)
+        top, bottom, accent = self._theme_colors(mood)
 
         surf = pygame.Surface((w, h)).convert()
         # gradient fill
@@ -104,6 +104,27 @@ class BaseMenu:
             g = int(top[1] * (1 - t) + bottom[1] * t)
             b = int(top[2] * (1 - t) + bottom[2] * t)
             pygame.draw.line(surf, (r, g, b), (0, y), (w, y))
+
+        # aksenttihehku otsikon taakse (pehmeä "kajo" ylös-keskelle)
+        glow = pygame.Surface((w, h), pygame.SRCALPHA)
+        gx, gy = w // 2, int(h * 0.06)
+        for radius, alpha in ((int(w * 0.42), 10), (int(w * 0.30), 12),
+                              (int(w * 0.18), 14)):
+            pygame.draw.circle(glow, (accent[0], accent[1], accent[2], alpha),
+                               (gx, gy), radius)
+        surf.blit(glow, (0, 0))
+
+        # hienovarainen vinoraidoitus (kangas/kivi-tekstuuri)
+        tex = pygame.Surface((w, h), pygame.SRCALPHA)
+        rng = random.Random(hash(mood) & 0xFFFF)
+        for _ in range(int(w * h / 26000)):
+            tx = rng.randint(-60, w)
+            ty = rng.randint(0, h)
+            ln = rng.randint(30, 90)
+            a = rng.randint(4, 10)
+            pygame.draw.line(tex, (255, 255, 255, a), (tx, ty),
+                             (tx + ln, ty + ln // 3), 1)
+        surf.blit(tex, (0, 0))
 
         # vignette overlay
         vig = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -117,6 +138,15 @@ class BaseMenu:
                 if a > 0:
                     pygame.draw.rect(vig, (0, 0, 0, a), (x, y, step, step))
         surf.blit(vig, (0, 0))
+
+        # ohut koristekehys ruudun reunoille + kulmakoristeet
+        try:
+            from ui_kit import COLOR_TRIM_DIM, draw_corner_flourish
+            frame = pygame.Rect(14, 14, w - 28, h - 28)
+            pygame.draw.rect(surf, COLOR_TRIM_DIM, frame, 1)
+            draw_corner_flourish(surf, frame, COLOR_TRIM_DIM, size=26, width=2)
+        except Exception:
+            pass
 
         self._bg_cache[key] = surf
         return surf
@@ -168,18 +198,70 @@ class BaseMenu:
     # -------------------------
     # UI HELPERS
     # -------------------------
+    _soft_panel_cache = {}
+
     def draw_soft_panel(self, screen, rect: pygame.Rect, alpha=110, border_alpha=140, radius=16):
-        panel = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-        pygame.draw.rect(panel, (20, 20, 28, alpha), panel.get_rect(), border_radius=radius)
-        pygame.draw.rect(panel, (255, 255, 255, border_alpha), panel.get_rect(), width=2, border_radius=radius)
+        key = (rect.w, rect.h, alpha, border_alpha, radius)
+        panel = BaseMenu._soft_panel_cache.get(key)
+        if panel is None:
+            panel = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+            # lasigradientti: ylhäältä hieman vaaleampi
+            for py in range(rect.h):
+                t = py / max(1, rect.h - 1)
+                col = (int(30 - 12 * t), int(30 - 12 * t), int(42 - 16 * t),
+                       alpha)
+                pygame.draw.line(panel, col, (0, py), (rect.w, py))
+            mask = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+            pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(),
+                             border_radius=radius)
+            panel.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            pygame.draw.rect(panel, (255, 255, 255, border_alpha),
+                             panel.get_rect(), width=2, border_radius=radius)
+            # sisempi pronssiviiva + yläkiilto
+            try:
+                from ui_kit import COLOR_TRIM_DIM
+                pygame.draw.rect(panel, (*COLOR_TRIM_DIM, 150),
+                                 panel.get_rect().inflate(-6, -6), 1,
+                                 border_radius=max(4, radius - 3))
+            except Exception:
+                pass
+            pygame.draw.line(panel, (255, 255, 255, 26),
+                             (radius, 3), (rect.w - radius, 3))
+            if len(BaseMenu._soft_panel_cache) > 64:
+                BaseMenu._soft_panel_cache.clear()
+            BaseMenu._soft_panel_cache[key] = panel
         screen.blit(panel, rect.topleft)
+
+    _header_cache = {}
 
     def draw_header_bar(self, screen, title_surf, y=30):
         w, _h = screen.get_size()
-        bar = pygame.Surface((w, 84), pygame.SRCALPHA)
-        pygame.draw.rect(bar, (0, 0, 0, 140), bar.get_rect(), border_radius=0)
+        key = (w, y)
+        bar = BaseMenu._header_cache.get(key)
+        if bar is None:
+            bar = pygame.Surface((w, 96), pygame.SRCALPHA)
+            # palkki joka häipyy reunoilta
+            for px in range(w):
+                edge = min(px, w - 1 - px) / max(1, w * 0.5)
+                a = int(150 * min(1.0, edge * 3.2 + 0.25))
+                pygame.draw.line(bar, (0, 0, 0, a), (px, 6), (px, 88))
+            try:
+                from ui_kit import COLOR_TRIM, draw_ornament_rule
+                draw_ornament_rule(bar, int(w * 0.30), int(w * 0.70), 90,
+                                   COLOR_TRIM)
+                pygame.draw.line(bar, (*COLOR_TRIM, 120),
+                                 (int(w * 0.34), 8), (int(w * 0.66), 8))
+            except Exception:
+                pass
+            BaseMenu._header_cache[key] = bar
         screen.blit(bar, (0, y))
-        screen.blit(title_surf, (w // 2 - title_surf.get_width() // 2, y + 18))
+        # otsikon varjo + itse otsikko
+        tx = w // 2 - title_surf.get_width() // 2
+        shadow = pygame.Surface(title_surf.get_size(), pygame.SRCALPHA)
+        shadow.blit(title_surf, (0, 0))
+        shadow.fill((0, 0, 0, 160), special_flags=pygame.BLEND_RGBA_MULT)
+        screen.blit(shadow, (tx + 3, y + 21))
+        screen.blit(title_surf, (tx, y + 18))
 
     def draw_editor(self, screen):
         """Draws the map editor overlay if active."""

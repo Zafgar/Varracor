@@ -62,7 +62,8 @@ class ReputationMenu(BaseMenu):
         self.btn_back.check_hover(pygame.mouse.get_pos())
         self.btn_back.draw(screen)
         
-        draw_text("REPUTATION & STANDING", font_title, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 200, 30)
+        _t = font_title.render("REPUTATION & STANDING", True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         
         # --- LEFT LIST (Scrollable) ---
         draw_panel(screen, self.list_rect.x, self.list_rect.y, self.list_rect.w, self.list_rect.h, (30, 30, 40))

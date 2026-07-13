@@ -61,7 +61,8 @@ class WorkshopLocationMenu(BaseMenu):
         self.btn_back.check_hover(pygame.mouse.get_pos())
         self.btn_back.draw(screen)
         
-        draw_text("SELECT WORKSHOP LOCATION", font_title, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 220, 40)
+        _t = font_title.render("SELECT WORKSHOP LOCATION", True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         
         mouse_pos = pygame.mouse.get_pos()
         

@@ -97,13 +97,14 @@ class MissionMenu(BaseMenu):
                 sound_system.play_sound('click')
 
     def draw(self, screen):
-        screen.fill((15, 15, 20))
+        self.draw_themed_background(screen, "quest")
         self.draw_themed_background(screen, mood="quest")
         
         cx = SCREEN_WIDTH // 2
         
         header = "ACTIVE SWARMS" if self.manager.mode == "Monster Hunt" else "BOSS TARGETS"
-        draw_text(header, font_title, GOLD_COLOR, screen, cx - 150, 30)
+        _t = font_title.render(header, True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         
         mouse_pos = pygame.mouse.get_pos()
         self.btn_back.check_hover(mouse_pos); self.btn_back.draw(screen)

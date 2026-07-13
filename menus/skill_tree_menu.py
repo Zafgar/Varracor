@@ -303,7 +303,7 @@ class SkillTreeMenu(BaseMenu):
     # draw
     # -------------------------
     def draw(self, screen):
-        screen.fill((15, 20, 25))
+        self.draw_themed_background(screen, "guild")
 
         # background grid (scaled)
         self._draw_grid(screen)

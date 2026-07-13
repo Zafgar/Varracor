@@ -14,6 +14,11 @@ COLOR_DANGER    = (200, 60, 60)
 COLOR_BTN_BG    = (50, 50, 60)
 COLOR_BTN_HOVER = (70, 70, 80)
 COLOR_DISABLED  = (90, 90, 100)
+# Facelift: pronssinen koristeväri ja lasipaneelin sävyt
+COLOR_TRIM      = (168, 134, 78)    # himmeä pronssi/kulta koristeisiin
+COLOR_TRIM_DIM  = (104, 86, 56)
+COLOR_GLASS_TOP = (38, 38, 52)
+COLOR_GLASS_BOT = (18, 18, 26)
 
 # --- STANDARD COLORS ---
 WHITE = (255, 255, 255)
@@ -24,13 +29,59 @@ BLUE = (50, 50, 200)
 GRAY = (100, 100, 100)
 
 pygame.font.init()
-font_main  = pygame.font.SysFont("Segoe UI", 20, bold=True)
-font_small = pygame.font.SysFont("Segoe UI", 16)
-font_title = pygame.font.SysFont("Georgia", 60, bold=True)
+# Fonttiketjut: ensimmäinen asennettu voittaa (Windows: Segoe/Georgia,
+# Linux-fallbackit mukana ettei pudota geneeriseen oletukseen)
+font_main  = pygame.font.SysFont("segoeui,dejavusans,arial", 20, bold=True)
+font_small = pygame.font.SysFont("segoeui,dejavusans,arial", 16)
+font_title = pygame.font.SysFont("georgia,palatinolinotype,dejavuserif", 60, bold=True)
+font_header = pygame.font.SysFont("georgia,palatinolinotype,dejavuserif", 30, bold=True)
 
 def draw_text(text, font, color, surface, x, y):
     obj = font.render(str(text), True, color)
     surface.blit(obj, (x, y))
+
+
+def _lerp_color(c1, c2, t):
+    return (int(c1[0] + (c2[0] - c1[0]) * t),
+            int(c1[1] + (c2[1] - c1[1]) * t),
+            int(c1[2] + (c2[2] - c1[2]) * t))
+
+
+def _vertical_gradient(size, top, bottom, radius=0):
+    """Pystygradientti pyöristetyillä kulmilla (SRCALPHA)."""
+    w, h = size
+    surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    for y in range(h):
+        t = y / max(1, h - 1)
+        pygame.draw.line(surf, _lerp_color(top, bottom, t), (0, y), (w, y))
+    if radius > 0:
+        mask = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(),
+                         border_radius=radius)
+        surf.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    return surf
+
+
+def draw_ornament_rule(surface, x1, x2, y, color=COLOR_TRIM, diamond=True):
+    """Ohut koristeviiva keskitimantilla - otsikoiden alle."""
+    pygame.draw.line(surface, color, (x1, y), (x2, y), 1)
+    if diamond and x2 - x1 > 24:
+        cx = (x1 + x2) // 2
+        pts = [(cx, y - 4), (cx + 5, y), (cx, y + 4), (cx - 5, y)]
+        pygame.draw.polygon(surface, color, pts)
+        pygame.draw.line(surface, color, (x1, y), (cx - 10, y), 1)
+        pygame.draw.line(surface, color, (cx + 10, y), (x2, y), 1)
+
+
+def draw_corner_flourish(surface, rect, color=COLOR_TRIM, size=14, width=1):
+    """Kevyet L-kulmakoristeet paneelien nurkkiin."""
+    x, y, w, h = rect
+    s = size
+    for cx, cy, dx, dy in ((x + 4, y + 4, 1, 1), (x + w - 5, y + 4, -1, 1),
+                           (x + 4, y + h - 5, 1, -1),
+                           (x + w - 5, y + h - 5, -1, -1)):
+        pygame.draw.line(surface, color, (cx, cy), (cx + s * dx, cy), width)
+        pygame.draw.line(surface, color, (cx, cy), (cx, cy + s * dy), width)
 
 def format_money(amount):
     """
@@ -55,11 +106,27 @@ def format_money(amount):
     
     return " ".join(parts)
 
-# --- KORJATTU DRAW PANEL (Tukee nyt border_coloria) ---
+# --- DRAW PANEL (facelift: gradientti + pronssitrimmi + kulmakoristeet) ---
+_panel_cache = {}
+
 def draw_panel(surface, x, y, w, h, color=COLOR_PANEL_BG, border_color=(30, 30, 35), title=None):
     rect = pygame.Rect(x, y, w, h)
-    pygame.draw.rect(surface, color, rect, border_radius=10)
-    pygame.draw.rect(surface, border_color, rect, 2, border_radius=10)
+    key = (w, h, tuple(color), tuple(border_color), title is not None)
+    body = _panel_cache.get(key)
+    if body is None:
+        top = tuple(min(255, c + 12) for c in color[:3])
+        bot = tuple(max(0, c - 8) for c in color[:3])
+        body = _vertical_gradient((w, h), top, bot, radius=10)
+        pygame.draw.rect(body, (10, 10, 14), body.get_rect(), 1, border_radius=10)
+        inner = body.get_rect().inflate(-2, -2)
+        pygame.draw.rect(body, border_color, inner, 2, border_radius=9)
+        # yläreunan valojuova (lasimainen kiilto)
+        pygame.draw.line(body, (255, 255, 255, 22), (10, 3), (w - 10, 3))
+        draw_corner_flourish(body, body.get_rect(), COLOR_TRIM_DIM)
+        if len(_panel_cache) > 96:
+            _panel_cache.clear()
+        _panel_cache[key] = body
+    surface.blit(body, (x, y))
 
     if title:
         title = str(title)
@@ -71,11 +138,13 @@ def draw_panel(surface, x, y, w, h, color=COLOR_PANEL_BG, border_color=(30, 30, 
             border_top_left_radius=10,
             border_top_right_radius=10
         )
-        
-        # Otsikkoteksti
+
+        # Otsikkoteksti + koristeviiva
         txt = font_small.render(title, True, GOLD_COLOR)
         text_rect = txt.get_rect(center=(x + w // 2, y + header_h // 2))
         surface.blit(txt, text_rect)
+        draw_ornament_rule(surface, x + 14, x + w - 14, y + header_h - 1,
+                           COLOR_TRIM_DIM, diamond=False)
 
 def draw_icon(screen, type, x, y, color):
     if type == 'sword':
@@ -163,6 +232,43 @@ class UIButton:
     def check_hover(self, mouse_pos):
         return self.update_hover(mouse_pos)
 
+    # Napin rungot välimuistitetaan (koko+väri+tila) - gradientin
+    # piirtäminen joka framella olisi turhan raskasta.
+    _body_cache = {}
+
+    @classmethod
+    def _get_body(cls, w, h, border_col, hovered, enabled):
+        key = (w, h, tuple(border_col), hovered, enabled)
+        surf = cls._body_cache.get(key)
+        if surf is not None:
+            return surf
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        if not enabled:
+            top, bot = (44, 44, 52), (30, 30, 36)
+        elif hovered:
+            top, bot = (74, 72, 88), (40, 40, 52)
+        else:
+            top, bot = (56, 55, 68), (30, 30, 40)
+        body = _vertical_gradient((w, h), top, bot, radius=9)
+        surf.blit(body, (0, 0))
+        # kaksoisreuna: tumma ulko + aksentti sisä
+        pygame.draw.rect(surf, (8, 8, 12), surf.get_rect(), 1, border_radius=9)
+        pygame.draw.rect(surf, border_col, surf.get_rect().inflate(-2, -2), 2,
+                         border_radius=8)
+        # lasikiilto ylös
+        hl = pygame.Surface((max(1, w - 16), 2), pygame.SRCALPHA)
+        hl.fill((255, 255, 255, 34 if hovered else 20))
+        surf.blit(hl, (8, 3))
+        # pienet timanttinastat reunoihin
+        cy = h // 2
+        for px in (7, w - 8):
+            pts = [(px, cy - 3), (px + 3, cy), (px, cy + 3), (px - 3, cy)]
+            pygame.draw.polygon(surf, COLOR_TRIM if enabled else COLOR_TRIM_DIM, pts)
+        if len(cls._body_cache) > 256:
+            cls._body_cache.clear()
+        cls._body_cache[key] = surf
+        return surf
+
     def draw(self, screen):
         draw_rect = self._compute_draw_rect()
         self._last_draw_rect = draw_rect
@@ -177,16 +283,23 @@ class UIButton:
 
         # colors
         if not self.enabled:
-            bg_col = COLOR_DISABLED
             border_col = COLOR_BORDER
             text_col = COLOR_BORDER
         else:
-            bg_col = COLOR_BTN_HOVER if self.is_hovered else COLOR_BTN_BG
             border_col = self.hover_color if self.is_hovered else self.base_color
             text_col = border_col
 
-        pygame.draw.rect(screen, bg_col, draw_rect, border_radius=8)
-        pygame.draw.rect(screen, border_col, draw_rect, 2, border_radius=8)
+        # hover-hehku rungon taakse
+        if self.enabled and self.is_hovered:
+            glow = pygame.Surface((draw_rect.w + 16, draw_rect.h + 16),
+                                  pygame.SRCALPHA)
+            gc = (border_col[0], border_col[1], border_col[2], 38)
+            pygame.draw.rect(glow, gc, glow.get_rect(), border_radius=14)
+            screen.blit(glow, (draw_rect.x - 8, draw_rect.y - 8))
+
+        screen.blit(self._get_body(draw_rect.w, draw_rect.h, border_col,
+                                   self.is_hovered, self.enabled),
+                    draw_rect.topleft)
 
         # icon
         icon_offset_x = 0

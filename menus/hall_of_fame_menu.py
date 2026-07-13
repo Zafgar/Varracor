@@ -46,7 +46,7 @@ class HallOfFameMenu(BaseMenu):
     # -----------------------------
 
     def draw(self, screen):
-        screen.fill((10, 10, 15))
+        self.draw_themed_background(screen, "city")
         mouse = pygame.mouse.get_pos()
         self.btn_back.check_hover(mouse)
         self.btn_back.draw(screen)

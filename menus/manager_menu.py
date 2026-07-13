@@ -251,7 +251,7 @@ class ManagerMenu(BaseMenu):
             self.drag_source = None
 
     def draw(self, screen):
-        screen.fill((20, 20, 28))
+        self.draw_themed_background(screen, "city")
         self.draw_themed_background(screen, mood="guild")
         
         self.btn_back.check_hover(pygame.mouse.get_pos())
@@ -272,7 +272,9 @@ class ManagerMenu(BaseMenu):
         self.btn_paths.check_hover(pygame.mouse.get_pos())
         self.btn_paths.draw(screen)
         
-        draw_text("COMMANDER PROFILE", font_title, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 180, 30)
+        from ui_kit import font_header
+        _t = font_header.render("COMMANDER PROFILE", True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         
         # --- CHARACTER STATS (Left) ---
         cx, cy = self.slots_center_x, self.slots_center_y

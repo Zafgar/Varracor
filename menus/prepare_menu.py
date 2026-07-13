@@ -120,11 +120,12 @@ class PrepareMenu(BaseMenu):
 
     def draw(self, screen):
         # 1. Tausta (Tumma)
-        screen.fill((20, 20, 25))
+        self.draw_themed_background(screen, "forge")
         
         # Otsikko
         title_text = f"PREPARE FOR BATTLE ({len(self.selected_units)}/{self.team_limit})"
-        draw_text(title_text, font_title, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 200, 30)
+        _t = font_title.render(title_text, True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         
         sub_text = f"Mode: {self.manager.mode} - {self.manager.match_mode}"
         draw_text(sub_text, font_main, (150, 150, 150), screen, SCREEN_WIDTH // 2 - 100, 80)

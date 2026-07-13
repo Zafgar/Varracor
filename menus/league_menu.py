@@ -47,9 +47,9 @@ class LeagueMenu(BaseMenu):
 
     def _rebuild_layout(self):
         margin = 30
-        header_h = 120
+        header_h = 175  # keskitetty otsikkopalkki + kausi-info vievät ylätilan
         tab_w, tab_h = 140, 46 # Slightly wider tabs for progress text
-        tab_y, tab_x = margin + 60, margin
+        tab_y, tab_x = margin + 125, margin
 
         self._tab_rects = {
             "TOTAL": pygame.Rect(tab_x + 0 * (tab_w + 10), tab_y, tab_w, tab_h),
@@ -267,18 +267,21 @@ class LeagueMenu(BaseMenu):
             self.team_intro.draw(screen)
             return
 
-        screen.fill((14, 14, 18))
+        self.draw_themed_background(screen, "city")
         mouse_pos = pygame.mouse.get_pos()
         le = self.manager.league_engine
 
         # --- HEADER (SEASON INFO) ---
-        _dt(screen, "LEAGUE ARENA", 30, 20, font_title, WHITE)
-        
+        # Otsikko keskelle koristepalkkiin (ei enää BACK-napin alle)
+        title = font_title.render("LEAGUE ARENA", True, GOLD_COLOR)
+        self.draw_header_bar(screen, title, y=10)
+
         s_info = le.get_season_info()
         season_str = f"SEASON {s_info['number']}  |  {s_info['theme'].upper()}"
         tier_str = f"Division: {le.get_tier_name(self.selected_mode)}"
-        
-        _dt(screen, f"{season_str}   —   {tier_str}", 30, 70, font_main, (200, 200, 200))
+        info = font_main.render(f"{season_str}   —   {tier_str}", True,
+                                (200, 200, 200))
+        screen.blit(info, (SCREEN_WIDTH // 2 - info.get_width() // 2, 118))
 
         # Tabs
         for m, r in self._tab_rects.items():

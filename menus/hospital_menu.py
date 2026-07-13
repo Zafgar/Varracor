@@ -71,10 +71,11 @@ class HospitalMenu(BaseMenu):
                 char_y += 80
 
     def draw(self, screen):
-        screen.fill((15, 15, 20))
+        self.draw_themed_background(screen, "quest")
         self.btn_back.draw(screen)
         self.btn_heal_all.draw(screen)
-        draw_text("SAINT LUMEN FIELD HOSPICE", font_title, WHITE, screen, 400, 50)
+        _t = font_title.render("SAINT LUMEN FIELD HOSPICE", True, GOLD_COLOR)
+        self.draw_header_bar(screen, _t, y=10)
         draw_text("Sister-Medic Rhea Ashford - \"Arena wounds heal. Vortex taint gets quarantined.\"",
                   font_small, GRAY, screen, 400, 88)
         draw_text(f"Funds: {format_money(self.manager.gold)}", font_title, GOLD_COLOR, screen, 20, 100)
