@@ -156,6 +156,95 @@ def _reload_prop_overrides():
         print(f"[AssetStudio] Override reload failed: {exc}")
 
 
+def preview_unit_factories():
+    """Studion UNITS-penkin yksiköt: (nimi, factory(x, y)) aakkosissa.
+
+    Factory luo tuoreen yksikön annettuun kohtaan. Vain rakentuvat
+    luokat listataan (koeponnistus konstruktorilla).
+    """
+    from settings import GREEN
+
+    candidates = []
+
+    def race(mod_name, cls_name):
+        def make(x, y):
+            mod = __import__(f"units.{mod_name}", fromlist=[cls_name])
+            return getattr(mod, cls_name)("Preview", x, y, GREEN)
+        return make
+
+    for mod_name, cls_name in (
+            ("human", "Human"), ("orc", "Orc"), ("elf", "Elf"),
+            ("goblin", "Goblin"), ("dwarf", "Dwarf"), ("gnome", "Gnome"),
+            ("rat", "GiantRat"),
+            ("undead_skeleton", "UndeadSkeleton"),
+            ("undead_zombie", "UndeadZombie"),
+            ("werewolf", "Werewolf"), ("troll", "Troll"),
+            ("tortle", "Tortle")):
+        candidates.append((cls_name, race(mod_name, cls_name)))
+
+    def rat_king(x, y):
+        from units.rat_king import RatKing
+        return RatKing("Rat King", x, y)
+    candidates.append(("RatKing", rat_king))
+
+    def villager(x, y):
+        from units.villager import Villager
+        return Villager("Preview", "Human", x, y, team_color=GREEN)
+    candidates.append(("Villager", villager))
+
+    def cow(x, y):
+        from units.farm_animals import Cow
+        return Cow(x, y)
+    candidates.append(("Cow", cow))
+
+    def chicken(x, y):
+        from units.farm_animals import Chicken
+        return Chicken(x, y)
+    candidates.append(("Chicken", chicken))
+
+    result = []
+    for label, factory in candidates:
+        try:
+            unit = factory(0, 0)
+            if not hasattr(unit, "draw_on_screen"):
+                continue
+        except Exception:
+            continue
+        result.append((label, factory))
+    result.sort(key=lambda pair: pair[0])
+    return result
+
+
+def equipable_items():
+    """Varusteet sloteittain studion pukemispenkkiin.
+
+    Palauttaa {"main_hand": [nimet], "off_hand": [...], "head": [...],
+    "body": [...]} - nimet kelpaavat create_itemille.
+    """
+    from items.item_registry import get_available_item_classes
+
+    slots = {"main_hand": [], "off_hand": [], "head": [], "body": []}
+    for cls in get_available_item_classes():
+        try:
+            item = cls()
+        except Exception:
+            continue
+        slot = str(getattr(item, "slot_type", "")).lower()
+        itype = str(getattr(item, "type", "")).lower()
+        name = getattr(item, "name", cls.__name__)
+        if str(name).lower() in ("fists", "no armor"):
+            continue  # tarkoituksella näkymättömät perusarvot
+        if slot in ("head", "body"):
+            slots[slot].append(name)
+        elif slot == "off_hand" or itype == "shield":
+            slots["off_hand"].append(name)
+        elif slot == "main_hand" or itype in ("melee", "ranged"):
+            slots["main_hand"].append(name)
+    for names in slots.values():
+        names.sort()
+    return slots
+
+
 def editable_prop_classes():
     """Propit joiden hitboxia voi säätää: (nimi, luokka) aakkosissa.
 

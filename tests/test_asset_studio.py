@@ -84,7 +84,7 @@ def test_editable_prop_classes_constructible():
         assert hasattr(inst, "rect") and hasattr(inst, "image")
 
 
-def test_studio_menu_draws_both_tabs_and_returns():
+def test_studio_menu_draws_all_tabs_and_returns():
     m = _manager()
     m.asset_studio_return_state = "muckford_city"
     from menus.asset_studio_menu import AssetStudioMenu
@@ -93,12 +93,89 @@ def test_studio_menu_draws_both_tabs_and_returns():
     menu.selected = menu.catalog[0]
     menu.update()
     menu.draw(surf)
-    menu.tab = "HITBOX"
+    menu.tab = "UNITS"
+    menu._spawn_pen_unit(*menu.unit_factories[0])
+    menu.update()
+    menu.draw(surf)
+    menu.tab = "PROPS"
     menu._select_prop(*menu.prop_classes[0])
     menu.update()
     menu.draw(surf)
     menu.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
     assert menu.next_state == "muckford_city", "ESC palaa lähtötilaan"
+
+
+def test_units_pen_covers_races_and_equips_gear():
+    """Penkki listaa keskeiset rodut ja varusteet piirtyvät hahmolle."""
+    from systems.asset_studio import preview_unit_factories, equipable_items
+    names = [n for n, _ in preview_unit_factories()]
+    for expected in ("Human", "Orc", "Elf", "Goblin", "Dwarf", "Gnome",
+                     "Villager", "Cow", "Chicken", "GiantRat", "Werewolf"):
+        assert expected in names, f"{expected} puuttuu penkistä"
+    slots = equipable_items()
+    assert len(slots["main_hand"]) >= 20
+    assert len(slots["off_hand"]) >= 4
+    assert slots["head"] and slots["body"]
+
+    m = _manager()
+    from menus.asset_studio_menu import AssetStudioMenu
+    menu = AssetStudioMenu(m)
+    menu.tab = "UNITS"
+    idx = [i for i, (n, _) in enumerate(menu.unit_factories) if n == "Orc"][0]
+    menu._spawn_pen_unit(*menu.unit_factories[idx])
+    menu.equip_index["main_hand"] = slots["main_hand"].index("Scrap Blade") - 1
+    menu._cycle_equip("main_hand", 1)
+    unit = menu.pen_unit
+    assert unit.equipment["main_hand"].name == "Scrap Blade"
+    surf = pygame.Surface((1920, 1080))
+    menu.update()
+    menu.draw(surf)
+    assert unit.equipment["main_hand"].image is not None, \
+        "proseduraalinen asegrafiikka syntyy piirrossa"
+
+
+def test_procedural_gear_images_for_all_equipables():
+    """Jokaiselle varusteelle syntyy koodigrafiikka jos PNG puuttuu -
+    muuten ase olisi näkymätön hahmon kädessä."""
+    from systems.asset_studio import equipable_items
+    from items.item_registry import create_item
+    from items.procedural_gear import ensure_gear_image
+    slots = equipable_items()
+    for slot, names in slots.items():
+        for name in names:
+            item = create_item(name)
+            assert item is not None
+            ensure_gear_image(item)
+            assert item.image is not None, f"{name} ({slot}) jäi näkymättömäksi"
+
+
+def test_procedural_gear_respects_existing_sprite():
+    from items.item_registry import create_item
+    from items.procedural_gear import ensure_gear_image
+    item = create_item("Scrap Blade")
+    marker = pygame.Surface((4, 4))
+    item.image = marker
+    ensure_gear_image(item)
+    assert item.image is marker, "oikea sprite ei saa korvautua"
+
+
+def test_props_pen_behaviours_chop_and_shake():
+    import main  # noqa: F401
+    from menus.asset_studio_menu import _StudioWorld, _StudioChopper
+    from assets.tiles.muckford_objects import MuckfordTree, AppleTree
+
+    world = _StudioWorld()
+    chopper = _StudioChopper()
+    tree = MuckfordTree(0, 0)
+    for _ in range(tree.current_hits):
+        tree.chop(chopper, chopper.current_weapon, world)
+    assert tree.is_empty, "puu kaatuu studiossa"
+    assert world.inventory.get(tree.resource_name, 0) >= 2
+
+    world2 = _StudioWorld()
+    apple_tree = AppleTree(0, 0)
+    apple_tree.shake(world2)
+    assert len(world2.current_arena.props) == 1, "omena tippui mini-maailmaan"
 
 
 def test_f10_opens_studio_from_any_menu_in_cheat_mode():

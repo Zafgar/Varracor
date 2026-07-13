@@ -185,6 +185,15 @@ class GladiatorRenderer:
         equip_rect = pygame.Rect(draw_rect.x, draw_rect.y, draw_rect.width, draw_rect.height)
         equipment = getattr(self.unit, "equipment", {})
 
+        # Koodigrafiikka-fallback: ilman tätä ase/kilpi olisi näkymätön
+        # kunnes PNG on toimitettu (draw_equipped vaatii item.imagen)
+        try:
+            from items.procedural_gear import ensure_gear_image
+            for _slot in ("body", "head", "off_hand", "main_hand"):
+                ensure_gear_image(equipment.get(_slot))
+        except Exception:
+            pass
+
         # A) Body Armor
         armor = equipment.get("body")
         if armor and hasattr(armor, "draw_equipped"):
