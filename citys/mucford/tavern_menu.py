@@ -869,6 +869,11 @@ class TavernMenu(BaseMenu):
 
         if hasattr(item, "cast"):
             if item.cast(self.player, target, self.manager):
+                try:
+                    from systems import commander_progression as _prog
+                    _prog.on_player_spell_cast(self.manager, item)
+                except Exception:
+                    pass
                 cd = getattr(item, "cooldown_max", 60)
                 self.player.spell_cooldowns[slot_name] = cd
                 self.player.animation_state = "attack"

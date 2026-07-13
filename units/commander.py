@@ -338,6 +338,20 @@ class Commander(Gladiator):
                     if key in effects:
                         setattr(self, key, getattr(self, key) + float(effects[key]))
         
+        # --- COMMANDER PATHS (systems/commander_progression) ---
+        # Polkujen milestone-statsit: apply_to_hero() kokoaa nämä
+        pe = getattr(self, "_progression_effects", {}) or {}
+        self.max_hp += int(pe.get("max_hp", 0))
+        self.strength += int(pe.get("str", 0))
+        self.dexterity += int(pe.get("dex", 0))
+        self.intelligence += int(pe.get("int", 0))
+        self.max_mana += int(pe.get("max_mana", 0))
+        self.defense += int(pe.get("defense", 0))
+        self.max_stamina += int(pe.get("max_stamina", 0))
+        self.mana_regen += float(pe.get("mana_regen", 0.0))
+        self.crit_chance += float(pe.get("crit_chance", 0.0))
+        self.max_strain += int(pe.get("max_strain", 0))
+
         # --- STAT SCALING (Attributes -> Pools) ---
         # Lisätään statsien vaikutus HP:hen ja Manaan
         self.max_hp += int(self.strength * 2)
@@ -761,6 +775,14 @@ class Commander(Gladiator):
                 success = item.cast(self, target, manager, target_pos=target_pos)
             except TypeError:
                 success = item.cast(self, target, manager)
+            if success and manager is not None and \
+                    self is getattr(manager, "player_character", None):
+                # Path of the Weave: XP jokaisesta loitsusta
+                try:
+                    from systems import commander_progression as _prog
+                    _prog.on_player_spell_cast(manager, item)
+                except Exception:
+                    pass
 
             if success:
                 # Vähennetään manaa vain, jos loitsu ei tehnyt sitä itse (kuten Vortex Warp tekee)

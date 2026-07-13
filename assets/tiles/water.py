@@ -70,6 +70,13 @@ class WaterBody:
         self._ripple_timer = rng.randint(40, 120)
         self._rng = random.Random(seed * 31 + 1)
 
+        # Ajelehtivat pinnan pilkut (vaahtoa/lehtiä virtauksessa)
+        self.drifters = []
+        for _ in range(max(4, (w * h) // 60000)):
+            self.drifters.append((rng.randint(10, h - 10),
+                                  rng.random(),
+                                  8 + rng.random() * 18))
+
     # Karttaeditorin serialisointi (save/load project)
     @property
     def image_pos(self):
@@ -96,9 +103,18 @@ class WaterBody:
                             (w // 6, h // 5, w * 2 // 3, h * 3 // 5))
         s.blit(depth, (0, 0))
 
-        # Mutaranta reunoille
-        pygame.draw.rect(s, BANK_MUD, (0, 0, w, h), 7, border_radius=18)
-        pygame.draw.rect(s, BANK_MUD_DARK, (0, 0, w, h), 3, border_radius=18)
+        # Pyöristetyt kulmat: maski leikkaa altaan luonnollisemmaksi
+        mask = pygame.Surface((w, h), pygame.SRCALPHA)
+        mask.fill((255, 255, 255, 0))
+        pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h),
+                         border_radius=26)
+        s.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+        # Mutaranta reunoille + vaalea vesiraja rannan sisäpuolelle
+        pygame.draw.rect(s, BANK_MUD, (0, 0, w, h), 7, border_radius=26)
+        pygame.draw.rect(s, BANK_MUD_DARK, (0, 0, w, h), 3, border_radius=26)
+        pygame.draw.rect(s, (96, 148, 138), (6, 6, w - 12, h - 12), 2,
+                         border_radius=20)
 
         # Pohjakivet matalikossa
         for _ in range(w * h // 60000 + 4):
@@ -206,6 +222,19 @@ class WaterBody:
                 foam = pygame.Surface((16, 2), pygame.SRCALPHA)
                 foam.fill((FOAM[0], FOAM[1], FOAM[2], 70))
                 screen.blit(foam, (dx + seg_x, sy + int(wig) * direction))
+
+        # Ajelehtivat pilkut: kulkevat hitaasti oikealle (virtauksen tuntu)
+        for drift_y, phase, speed in self.drifters:
+            wx = (phase * self.rect.w + t * speed) % self.rect.w
+            wy = drift_y + math.sin(t * 0.8 + phase * 9) * 4
+            if not (vis.x - self.rect.x <= wx <= vis.x - self.rect.x + vis.w):
+                continue
+            if not (vis.y - self.rect.y <= wy <= vis.y - self.rect.y + vis.h):
+                continue
+            speck = pygame.Surface((5, 3), pygame.SRCALPHA)
+            speck.fill((FOAM[0], FOAM[1], FOAM[2], 60))
+            screen.blit(speck, (dx + wx - (vis.x - self.rect.x),
+                                dy + wy - (vis.y - self.rect.y)))
 
         # Väreilyrenkaat
         for rx, ry, radius, max_r in self.ripples:

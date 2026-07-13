@@ -125,6 +125,20 @@ MEAL_RECIPES = {
         "effects": {"max_stamina": 15, "defense": 1},
         "heal_pct": 0.25,
     },
+    "Smoked Bog Perch": {
+        "ingredients": {"Bog Perch": 2, "Swamp Wood": 1},
+        "description": "+1 STR and +1 DEX for 2 battles.",
+        "remaining_battles": 2,
+        "effects": {"strength": 1, "dexterity": 1},
+        "heal_pct": 0.15,
+    },
+    "Pike Roast": {
+        "ingredients": {"Marsh Pike": 1, "Carrot": 1, "Medicinal Herb": 1},
+        "description": "+10% max HP and +2 STR for 3 battles.",
+        "remaining_battles": 3,
+        "effects": {"max_hp_pct": 0.10, "strength": 2},
+        "heal_pct": 0.30,
+    },
     "Prime Guild Feast": {
         "ingredients": {"Quality Produce": 3, "Milk": 1, "Egg": 2},
         "description": "+2 STR, DEX and INT for 3 battles.",

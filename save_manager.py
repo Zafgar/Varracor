@@ -360,6 +360,13 @@ def load_game(manager):
         if data.get("npc_state"):
             manager.npc_state = data["npc_state"]
 
+        # Commander Paths: milestone-statsit takaisin sankarille
+        try:
+            from systems import commander_progression as _prog
+            _prog.apply_to_hero(manager)
+        except Exception:
+            pass
+
         # --- Maailmankello & velka ---
         if data.get("world_clock"):
             manager.world_clock.from_dict(data["world_clock"])

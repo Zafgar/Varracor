@@ -285,6 +285,41 @@ class MuckfordCityMenu(BaseMenu):
                     self.npcs.append(v)
                     break
 
+    def _resolve_catch(self, fish, spot):
+        """Saaliin ratkaisu: aarre koukussa? tuplasaalis? XP + tason nousu."""
+        rng = self.fishing_session.rng if self.fishing_session else None
+        import random as _random
+        rng = rng or _random.Random()
+
+        # Joskus koukkuun tarttuu jotain muuta kuin kala
+        if rng.random() < fishing_system.treasure_chance(self.manager):
+            fish = fishing_system.roll_treasure(rng)
+
+        count = 1
+        if not fish.get("treasure") and fishing_system.double_catch(self.manager) \
+                and rng.random() < 0.25:
+            count = 2
+        self.manager.add_material(fish["name"], count)
+
+        color = (255, 200, 120) if fish.get("treasure") else (150, 220, 255)
+        prefix = "Snagged" if fish.get("treasure") else "Caught"
+        suffix = " x2!" if count == 2 else "!"
+        self.manager.vfx.show_damage(
+            self.player.rect.centerx, self.player.rect.top - 30,
+            f"{prefix} {fish['name']}{suffix}", color=color)
+        self.manager.grant_hero_xp(3, self.player.rect.centerx,
+                                   self.player.rect.top)
+        if fishing_system.grant_catch_xp(self.manager, fish):
+            lvl = fishing_system.get_progress(self.manager)["level"]
+            self.manager.vfx.show_damage(
+                self.player.rect.centerx, self.player.rect.top - 60,
+                f"Path of the Line {lvl}!", color=(255, 215, 0))
+            sound_system.play_sound('win')
+        sound_system.play_sound('coin')
+        water = self._water_at(spot)
+        if water and spot:
+            water.splash(*spot)
+
     def _water_at(self, point):
         """Vesialue jossa piste on (roiskeet oikeaan altaaseen)."""
         if point:
@@ -700,27 +735,15 @@ class MuckfordCityMenu(BaseMenu):
             if event.key == pygame.K_e:
                 # --- KALASTUS: kesken sessio -> E = tartutus ---
                 if self.fishing_session:
-                    fish = self.fishing_session.hook()
-                    spot = self.active_fishing_spot
-                    if fish:
-                        self.manager.add_material(fish["name"], 1)
+                    if self.fishing_session.state == "REELING":
+                        return  # väsytys hoituu pitämällä E pohjassa
+                    hooked = self.fishing_session.hook()
+                    if hooked:
                         self.manager.vfx.show_damage(
                             self.player.rect.centerx, self.player.rect.top - 30,
-                            f"+1 {fish['name']}!", color=(150, 220, 255))
-                        self.manager.grant_hero_xp(3, self.player.rect.centerx,
-                                                   self.player.rect.top)
-                        # Kalastusskilli 1-30: XP saaliista, taso tallentuu
-                        if fishing_system.grant_catch_xp(self.manager, fish):
-                            lvl = fishing_system.get_progress(self.manager)["level"]
-                            self.manager.vfx.show_damage(
-                                self.player.rect.centerx,
-                                self.player.rect.top - 60,
-                                f"Fishing level {lvl}!", color=(255, 215, 0))
-                            sound_system.play_sound('win')
-                        sound_system.play_sound('coin')
-                        water = self._water_at(spot)
-                        if water and spot:
-                            water.splash(*spot)
+                            "Hooked! HOLD E to reel it in!",
+                            color=(255, 210, 80))
+                        sound_system.play_sound('click')
                     else:
                         self.manager.vfx.show_damage(
                             self.player.rect.centerx, self.player.rect.top - 30,
@@ -734,9 +757,12 @@ class MuckfordCityMenu(BaseMenu):
                 if spot:
                     rod, rod_tier = fishing_system.best_rod(self.manager)
                     if rod is not None:
+                        from systems import commander_progression as prog
                         power = fishing_system.skill_power(self.manager)
                         self.fishing_session = fishing_system.FishingSession(
-                            power, rod_tier=rod_tier)
+                            power, rod_tier=rod_tier,
+                            quick_wrists=prog.has_perk(self.manager, "fishing",
+                                                       "quick_wrists"))
                         self.active_fishing_spot = spot
                         self.manager.vfx.show_damage(
                             self.player.rect.centerx, self.player.rect.top - 30,
@@ -1022,19 +1048,33 @@ class MuckfordCityMenu(BaseMenu):
 
         # --- KALASTUSSESSION ETENEMINEN ---
         if self.fishing_session:
-            event_name = self.fishing_session.update()
-            if event_name == "bite":
-                self.fishing_flash = self.fishing_session.timer
-                sound_system.play_sound('click')
+            session = self.fishing_session
+            if session.state == "REELING":
+                # Väsytys: E pohjassa kelaa, hellitys lepuuttaa siimaa
+                pressed = pygame.key.get_pressed()[pygame.K_e]
+                result = session.reel(pressed)
                 spot = self.active_fishing_spot
-                water = self._water_at(spot)
-                if water and spot:
-                    water.splash(*spot)
-            elif event_name == "escaped":
-                self.fishing_flash = 0
-                self.manager.vfx.show_damage(
-                    self.player.rect.centerx, self.player.rect.top - 30,
-                    "It got away...", color=(200, 200, 200))
+                if result == "caught":
+                    self._resolve_catch(session.caught, spot)
+                elif result == "snapped":
+                    self.manager.vfx.show_damage(
+                        self.player.rect.centerx, self.player.rect.top - 30,
+                        "The line SNAPPED!", color=(255, 110, 90))
+                    sound_system.play_sound('error')
+            else:
+                event_name = session.update()
+                if event_name == "bite":
+                    self.fishing_flash = session.timer
+                    sound_system.play_sound('click')
+                    spot = self.active_fishing_spot
+                    water = self._water_at(spot)
+                    if water and spot:
+                        water.splash(*spot)
+                elif event_name == "escaped":
+                    self.fishing_flash = 0
+                    self.manager.vfx.show_damage(
+                        self.player.rect.centerx, self.player.rect.top - 30,
+                        "It got away...", color=(200, 200, 200))
         if self.fishing_flash > 0:
             self.fishing_flash -= 1
 
@@ -1123,6 +1163,11 @@ class MuckfordCityMenu(BaseMenu):
         # Yritä käyttää
         if hasattr(item, "cast"):
             if item.cast(self.player, target, self.manager):
+                try:
+                    from systems import commander_progression as _prog
+                    _prog.on_player_spell_cast(self.manager, item)
+                except Exception:
+                    pass
                 # Aseta cooldown
                 cd = getattr(item, "cooldown_max", 60)
                 self.player.spell_cooldowns[slot_name] = cd
@@ -1527,6 +1572,31 @@ class MuckfordCityMenu(BaseMenu):
                     self.manager._draw_floating_prompt(
                         screen, self.player.rect.centerx,
                         self.player.rect.top - 26, "E", offset, "HOOK IT!")
+
+                # Väsytysvaihe: kireys- ja kelausmittarit pelaajan yllä
+                if self.fishing_session.state == "REELING":
+                    s = self.fishing_session
+                    px = self.player.rect.centerx - offset[0] - 60
+                    py = self.player.rect.top - offset[1] - 64
+                    # Kireys (punainen, 100 = poikki)
+                    pygame.draw.rect(screen, (30, 30, 34), (px, py, 120, 10),
+                                     border_radius=4)
+                    tension_col = (230, 70, 60) if s.tension > 75 else \
+                        (225, 160, 70)
+                    pygame.draw.rect(screen, tension_col,
+                                     (px, py, int(120 * s.tension / 100), 10),
+                                     border_radius=4)
+                    # Kelaus (vihreä, 100 = saalis ylös)
+                    pygame.draw.rect(screen, (30, 30, 34),
+                                     (px, py + 14, 120, 10), border_radius=4)
+                    pygame.draw.rect(screen, (110, 210, 120),
+                                     (px, py + 14,
+                                      int(120 * s.progress / 100), 10),
+                                     border_radius=4)
+                    fish_name = (s.pending_fish or {}).get("name", "???")
+                    draw_text(f"{fish_name} fights!  HOLD E - ease off before it snaps",
+                              font_small, (235, 225, 200), screen,
+                              px - 70, py - 22)
             else:
                 rod, rod_tier = fishing_system.best_rod(self.manager)
                 lvl = fishing_system.get_progress(self.manager)["level"]

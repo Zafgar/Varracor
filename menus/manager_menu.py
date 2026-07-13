@@ -25,6 +25,9 @@ class ManagerMenu(BaseMenu):
 
         # UUSI NAPPI: Team (areenatiimin hallinta - Team Quarters)
         self.btn_team = UIButton(SCREEN_WIDTH - 940, 30, 220, 50, "TEAM", None, GREEN)
+
+        # UUSI NAPPI: Paths (kykypolut - XP suoraan tekemisestä)
+        self.btn_paths = UIButton(SCREEN_WIDTH - 1170, 30, 220, 50, "PATHS", None, (120, 190, 210))
         
         self.slots_center_x = int(SCREEN_WIDTH * 0.30)
         self.slots_center_y = int(SCREEN_HEIGHT * 0.45)
@@ -127,6 +130,11 @@ class ManagerMenu(BaseMenu):
             if self.btn_team.rect.collidepoint(mouse_pos):
                 self.manager.barracks_return_state = "manager_menu"
                 self.next_state = "barracks"
+                sound_system.play_sound('click')
+                return
+
+            if self.btn_paths.rect.collidepoint(mouse_pos):
+                self.next_state = "paths"
                 sound_system.play_sound('click')
                 return
 
@@ -260,6 +268,9 @@ class ManagerMenu(BaseMenu):
 
         self.btn_team.check_hover(pygame.mouse.get_pos())
         self.btn_team.draw(screen)
+
+        self.btn_paths.check_hover(pygame.mouse.get_pos())
+        self.btn_paths.draw(screen)
         
         draw_text("COMMANDER PROFILE", font_title, GOLD_COLOR, screen, SCREEN_WIDTH // 2 - 180, 30)
         

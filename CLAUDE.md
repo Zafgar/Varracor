@@ -104,12 +104,21 @@ tiedostot kuuluu pudottaa.
   kertoimin, elinkustannukset, alueviennit, sponsorit/palkkiot/Oath of Debt).
 
 - **Mudwater Pond + kalastus** — koodipiirretty vesi (assets/tiles/water.py:
-  WaterBody = välimuistitettu pohja + animoidut aallot/kimallus/väreet,
-  carve_pond upottaa areenaan ja jättää laiturikaistan auki). Kalastus
-  systems/fishing.py: FishingSession (WAITING→BITE→hook), 5 suokalaa
-  MARKET_PRICES-myyntiin, vapa Kradilta, Angler-skillit Commander-puussa,
-  Mudwater Fish Stew -resepti keittiössä. E laiturilla = heitto/tartutus,
-  liike keskeyttää.
+  WaterBody = välimuistitettu pohja + animoidut aallot/kimallus/väreet/
+  ajopilkut; carve_water/carve_pond upottaa areenaan, rebuild_water_blockers
+  laskee esteet laituriaukkoineen; editorin Water-kategoria maalaa vesiä
+  SHIFT+raahauksella). Kalastus systems/fishing.py: WAITING→BITE→REELING
+  (väsytysminipeli: E pohjassa kelaa, kireys 100 = siima poikki, kala
+  tempoo tierinsä mukaan), 10 kalaa tiereittäin + aarresivusaaliit
+  (TREASURES, mm. Abyssal Droplet), vavat T1-5 tasovaatimuksin,
+  kalareseptit keittiössä. E laiturilla = heitto/tartutus, liike keskeyttää.
+- **Commander Paths** (systems/commander_progression.py) — jokainen
+  tekeminen on OMA kykypuunsa omalla XP:llä: combat (tapot/voitot),
+  arcane (loitsut), fishing (saaliit), building (lukittu, House Building
+  tulossa). Tasot 1-30, milestone-perkit vaikuttavat sankariin
+  (_progression_effects, apply_to_hero kutsutaan XP:stä ja latauksessa).
+  Seuranta: PATHS-nappi Manager-valikossa (menus/paths_menu.py).
+  HUOM: farming/cooking EIVÄT ole Commander-polkuja.
 - **Kaivosluola** (mine_cave_*.py) — kaivostien perältä (E suuaukolla, tie
   raivattava ensin). Pimeys + soihtuvalo pelaajan ympärillä, 8 rautaa,
   4 hiiltä, 2 rubiinisuonta, vahvistetut epäkuolleet leashilla (heräävät

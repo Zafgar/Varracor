@@ -45,6 +45,7 @@ from menus.notice_board_menu import NoticeBoardMenu
 from menus.market_menu import MarketMenu
 from menus.district_shop_menu import DistrictShopMenu
 from menus.asset_studio_menu import AssetStudioMenu
+from menus.paths_menu import PathsMenu
 from menus.world_map_menu import WorldMapMenu
 from menus.regional_staging_menu import RegionalStagingMenu
 from citys.mucford.tavern_menu import TavernMenu
@@ -131,6 +132,7 @@ def main():
         "market": MarketMenu(manager),
         "district_shop": None,
         "asset_studio": None,
+        "paths": None,
         "world_map": WorldMapMenu(manager),
         "regional_staging": RegionalStagingMenu(manager),
         "rattlebridge_city": None,
@@ -164,6 +166,7 @@ def main():
         "market": MarketMenu,
         "district_shop": DistrictShopMenu,
         "asset_studio": AssetStudioMenu,
+        "paths": PathsMenu,
         "tavern_sunk_cask": TavernMenu,
         "muckford_city": MuckfordCityMenu,
         "blacksmith_interior": BlacksmithMenu,
@@ -186,7 +189,7 @@ def main():
         "commander_skills", "workshop_locations", "sponsors", "reputation",
         "magic_school", "necro_school", "shop_locations", "city_storage",
         "muckford_intro", "test_arena", "options", "market",
-        "district_shop", "asset_studio", "barracks",
+        "district_shop", "asset_studio", "paths", "barracks",
         "notice_board", "world_map", "regional_staging",
         "rattlebridge_span", "rattlebridge_hospital",
         "rattlebridge_scrapring", "rattlebridge_contracts",

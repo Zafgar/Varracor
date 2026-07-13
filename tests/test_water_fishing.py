@@ -62,7 +62,7 @@ def test_pond_carved_with_walkable_jetty():
 
 # ---------------------------------------------------------------- sessio
 
-def test_fishing_session_state_machine():
+def test_fishing_session_state_machine_with_reeling():
     s = fs.FishingSession(skill=0, rng=random.Random(1))
     assert s.state == "WAITING"
     # Liian aikainen isku säikäyttää (ei saalista, odotus alkaa alusta)
@@ -71,15 +71,40 @@ def test_fishing_session_state_machine():
     s.timer = 1
     assert s.update() == "bite"
     assert s.state == "BITE"
-    fish = s.hook()
-    assert fish is not None and fish["name"] in \
-        {f["name"] for f in fs.FISH_SPECIES}
+    # Tartutus aloittaa väsytyksen
+    assert s.hook() is True
+    assert s.state == "REELING"
+    assert s.pending_fish["name"] in {f["name"] for f in fs.FISH_SPECIES}
+    # Kireyteen reagoiva kelaus (kuten pelaaja pelaa) nostaa saaliin ylös
+    result = None
+    for _ in range(6000):
+        result = s.reel(s.tension < 70)
+        if result:
+            break
+    assert result == "caught", "kireyttä vahtiva kelaus onnistuu"
+    assert s.caught is not None
     assert s.state == "WAITING", "saaliin jälkeen uusi heitto"
     # Ikkunan ohitus -> escaped
     s.timer = 1
     s.update()
     s.timer = 1
     assert s.update() == "escaped"
+
+
+def test_reeling_constant_pull_snaps_line_on_big_fish():
+    """Tauoton kelaus isolla kalalla katkaisee siiman - minipeli vaatii
+    rytmiä, ei nappulan pohjaan hakkaamista."""
+    s = fs.FishingSession(skill=0, rng=random.Random(3), rod_tier=5)
+    s.state = "BITE"
+    s.timer = 10
+    s.hook()
+    s.pending_fish = dict(fs.FISH_SPECIES[-1])  # Blind Abyss Sturgeon (T5)
+    result = None
+    for _ in range(3000):
+        result = s.reel(True)   # ei koskaan hellitä
+        if result:
+            break
+    assert result == "snapped", "tauoton kiskominen katkaisee siiman"
 
 
 def test_angler_skill_speeds_waits_and_extends_window():
@@ -130,9 +155,32 @@ def test_city_fishing_flow_catch_to_inventory():
     city.update()
     assert city.fishing_session.state == "BITE"
     city.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e))
-    fish_names = {f["name"] for f in fs.FISH_SPECIES}
+    assert city.fishing_session.state == "REELING", "tartunta aloitti väsytyksen"
+
+    # Väsytys: simuloi E pohjassa rytmillä (monkeypatch näppäintila)
+    session = city.fishing_session
+
+    class _Keys:
+        def __init__(self):
+            self.frame = 0
+        def __getitem__(self, key):
+            return key == pygame.K_e and session.tension < 70
+    fake = _Keys()
+    real_get_pressed = pygame.key.get_pressed
+    try:
+        pygame.key.get_pressed = lambda: fake
+        for i in range(3000):
+            fake.frame = i
+            city.update()
+            if city.fishing_session.state != "REELING":
+                break
+    finally:
+        pygame.key.get_pressed = real_get_pressed
+
+    fish_names = {f["name"] for f in fs.FISH_SPECIES} | \
+        {t["name"] for t in fs.TREASURES}
     caught = [k for k in m.inventory if k in fish_names]
-    assert caught, "saalis päätyi reppuun"
+    assert caught, "saalis (kala tai aarre) päätyi reppuun"
 
     # Piirto kesken session (koho + siima) ei kaadu
     surf = pygame.Surface((1920, 1080))

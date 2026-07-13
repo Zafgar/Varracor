@@ -464,6 +464,9 @@ MARKET_PRICES = {
         "Whisker Catfish": 14, "Bronze Bream": 20, "Marsh Pike": 26,
         "Duskgill": 42, "Silver Eelmother": 60,
         "Vortex Koi": 120, "Blind Abyss Sturgeon": 150,
+        # Kalastuksen sivusaaliit
+        "Waterlogged Boot": 1, "Snagged Scrap": 2, "Old Message Bottle": 6,
+        "Rusted Ring": 12, "Abyssal Droplet": 40,
     },
     # Mitä pelaaja voi ostaa kojulta
     "buy": {

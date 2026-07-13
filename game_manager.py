@@ -1244,6 +1244,13 @@ class GameManager:
         self.match_over = True
         self.match_result = "VICTORY" if win else "DEFEAT"
 
+        # Path of the Arena: XP tapoista + voitosta jos sankari taisteli
+        try:
+            from systems import commander_progression as _prog
+            _prog.on_match_end(self, win)
+        except Exception:
+            pass
+
         if win:
             sound_system.play_sound('win')
             if self.mode in ["Monster Hunt", "Boss Hunt"] and self.selected_mission:
