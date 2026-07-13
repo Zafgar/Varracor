@@ -198,7 +198,11 @@ def _patch_game_manager() -> None:
 
     def hire_recruit(self, index):
         state = _opening(self)
-        if not state.get("team_registered", False):
+        # Only gate hiring while the Muckford opening's registration phase is
+        # genuinely active (intro finished, team not yet registered). Managers
+        # outside that flow - loaded saves, village-task recruits, tests - hire
+        # normally instead of being silently blocked.
+        if state.get("intro_complete", False) and not state.get("team_registered", False):
             return False
         if (
             state.get("first_recruit_free", False)
@@ -222,7 +226,7 @@ def _patch_game_manager() -> None:
 
     def hire_unit_by_reference(self, unit, cost):
         state = _opening(self)
-        if not state.get("team_registered", False):
+        if state.get("intro_complete", False) and not state.get("team_registered", False):
             return False
         if state.get("first_recruit_free", False) and len(self.my_team) == 0:
             self.my_team.add(unit)
@@ -279,7 +283,12 @@ def _patch_village_fighter_rewards() -> None:
 
     def _grant_rewards(self, manager, rewards):
         fighter_spec = rewards.get("fighter")
-        if fighter_spec and not _opening(manager).get("team_registered", False):
+        state = _opening(manager)
+        # Only hold fighter rewards as contracts while the opening's registration
+        # phase is genuinely active (intro finished, team not yet registered).
+        # Outside that flow - loaded saves, tests - grant the fighter normally.
+        opening_active = state.get("intro_complete", False) and not state.get("team_registered", False)
+        if fighter_spec and opening_active:
             safe_rewards = dict(rewards)
             safe_rewards.pop("fighter", None)
             gained = _sp_labels(previous_grant(self, manager, safe_rewards))

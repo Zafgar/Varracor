@@ -112,7 +112,14 @@ def _patch_muckford_city() -> None:
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_e:
             gate = getattr(self, "arena_gate", None)
-            if gate and not self.manager.team_registered:
+            # Route the gate to Bram for registration only while the opening's
+            # registration phase is genuinely active (intro finished, team not
+            # yet registered). Otherwise fall through to the normal gate -> league.
+            opening = (self.manager.npc_state.get("global", {})
+                       .get("muckford_opening", {}))
+            opening_active = (opening.get("intro_complete", False)
+                              and not self.manager.team_registered)
+            if gate and opening_active:
                 distance = math.hypot(
                     self.player.rect.centerx - gate.rect.centerx,
                     self.player.rect.bottom - gate.rect.bottom,

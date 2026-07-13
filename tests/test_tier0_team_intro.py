@@ -72,4 +72,7 @@ def test_all_live_tier0_teams_render_a_full_portrait():
         assert portrait.get_bounding_rect().width == 320
         assert len(team.members) == 5
 
-    pygame.quit()
+    # NOTE: do not call pygame.quit() here - the session-scoped conftest fixture
+    # owns pygame's lifecycle. Quitting mid-session tore down the display and
+    # cascaded "cannot convert without pygame.display initialized" into every
+    # later module's manager fixture.
