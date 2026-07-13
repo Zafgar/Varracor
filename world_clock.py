@@ -49,6 +49,11 @@ class WorldClock:
         self._thunder_delay = 0
         self._overlay = None  # yö-tummennuksen jaettu pinta
 
+        # Ambient-luupit (sade/tuuli). Kanavat pidetään tallessa jotta
+        # luuppi voidaan feidata pois sään vaihtuessa.
+        self._ambient_channels = []
+        self._ambient_weather = None  # mille säälle luupit soivat nyt
+
     # =========================================================
     # AIKA
     # =========================================================
@@ -70,7 +75,9 @@ class WorldClock:
             if self._thunder_delay == 0:
                 try:
                     from sound_manager import sound_system
-                    sound_system.play_sound("thunder")
+                    # BUGIKORJAUS: ääniavaimet ovat thunder_1..thunder_4
+                    sound_system.play_sound(random.choice(
+                        ["thunder_1", "thunder_2", "thunder_3", "thunder_4"]))
                 except Exception:
                     pass
 
@@ -78,6 +85,10 @@ class WorldClock:
         if self.weather == "storm" and random.random() < 0.002:
             self._lightning_flash = 6
             self._thunder_delay = random.randint(20, 60)
+
+        # Ambient-luupit seuraavat säätä (myös latauksen/aloituksen jälkeen)
+        if self._ambient_weather != self.weather:
+            self._update_ambient_loops()
 
     def advance_day(self):
         self.day += 1
@@ -128,6 +139,44 @@ class WorldClock:
         self.weather = random.choices(WEATHER_TYPES, weights=weights)[0]
         self.weather_timer = self._roll_weather_duration()
         self.wind_dir = random.choice([-1, 1])
+
+    def _update_ambient_loops(self):
+        """Käynnistää/feidaa säätä vastaavat taustaluupit.
+        Toimii hiljaa jos äänitiedostoja ei ole asennettu."""
+        self._ambient_weather = self.weather
+        try:
+            from sound_manager import sound_system
+        except Exception:
+            return
+        for ch in self._ambient_channels:
+            try:
+                ch.fadeout(1200)
+            except Exception:
+                pass
+        self._ambient_channels = []
+        loops = {
+            "rain":  ["rain_medium", "wind_loop_gentle"],
+            "storm": ["rain_medium", "wind_loop_normal"],
+            "wind":  ["wind_loop_normal"],
+            "clear": ["wind_loop_gentle"],
+        }.get(self.weather, [])
+        for name in loops:
+            try:
+                ch = sound_system.play_sound(name, loops=-1)
+                if ch:
+                    self._ambient_channels.append(ch)
+            except Exception:
+                pass
+
+    def stop_ambient(self):
+        """Kutsu kun poistutaan ulkotiloista (sisätilat/valikot)."""
+        for ch in self._ambient_channels:
+            try:
+                ch.fadeout(800)
+            except Exception:
+                pass
+        self._ambient_channels = []
+        self._ambient_weather = None
 
     # =========================================================
     # PIIRTO (yö + sää; kutsu kaiken maailman päälle, HUDin alle)
@@ -225,25 +274,43 @@ class WorldClock:
         self._rain_drops = alive
 
     def draw_hud(self, screen, font, x=None, y=16):
-        """Pieni kello/päivä/sää-näyttö (oletus: oikea yläkulma)."""
-        weather_icons = {"clear": "☀", "wind": "🍃", "rain": "🌧", "storm": "⛈"}
-        # Emoji ei renderöidy pygame-fonteilla luotettavasti -> teksti
+        """Pieni kello/päivä/sää-näyttö aurinko/kuu-ikonilla."""
         weather_names = {"clear": "Clear", "wind": "Windy",
                          "rain": "Rain", "storm": "STORM"}
         text = f"{self.get_time_string()}  {weather_names[self.weather]}"
         date = self.get_date_string()
 
-        surf1 = font.render(text, True, (230, 225, 200))
+        w_col = (150, 180, 255) if self.weather == "storm" else (230, 225, 200)
+        surf1 = font.render(text, True, w_col)
         surf2 = font.render(date, True, (180, 175, 150))
-        w = max(surf1.get_width(), surf2.get_width()) + 20
+        w = max(surf1.get_width(), surf2.get_width()) + 52
         if x is None:
             x = SCREEN_WIDTH - w - 16
 
         panel = pygame.Surface((w, 52), pygame.SRCALPHA)
-        panel.fill((15, 15, 22, 170))
+        pygame.draw.rect(panel, (12, 12, 18, 180), panel.get_rect(),
+                         border_radius=10)
+        pygame.draw.rect(panel, (168, 134, 78, 190), panel.get_rect(), 1,
+                         border_radius=10)
         screen.blit(panel, (x, y))
-        screen.blit(surf1, (x + 10, y + 6))
-        screen.blit(surf2, (x + 10, y + 28))
+
+        # Aurinko päivällä, kuunsirppi yöllä
+        cx, cy = x + 22, y + 26
+        if not self.is_night and 6 <= self.hour < 20:
+            col = (255, 205, 90)
+            pygame.draw.circle(screen, col, (cx, cy), 8)
+            for i in range(8):
+                a = i * math.pi / 4
+                pygame.draw.line(screen, col,
+                                 (cx + math.cos(a) * 10, cy + math.sin(a) * 10),
+                                 (cx + math.cos(a) * 14, cy + math.sin(a) * 14),
+                                 2)
+        else:
+            pygame.draw.circle(screen, (205, 215, 255), (cx, cy), 8)
+            pygame.draw.circle(screen, (12, 12, 18), (cx + 4, cy - 3), 7)
+
+        screen.blit(surf1, (x + 42, y + 6))
+        screen.blit(surf2, (x + 42, y + 28))
 
     # =========================================================
     # SAVE / LOAD

@@ -1694,8 +1694,10 @@ class MuckfordCityMenu(BaseMenu):
         if self.player.rect.colliderect(fgate.inflate(60, 60)):
             self.manager._draw_floating_prompt(screen, fgate.centerx, fgate.top - 20, "E", offset, "Forest Trail")
 
-        # Kello, kalenteri ja sää (oikea yläkulma)
-        self.manager.world_clock.draw_hud(screen, font_small)
+        # Kello, kalenteri ja sää (yläkeskellä - quest-paneeli vie
+        # oikean yläkulman, joten kello ei saa jäädä sen alle)
+        self.manager.world_clock.draw_hud(screen, font_small,
+                                          x=SCREEN_WIDTH // 2 - 120)
 
         # --- RAID-BANNERIT ---
         if self.raid_state == "warning":

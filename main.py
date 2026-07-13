@@ -226,6 +226,15 @@ def main():
         # Nykyinen tila talteen (esim. Asset Studio palaa tähän F10:llä)
         manager.current_state_key = new_key
 
+        # Sään ambient-luupit (sade/tuuli) soivat vain ulkotiloissa
+        OUTDOOR_STATES = ("muckford_city", "forest_road", "rattlebridge_city",
+                          "mine_road", "forest_excursion", "world_map")
+        if new_key not in OUTDOOR_STATES and old_key in OUTDOOR_STATES:
+            try:
+                manager.world_clock.stop_ambient()
+            except Exception:
+                pass
+
         if new_key == "options" and old_key != "options":
             manager.options_return_state = old_key
 
