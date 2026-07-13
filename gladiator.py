@@ -1137,8 +1137,7 @@ class Gladiator(pygame.sprite.Sprite):
             else:
                 real_dmg = t.take_damage(dmg, "Physical", attacker=self, manager=manager)
                 self.stats["damage"] += int(real_dmg)
-                if getattr(t, "is_dead", False):
-                    self.stats["kills"] += 1
+                # HUOM: tappo kirjataan take_damagessa (kaikki osumatyypit)
                 if hasattr(w, "on_hit"):
                     w.on_hit(self, t, real_dmg, manager)
             
@@ -1351,6 +1350,11 @@ class Gladiator(pygame.sprite.Sprite):
             self.current_hp = 0
             self.is_dead = True
             if attacker:
+                # Tapon kirjaus keskitetysti: myös nuolet, loitsut ja muut
+                # epäsuorat osumat krediittaavat (raidipalkkiot, areena-XP).
+                # perform_attack EI enää kirjaa erikseen (tuplakirjauksen esto).
+                if attacker != self and hasattr(attacker, "stats"):
+                    attacker.stats["kills"] = attacker.stats.get("kills", 0) + 1
                 for helper in self.attackers:
                     if helper != attacker and not helper.is_dead:
                         helper.stats["assists"] += 1

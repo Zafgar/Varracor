@@ -55,7 +55,11 @@ def test_prospects_spawn_from_recruit_pool():
 def test_prospect_interaction_opens_recruit_dialogue():
     m, menu = _city()
     prospect = menu.prospects[0]
-    menu.player.rect.center = prospect.rect.center
+    # Siirrä kohtaaminen tyhjään kohtaan: satunnainen spawni voi osua
+    # esim. torikojun eteen, jolloin E avaisi kaupan ennen NPC:tä
+    free = (menu.arena.width // 2, menu.arena.height - 200)
+    prospect.rect.center = free
+    menu.player.rect.center = free
     ev = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e)
     menu.handle_event(ev)
     assert menu.next_state == "dialogue_active"

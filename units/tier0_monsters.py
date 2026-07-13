@@ -340,8 +340,7 @@ class CodeMonster(Gladiator):
             manager=manager,
         )
         self.stats["damage"] += int(dealt or 0)
-        if getattr(target, "is_dead", False):
-            self.stats["kills"] += 1
+        # HUOM: tappo kirjataan take_damagessa (tuplakirjauksen esto)
         if self.STATUS_EFFECT and not getattr(target, "is_dead", False):
             effect_name, duration, effect_damage = self.STATUS_EFFECT
             target.apply_status(effect_name, duration, effect_damage)

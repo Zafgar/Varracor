@@ -171,25 +171,31 @@ def _patch_muckford_city() -> None:
     def _draw_opening_tracker(self, screen):
         progress = opening_progress(self.manager)
         if progress["team_registered"]:
-            panel = pygame.Rect(SCREEN_WIDTH - 410, 24, 380, 84)
+            # Rekisteröinnin jälkeen suunta ei saa kadota: näytetään
+            # Tier 0 -vaiheen seuraavat tavoitteet tiiminimen alla.
+            objectives = []
+            try:
+                objectives = self.manager.get_tier0_objectives(2)
+            except Exception:
+                pass
+            panel_h = 84 + len(objectives) * 26
+            panel = pygame.Rect(SCREEN_WIDTH - 500, 24, 470, panel_h)
             pygame.draw.rect(screen, (15, 17, 22), panel, border_radius=10)
             pygame.draw.rect(screen, GOLD_COLOR, panel, 2, border_radius=10)
             draw_text(
-                "REGISTERED TEAM",
-                font_small,
-                GRAY,
-                screen,
-                panel.x + 18,
-                panel.y + 13,
-            )
-            draw_text(
-                progress["team_name"],
+                f"TEAM  {progress['team_name']}",
                 font_main,
                 GOLD_COLOR,
                 screen,
                 panel.x + 18,
-                panel.y + 42,
+                panel.y + 13,
             )
+            if objectives:
+                draw_text("NEXT:", font_small, GRAY, screen,
+                          panel.x + 18, panel.y + 46)
+                for i, obj in enumerate(objectives):
+                    draw_text(f"- {obj}"[:64], font_small, (214, 201, 145),
+                              screen, panel.x + 20, panel.y + 68 + i * 26)
             return
 
         panel = pygame.Rect(SCREEN_WIDTH - 500, 24, 470, 190)
