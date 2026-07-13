@@ -34,6 +34,70 @@ from ui_kit import draw_text, font_main, font_small, font_title
 from units.villager import Villager
 
 
+class _FreightCart:
+    """Kansia pitkin kulkeva rahtikärry vetäjineen (pelkkä ambient-visuaali,
+    ei törmäystä). Pyörät pyörivät kuljetun matkan mukaan."""
+
+    def __init__(self, x, y, direction, speed, cargo_color, world_width):
+        self.rect = pygame.Rect(int(x), int(y) - 46, 150, 62)
+        self.direction = direction
+        self.speed = speed
+        self.cargo_color = cargo_color
+        self.world_width = world_width
+        self.travelled = float(x)
+
+    def update(self):
+        step = self.speed * self.direction
+        self.rect.x += int(round(step))
+        self.travelled += abs(step)
+        if self.direction > 0 and self.rect.left > self.world_width + 80:
+            self.rect.right = -60
+        elif self.direction < 0 and self.rect.right < -80:
+            self.rect.left = self.world_width + 60
+
+    def draw(self, screen, offset):
+        r = self.rect.move(-offset[0], -offset[1])
+        if r.right < -60 or r.left > SCREEN_WIDTH + 60:
+            return
+        flip = self.direction < 0
+        # Lava + laidat
+        bed = pygame.Rect(r.left + 18, r.top + 14, 108, 30)
+        pygame.draw.rect(screen, (96, 70, 44), bed, border_radius=6)
+        pygame.draw.rect(screen, (62, 46, 32), bed, 3, border_radius=6)
+        # Lasti
+        crate = pygame.Rect(bed.left + 12, bed.top - 20, 34, 28)
+        pygame.draw.rect(screen, self.cargo_color, crate, border_radius=4)
+        pygame.draw.rect(screen, (50, 42, 34), crate, 2, border_radius=4)
+        barrel = pygame.Rect(bed.left + 56, bed.top - 16, 30, 24)
+        pygame.draw.ellipse(screen, (118, 88, 54), barrel)
+        pygame.draw.ellipse(screen, (70, 52, 36), barrel, 2)
+        # Pyörät pinnoilla; kulma kuljetusta matkasta
+        angle = self.travelled * 0.05
+        for wx in (bed.left + 20, bed.right - 20):
+            pygame.draw.circle(screen, (48, 42, 36), (wx, r.bottom - 8), 15)
+            pygame.draw.circle(screen, (86, 74, 58), (wx, r.bottom - 8), 15, 3)
+            for k in range(3):
+                a = angle + k * (math.pi / 3)
+                pygame.draw.line(screen, (86, 74, 58),
+                                 (wx - math.cos(a) * 12, r.bottom - 8 - math.sin(a) * 12),
+                                 (wx + math.cos(a) * 12, r.bottom - 8 + math.sin(a) * 12), 2)
+        # Aisat + vetäjä (kansityöläinen)
+        puller_x = r.right + 26 if not flip else r.left - 26
+        hitch_x = bed.right if not flip else bed.left
+        pygame.draw.line(screen, (70, 54, 38), (hitch_x, bed.centery),
+                         (puller_x - (8 if flip else -8), r.bottom - 26), 4)
+        body = pygame.Rect(puller_x - 12, r.bottom - 44, 24, 34)
+        pygame.draw.rect(screen, (104, 88, 64), body, border_radius=8)
+        head_y = r.bottom - 52
+        pygame.draw.circle(screen, (210, 172, 140), (puller_x, head_y), 9)
+        # Jalkojen askelheilunta
+        swing = math.sin(self.travelled * 0.09) * 6
+        pygame.draw.line(screen, (58, 48, 38), (puller_x - 4, r.bottom - 12),
+                         (puller_x - 4 + swing, r.bottom + 2), 4)
+        pygame.draw.line(screen, (58, 48, 38), (puller_x + 4, r.bottom - 12),
+                         (puller_x + 4 - swing, r.bottom + 2), 4)
+
+
 class RattlebridgeCityMenu(BaseMenu):
     POPULATION = 72
     # Lore: kääpiöt, gnomit ja örkit ovat Rattlebridgessä yleisiä
@@ -67,8 +131,11 @@ class RattlebridgeCityMenu(BaseMenu):
         self.ambient_speaker = None
         self.ambient_text = ""
         self.ambient_text_timer = 0
+        self.carts = []
         self._spawn_population()
         self._spawn_named_npcs()
+        self._spawn_patrols()
+        self._spawn_carts()
         self._place_player("west_gate")
         self._update_camera()
 
@@ -158,6 +225,52 @@ class RattlebridgeCityMenu(BaseMenu):
                 npc.ai_controller.allow_idle_wander = False
             self.named_npcs[npc_id] = npc
             self.npcs.append(npc)
+
+    def _spawn_patrols(self):
+        """Bridgeguard-partiot kiertävät kansia kiinteitä reittejä.
+        Käytetään olemassa olevaa Villager-luokkaa (rotu + rooli)."""
+        city = self.city
+        main_y = city.main_deck.centery + 60
+        low_y = city.lower_deck.centery - 40
+        routes = (
+            [(int(city.width * fx), main_y) for fx in (0.10, 0.34, 0.58, 0.86)],
+            [(int(city.width * fx), low_y) for fx in (0.82, 0.55, 0.30, 0.14)],
+        )
+        for route_index, points in enumerate(routes):
+            for offset_index in range(2):
+                race = ("Human", "Orc", "Dwarf", "Human")[route_index * 2 + offset_index]
+                npc = Villager(get_random_name(race), race,
+                               points[0][0] + offset_index * 46,
+                               points[0][1] + offset_index * 20,
+                               (100, 125, 165))
+                npc.rattle_role = "Bridgeguard Patrol"
+                npc.sim_state = "PATROL"
+                npc.patrol_points = points
+                npc.patrol_index = (offset_index * 2) % len(points)
+                npc.patrol_offset = (offset_index * 46, offset_index * 20)
+                npc.sim_timer = 0
+                if getattr(npc, "ai_controller", None):
+                    npc.ai_controller.allow_idle_wander = False
+                self.npcs.append(npc)
+
+    def _spawn_carts(self):
+        """Rahtikärryt kiertävät pää- ja alakantta (Ironspan-rahti)."""
+        city = self.city
+        lanes = (
+            (city.main_deck.bottom - 90, 1),
+            (city.main_deck.top + 120, -1),
+            (city.lower_deck.centery + 90, 1),
+        )
+        cargo = ((122, 90, 52), (86, 96, 74), (104, 76, 88))
+        for index, (lane_y, direction) in enumerate(lanes):
+            self.carts.append(_FreightCart(
+                self.rng.randint(0, city.width),
+                lane_y,
+                direction,
+                0.9 + index * 0.25,
+                cargo[index % len(cargo)],
+                city.width,
+            ))
 
     def _distance_to_npc(self, npc):
         return math.hypot(
@@ -345,6 +458,33 @@ class RattlebridgeCityMenu(BaseMenu):
                 continue
 
             npc.sim_timer -= 1
+            if npc.sim_state == "PATROL":
+                ox, oy = getattr(npc, "patrol_offset", (0, 0))
+                tx, ty = npc.patrol_points[npc.patrol_index]
+                tx, ty = tx + ox, ty + oy
+                dx = tx - npc.rect.centerx
+                dy = ty - npc.rect.centery
+                distance = math.hypot(dx, dy)
+                if distance < 14:
+                    npc.patrol_index = (npc.patrol_index + 1) % len(npc.patrol_points)
+                    npc.animation_state = "idle"
+                else:
+                    speed = 0.85
+                    old = npc.rect.copy()
+                    npc.rect.x += int(round(dx / distance * speed))
+                    npc.rect.y += int(round(dy / distance * speed))
+                    if not self.city.is_walkable(npc.rect):
+                        # Este reitillä: hyppää seuraavaan pisteeseen.
+                        npc.rect = old
+                        npc.patrol_index = (npc.patrol_index + 1) % len(npc.patrol_points)
+                    else:
+                        npc.animation_state = "run"
+                        npc.facing_right = dx >= 0
+                try:
+                    npc.update(self.city.obstacles, self.manager)
+                except Exception:
+                    pass
+                continue
             if npc.sim_state == "IDLE":
                 npc.animation_state = "idle"
                 if npc.sim_timer <= 0:
@@ -414,6 +554,8 @@ class RattlebridgeCityMenu(BaseMenu):
         self._move_player()
         if not getattr(self.manager, "world_paused", False):
             self._update_population()
+            for cart in self.carts:
+                cart.update()
             self._update_hush_mantle()
             try:
                 self.manager.world_clock.update()
@@ -563,10 +705,14 @@ class RattlebridgeCityMenu(BaseMenu):
         self.city.draw_background(screen, (self.camera_x, self.camera_y))
         self.city.draw_landmarks(screen, (self.camera_x, self.camera_y), highlighted)
 
-        units = list(self.npcs) + [self.player]
-        units.sort(key=lambda unit: unit.rect.bottom)
-        for unit in units:
-            self._draw_unit(screen, unit)
+        renderables = list(self.npcs) + [self.player] + list(self.carts)
+        renderables.sort(key=lambda item: item.rect.bottom)
+        offset = (self.camera_x, self.camera_y)
+        for item in renderables:
+            if isinstance(item, _FreightCart):
+                item.draw(screen, offset)
+            else:
+                self._draw_unit(screen, item)
         self.city.draw_foreground(screen, (self.camera_x, self.camera_y))
 
         if self.hush_alpha > 0:

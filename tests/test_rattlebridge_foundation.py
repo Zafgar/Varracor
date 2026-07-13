@@ -86,6 +86,10 @@ def test_canonical_city_content_is_present():
         "prior_jannik_voss",
         "captain_mara_chain",
         "factor_ellis_vane",
+        # Ambient-laajennus: uudet nimetyt hahmot
+        "yorik_sparkspanner",
+        "corwin_hale",
+        "brasslight_tout",
     }
     assert set(LOCAL_TEAMS) == {
         "rattlebridge_runners",
