@@ -44,6 +44,7 @@ from menus.barracks_menu import BarracksMenu
 from menus.notice_board_menu import NoticeBoardMenu
 from menus.market_menu import MarketMenu
 from menus.district_shop_menu import DistrictShopMenu
+from menus.asset_studio_menu import AssetStudioMenu
 from menus.world_map_menu import WorldMapMenu
 from menus.regional_staging_menu import RegionalStagingMenu
 from citys.mucford.tavern_menu import TavernMenu
@@ -129,6 +130,7 @@ def main():
         "forest_excursion": None,
         "market": MarketMenu(manager),
         "district_shop": None,
+        "asset_studio": None,
         "world_map": WorldMapMenu(manager),
         "regional_staging": RegionalStagingMenu(manager),
         "rattlebridge_city": None,
@@ -161,6 +163,7 @@ def main():
         "forest_excursion": ForestExcursionMenu,
         "market": MarketMenu,
         "district_shop": DistrictShopMenu,
+        "asset_studio": AssetStudioMenu,
         "tavern_sunk_cask": TavernMenu,
         "muckford_city": MuckfordCityMenu,
         "blacksmith_interior": BlacksmithMenu,
@@ -183,7 +186,7 @@ def main():
         "commander_skills", "workshop_locations", "sponsors", "reputation",
         "magic_school", "necro_school", "shop_locations", "city_storage",
         "muckford_intro", "test_arena", "options", "market",
-        "district_shop", "barracks",
+        "district_shop", "asset_studio", "barracks",
         "notice_board", "world_map", "regional_staging",
         "rattlebridge_span", "rattlebridge_hospital",
         "rattlebridge_scrapring", "rattlebridge_contracts",
@@ -217,8 +220,14 @@ def main():
         if new_key not in ("crown_knives", "tavern_sunk_cask"):
             manager.dialogue_action_handler = None
 
+        # Nykyinen tila talteen (esim. Asset Studio palaa tähän F10:llä)
+        manager.current_state_key = new_key
+
         if new_key == "options" and old_key != "options":
             manager.options_return_state = old_key
+
+        if new_key == "asset_studio" and old_key != "asset_studio":
+            manager.asset_studio_return_state = old_key
 
         if old_key not in SKIP_INIT_FROM.get(new_key, ()):
             factory = MENU_FACTORIES.get(new_key)

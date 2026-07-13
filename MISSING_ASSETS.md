@@ -3,24 +3,24 @@
 Generoitu komennolla `python tools/asset_scan.py` — aja uudelleen
 aina kun lisäät tiedostoja, niin lista pysyy ajan tasalla.
 
-- Koodissa viitattuja tiedostoja: **183**
+- Koodissa viitattuja tiedostoja: **194**
 - Löytyy levyltä: **0**
-- Puuttuu: **183**
+- Puuttuu: **194**
 
 Laita tiedosto täsmälleen alla olevaan polkuun (suhteessa pelin
 juurikansioon), niin peli löytää sen automaattisesti — koodia ei
 tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 
-## assets/gear/ (41 kpl)
+## assets/gear/ (44 kpl)
 
 | Tiedosto | Tyyppi | Käytetään tiedostossa |
 |---|---|---|
-| `assets/gear/axes/axe_1.wav` | ääni | sound_manager.py |
+| `assets/gear/axes/axe_1.wav` | ääni | sound_manager.py, tests/test_asset_studio.py |
 | `assets/gear/axes/axe_2.wav` | ääni | sound_manager.py |
 | `assets/gear/axes/axe_3.wav` | ääni | sound_manager.py |
 | `assets/gear/axes/axe_4.wav` | ääni | sound_manager.py |
-| `assets/gear/axes/scrap_axe.png` | kuva | items/axes/scrap_axe.py |
-| `assets/gear/axes/weak_axe.png` | kuva | items/axes/weak_axe.py |
+| `assets/gear/axes/scrap_axe.png` | kuva | items/axes/scrap_axe.py, tests/test_asset_studio.py |
+| `assets/gear/axes/weak_axe.png` | kuva | items/axes/weak_axe.py, tests/test_asset_studio.py |
 | `assets/gear/books/scrap_book.png` | kuva | items/books/scrap_book.py |
 | `assets/gear/books/weak_book.png` | kuva | items/books/weak_book.py |
 | `assets/gear/bows/scrap_bow.png` | kuva | items/bows/scrap_bow.py |
@@ -52,6 +52,9 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/gear/tools/bucket_empty.png` | kuva | items/tools/bucket.py, units/villager.py |
 | `assets/gear/tools/bucket_milk.png` | kuva | items/tools/bucket.py, units/villager.py |
 | `assets/gear/tools/bucket_water.png` | kuva | items/tools/bucket.py, units/villager.py |
+| `assets/gear/tools/crude_harvest_sickle.png` | kuva | items/tools/harvest_tools.py |
+| `assets/gear/tools/guild_harvest_scythe.png` | kuva | items/tools/harvest_tools.py |
+| `assets/gear/tools/iron_harvest_sickle.png` | kuva | items/tools/harvest_tools.py |
 | `assets/gear/tools/lute.png` | kuva | items/tools/bard_instrument.py |
 | `assets/gear/tools/weak_lumberaxe.png` | kuva | items/tools/weak_lumberaxe.py, items/tools/woodcutters_axe.py |
 | `assets/gear/tools/weak_pickaxe.png` | kuva | items/tools/weak_pickaxe.py |
@@ -73,10 +76,22 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/images/hub_background.png` | kuva | menus/town_hub.py |
 | `assets/images/menu_background.png` | kuva | menus/main_menu.py |
 
-## assets/music/ (12 kpl)
+## assets/items/ (6 kpl)
 
 | Tiedosto | Tyyppi | Käytetään tiedostossa |
 |---|---|---|
+| `assets/items/potions/bitterleaf_tonic.png` | kuva | items/farm_potions.py |
+| `assets/items/potions/ironstem_fortifier.png` | kuva | items/farm_potions.py |
+| `assets/items/potions/marshmint_draught.png` | kuva | items/farm_potions.py |
+| `assets/items/potions/moonpetal_elixir.png` | kuva | items/farm_potions.py |
+| `assets/items/potions/siltroot_antidote.png` | kuva | items/farm_potions.py |
+| `assets/items/potions/sunleaf_restorative.png` | kuva | items/farm_potions.py |
+
+## assets/music/ (14 kpl)
+
+| Tiedosto | Tyyppi | Käytetään tiedostossa |
+|---|---|---|
+| `assets/music/city_theme.mp3` | musiikki | citys/rattlebridge/rattlebridge_city_menu.py |
 | `assets/music/crypt_theme.mp3` | musiikki | citys/mucford/mine_cave_menu.py |
 | `assets/music/crypt_theme.wav` | ääni | maps/bog_1/mission.py, maps/crypt_1/mission.py |
 | `assets/music/menu_theme.mp3` | musiikki | menus/main_menu.py |
@@ -86,8 +101,9 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/music/rat_boss_theme.wav` | ääni | maps/rat_sewer/mission.py |
 | `assets/music/swamp_loop.mp3` | musiikki | maps/bog_1/mission.py |
 | `assets/music/swamp_loop.wav` | ääni | maps/bog_1/mission.py |
-| `assets/music/swamp_theme.mp3` | musiikki | citys/mucford/forest_road_menu.py, citys/mucford/mine_road_menu.py, citys/mucford/muckford_city_menu.py (+1 muuta) |
+| `assets/music/swamp_theme.mp3` | musiikki | citys/mucford/forest_road_menu.py, citys/mucford/mine_road_menu.py, citys/mucford/muckford_city_menu.py (+3 muuta) |
 | `assets/music/swamp_theme.wav` | ääni | maps/bog_1/mission.py |
+| `assets/music/tavern_theme.mp3` | musiikki | citys/rattlebridge/the_span_menu.py |
 | `assets/music/town_hub.wav` | ääni | menus/town_hub.py |
 
 ## assets/narrator/ (4 kpl)
@@ -216,9 +232,9 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/ui/btn_shop_hover.png` | kuva | menus/town_hub.py |
 | `assets/ui/btn_shop_idle.png` | kuva | menus/town_hub.py |
 | `assets/ui/btn_shop_pressed.png` | kuva | menus/town_hub.py |
-| `assets/ui/btn_start_hover.png` | kuva | menus/main_menu.py, menus/mission_prepare_menu.py, menus/prepare_menu.py (+1 muuta) |
-| `assets/ui/btn_start_idle.png` | kuva | menus/main_menu.py, menus/mission_prepare_menu.py, menus/prepare_menu.py (+1 muuta) |
-| `assets/ui/btn_start_pressed.png` | kuva | menus/main_menu.py, menus/mission_prepare_menu.py, menus/prepare_menu.py (+1 muuta) |
+| `assets/ui/btn_start_hover.png` | kuva | menus/main_menu.py, menus/mission_prepare_menu.py, menus/prepare_menu.py |
+| `assets/ui/btn_start_idle.png` | kuva | menus/main_menu.py, menus/mission_prepare_menu.py, menus/prepare_menu.py |
+| `assets/ui/btn_start_pressed.png` | kuva | menus/main_menu.py, menus/mission_prepare_menu.py, menus/prepare_menu.py |
 | `assets/ui/btn_workshop_hover.png` | kuva | menus/town_hub.py |
 | `assets/ui/btn_workshop_idle.png` | kuva | menus/town_hub.py |
 | `assets/ui/btn_workshop_pressed.png` | kuva | menus/town_hub.py |
@@ -283,11 +299,15 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/portraits/mardashant` — npc/marda_shant_npc.py
 - `assets/portraits/mortarch` — npc/grand_mortarch.py
 - `assets/portraits/vortex/MnemonicDevourer` — npc/mnemonic_devourer_npc.py
+- `assets/portraits/vortex_mentor` — npc/vortex_mentor.py
 - `assets/portraits/{self.npc_id}/{emotion}.png` — npc/base_npc.py
+- `assets/portraits/{self.school_key}` — npc/school_keeper.py
 - `assets/races/animals` — units/farm_animals.py
 - `assets/races/cave/broodmother/broodmother` — units/cave_spider.py
+- `assets/races/dwarf/dwarf` — units/dwarf.py
 - `assets/races/elf` — units/elf_bard.py
 - `assets/races/forest/troll/troll` — units/troll.py
+- `assets/races/gnome/gnome` — units/gnome.py
 - `assets/races/goblin/goblin` — units/goblin.py
 - `assets/races/human/human` — units/human.py
 - `assets/races/human/mardashant` — units/marda_shant.py
@@ -305,10 +325,12 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/races/swamp/leech/hurt_{i}.wav` — sound_manager.py
 - `assets/races/swamp/leech/hurt{i}.wav` — sound_manager.py
 - `assets/races/swamp/leech/leech` — units/bog_leech.py
+- `assets/races/tortle/tortle` — units/tortle.py
 - `assets/races/undead/skeleton/skeleton` — units/undead_skeleton.py
 - `assets/races/undead/skeleton_archer/skeleton_archer` — units/undead_skeleton_archer.py
 - `assets/races/undead/zombie/zombie` — units/undead_zombie.py
 - `assets/races/vortex/Mnemonicdevourer` — units/mnemonic_devourer.py
+- `assets/races/werewolf/werewolf` — units/werewolf.py
 - `assets/sfx/bard/bard_song_{i}.wav` — sound_manager.py
 - `assets/sfx/nature/grass_moving_loop_{i}.wav` — sound_manager.py
 - `assets/sfx/nature/tree_loop_windy_{i}.wav` — sound_manager.py
@@ -325,6 +347,7 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/sfx/sounds/reaction_{i}.wav` — sound_manager.py
 - `assets/sfx/sounds/sneeze_{i}.wav` — sound_manager.py
 - `assets/sfx/talking/talking_loop_{i}.wav` — sound_manager.py
+- `assets/tiles/farm/crops/{slug}_stage_{stage}.png` — citys/mucford/farming_content.py
 - `assets/tiles/gambling/` — minigames/crown_knives.py, sound_manager.py
 - `assets/tiles/gamling/` — minigames/crown_knives.py, sound_manager.py
 - `assets/voices/dwarf_league_manager` — npc/dwarf_league_manager.py

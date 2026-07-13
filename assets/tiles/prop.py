@@ -1,7 +1,33 @@
 import pygame
 import os
+import json
 import random
 from sound_manager import sound_system
+
+# --- Asset Studion hitbox-overridet ---
+# assets/hitbox_overrides.json: {"LuokanNimi": {"dx","dy","w","h"}} suhteessa
+# konstruktorin (x, y):hyn. Studio kirjoittaa, tämä soveltaa. Välimuisti
+# ladataan kerran; reload_hitbox_overrides() pakottaa uudelleenluvun.
+_HITBOX_OVERRIDES = None
+_HITBOX_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "..", "hitbox_overrides.json")
+
+
+def _hitbox_overrides():
+    global _HITBOX_OVERRIDES
+    if _HITBOX_OVERRIDES is None:
+        try:
+            with open(_HITBOX_FILE, encoding="utf-8") as fh:
+                _HITBOX_OVERRIDES = json.load(fh)
+        except Exception:
+            _HITBOX_OVERRIDES = {}
+    return _HITBOX_OVERRIDES
+
+
+def reload_hitbox_overrides():
+    global _HITBOX_OVERRIDES
+    _HITBOX_OVERRIDES = None
+
 
 class Prop(pygame.sprite.Sprite):
     """
@@ -34,6 +60,14 @@ class Prop(pygame.sprite.Sprite):
             self.rect = collision_rect
         else:
             self.rect = pygame.Rect(x, y, w, h)
+
+        # Asset Studion hitbox-override jyrää koodissa määritellyn
+        override = _hitbox_overrides().get(self.__class__.__name__)
+        if override:
+            self.rect = pygame.Rect(x + int(override.get("dx", 0)),
+                                    y + int(override.get("dy", 0)),
+                                    max(1, int(override.get("w", w))),
+                                    max(1, int(override.get("h", h))))
             
         self.type = "wall"
         self.blocks_projectiles = True # Oletuksena seinät pysäyttävät ammukset

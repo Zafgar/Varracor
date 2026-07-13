@@ -14,6 +14,12 @@ python -m pytest tests/ -q        # 21+ testiä, ~2 min (kaupunkisimulaatio muka
 python tools/asset_scan.py        # päivittää MISSING_ASSETS.md
 ```
 
+Cheat-tilan kehitystyökalut pelin sisällä: **F8** karttaeditori,
+**F10** Asset Studio (menus/asset_studio_menu.py + systems/asset_studio.py):
+pudota kuvat/äänet asset_inbox/-kansioon, valitse asset-paikka + tiedosto →
+ASSIGN kopioi ja nimeää oikeaan polkuun; HITBOX-välilehti tallentaa propien
+törmäyslaatikot assets/hitbox_overrides.json:iin (Prop.__init__ soveltaa).
+
 Headless-ajo (testit/simulaatiot): `SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy`.
 Kuvat/äänet/musiikki EIVÄT ole repossa (tekijän koneella) — peli toimii ilman
 niitä procedural-fallbackeilla. `MISSING_ASSETS.md` listaa polut joihin

@@ -46,11 +46,18 @@ class BaseMenu:
 
     def handle_editor_event(self, event):
         """Helper to call from child classes handle_event"""
+        # F10 = Asset Studio (cheat) mistä tahansa valikosta; palaa ESC:llä
+        # takaisin (main.py tallentaa lähtötilan asset_studio_return_stateen)
+        if CHEAT_MODE and event.type == pygame.KEYDOWN and event.key == pygame.K_F10:
+            if type(self).__name__ != "AssetStudioMenu":
+                self.next_state = "asset_studio"
+                return True
+
         if CHEAT_MODE and hasattr(self, "map_editor"):
             if event.type == pygame.KEYDOWN and event.key == pygame.K_F8:
                 self.map_editor.toggle()
                 return True
-            
+
             if self.map_editor.active:
                 return self.map_editor.handle_event(event)
         return False

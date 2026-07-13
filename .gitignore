@@ -17,3 +17,4 @@ Thumbs.db
 
 # Runtime-generated placeholder art (regenerated on boot)
 assets/generated/
+asset_inbox/
