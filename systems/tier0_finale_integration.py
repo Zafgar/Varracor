@@ -1,13 +1,9 @@
 """Runtime integration for Bram's docket, promotion match and Tier 0 finale."""
 from __future__ import annotations
 
-import pygame
-
 from systems.tier0_finale import (
     ensure_finale_state,
     finale_state_from_memory,
-    promotion_lock_reason,
-    finale_requirements,
     return_docket_to_bram,
 )
 
@@ -147,40 +143,19 @@ def _patch_bram_dialogue() -> None:
     DwarfLeagueManager.get_nodes = get_nodes
 
 
-def _promotion_click(event, button) -> bool:
-    return bool(
-        event.type == pygame.MOUSEBUTTONDOWN
-        and getattr(event, "button", 0) == 1
-        and button.rect.collidepoint(getattr(event, "pos", pygame.mouse.get_pos()))
-    )
-
-
 def _patch_league_menu() -> None:
+    """League promotion is arena-only.
+
+    Ranking out of Tier 0 depends purely on league performance (Top 2 + the
+    promotion match). The Tier 0 finale (Crown docket, Kingsreach papers,
+    Bram's ceremony) is PARALLEL content that grants rewards and opens the
+    physical road to Rattlebridge - it never blocks ranking up.
+    """
     from menus.league_menu import LeagueMenu
-    from sound_manager import sound_system
 
     if getattr(LeagueMenu, "_tier0_finale_installed", False):
         return
-    previous_handle = LeagueMenu.handle_event
     previous_draw = LeagueMenu.draw
-
-    def handle_event(self, event):
-        engine = self.manager.league_engine
-        eligible = False
-        try:
-            eligible, _reason, _opponent = engine.check_promotion_eligibility()
-        except Exception:
-            pass
-        if eligible and _promotion_click(event, self.btn_promote):
-            status = finale_requirements(self.manager)
-            if int(getattr(engine, "tier", 1)) == 1 and not status["ready"]:
-                self.message = promotion_lock_reason(self.manager)
-                try:
-                    sound_system.play_sound("error")
-                except Exception:
-                    pass
-                return
-        return previous_handle(self, event)
 
     def draw(self, screen):
         engine = self.manager.league_engine
@@ -188,16 +163,11 @@ def _patch_league_menu() -> None:
             eligible, _reason, _opponent = engine.check_promotion_eligibility()
         except Exception:
             eligible = False
+        # Cosmetic label only: a Tier 0 team at the top plays a "final match".
         if eligible and int(getattr(engine, "tier", 1)) == 1:
-            status = finale_requirements(self.manager)
-            self.btn_promote.text = "PLAY FINAL MATCH!" if status["ready"] else "FINAL LOCKED"
-            if not status["ready"] and not self.message:
-                self.message = promotion_lock_reason(self.manager)
-        else:
-            self.btn_promote.text = "PLAY RANK UP!"
+            self.btn_promote.text = "PLAY FINAL MATCH!"
         return previous_draw(self, screen)
 
-    LeagueMenu.handle_event = handle_event
     LeagueMenu.draw = draw
     LeagueMenu._tier0_finale_installed = True
 
@@ -255,23 +225,26 @@ def _patch_world_travel() -> None:
         result = current(manager, location_id)
         if str(location_id) != "rattlebridge":
             return result
-        state = ensure_finale_state(manager)
-        flags = (
-            getattr(manager, "npc_state", {})
-            .get("tier0_world", {})
-            .get("story_flags", {})
-        )
+        # Only apply the Tier 0 story's causeway gate to managers actually
+        # progressing that story (those with tier0_world state). Managers outside
+        # it keep the plain tier-based gate, so this wrapper never leaks the
+        # finale requirements into unrelated world-map logic.
+        tier0 = getattr(manager, "npc_state", {}).get("tier0_world")
+        if not tier0:
+            return result
+        # Reaching Rattlebridge needs an Arena Tier 1 promotion (the league's own
+        # route) plus the causeway route's Crown papers. It is NOT gated on any
+        # optional Muckford questline or the farewell ceremony.
+        flags = tier0.get("story_flags", {})
         inventory = getattr(manager, "inventory", {})
         missing = []
         if not flags.get("tier1_promoted"):
             missing.append("formal Arena Tier 1 promotion")
         if int(inventory.get("Stamped Crown Travel Papers", 0)) <= 0:
             missing.append("Stamped Crown Travel Papers")
-        if not state.get("ceremony_complete"):
-            missing.append("Bram's Shanty Yard farewell and recommendation")
         if missing:
             result["can_travel"] = False
-            result["reason"] = "Rattlebridge professional gate requires " + ", ".join(missing) + "."
+            result["reason"] = "The causeway to Rattlebridge requires " + ", ".join(missing) + "."
         return result
 
     location_status._tier0_finale_wrapper = True

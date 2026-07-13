@@ -26,9 +26,21 @@ import pytest
 try:
     from lore import world_map_data as _wmd
     _PRISTINE_LOCATIONS = copy.deepcopy(_wmd.LOCATIONS)
+    _PRISTINE_ROUTES = copy.deepcopy(_wmd.ROUTES)
 except Exception:
     _wmd = None
     _PRISTINE_LOCATIONS = None
+    _PRISTINE_ROUTES = None
+
+
+# The Muckford opening world integration adds runtime LOCATIONS/ROUTES/content
+# that most tests (city, world systems, quests, etc.) rely on ambiently. Only a
+# few modules assert the PRISTINE static world graph and must NOT see the runtime
+# additions. Re-install the integration for everyone except those.
+_STATIC_GRAPH_MODULES = (
+    "world_map_progression",
+    "causeway_journey",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -49,21 +61,45 @@ def _isolate_world_map(request):
     except Exception:
         rbi = None
 
-    def _restore_pristine():
+    def _restore_locations():
         _wmd.LOCATIONS.clear()
         _wmd.LOCATIONS.update(copy.deepcopy(_PRISTINE_LOCATIONS))
         if rbi is not None:
             rbi._INSTALLED = False
 
-    _restore_pristine()
+    def _set_routes(routes):
+        _wmd.ROUTES[:] = copy.deepcopy(routes)
+        try:
+            import systems.world_progression as _wp
+            _wp.VALID_ROUTE_KEYS = {
+                _wp.route_key(r["a"], r["b"]) for r in _wmd.ROUTES
+            }
+        except Exception:
+            pass
+
     modname = getattr(getattr(request, "module", None), "__name__", "")
+    is_static_graph = any(tag in modname for tag in _STATIC_GRAPH_MODULES)
+
+    _restore_locations()
+    # Only the static-graph modules require a pristine ROUTES table. Runtime
+    # integrations (Muckford outskirts, Kingsreach, ...) append routes globally;
+    # restoring only LOCATIONS left those routes pointing at wiped nodes and
+    # corrupted the graph for these tests. Snapshot the ambient routes and put
+    # them back on teardown so other modules keep their runtime world content.
+    ambient_routes = None
+    if is_static_graph:
+        ambient_routes = [copy.deepcopy(r) for r in _wmd.ROUTES]
+        _set_routes(_PRISTINE_ROUTES)
+
     if rbi is not None and "rattlebridge" in modname:
         try:
             rbi.install_rattlebridge_integration()
         except Exception:
             pass
     yield
-    _restore_pristine()
+    _restore_locations()
+    if ambient_routes is not None:
+        _set_routes(ambient_routes)
 
 
 @pytest.fixture(scope="session", autouse=True)

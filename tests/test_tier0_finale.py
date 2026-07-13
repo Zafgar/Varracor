@@ -251,11 +251,8 @@ def test_complete_ceremony_is_safe_for_loaded_promoted_save():
     assert manager.inventory["Bram's Recommendation"] == 1
 
 
-def test_world_map_cannot_bypass_papers_promotion_or_farewell_to_rattlebridge():
-    # Other tests may reload lore.world_map_data. Restore runtime-only local nodes
-    # before world progression rebuilds its surveyed route graph.
-    _patch_low_fields_world_map()
-    manager = ready_manager(tier=2)
+def _open_causeway_graph(manager):
+    """Discover the Kingsreach -> Rattlebridge road for travel-gate tests."""
     world = ensure_world_state(manager)
     world["current_location"] = "kingsreach_toll"
     for location_id in ("kingsreach_toll", "rattlebridge"):
@@ -264,17 +261,48 @@ def test_world_map_cannot_bypass_papers_promotion_or_farewell_to_rattlebridge():
     key = route_key("kingsreach_toll", "rattlebridge")
     if key not in world["discovered_routes"]:
         world["discovered_routes"].append(key)
+    return world
 
+
+def test_rattlebridge_travel_requires_promotion_and_crown_papers_not_ceremony():
+    # Travel to Rattlebridge is gated only on the arena promotion (the league's
+    # own route) plus the causeway's Crown papers - NOT on the farewell ceremony
+    # or any optional Muckford questline.
+    _patch_low_fields_world_map()
+    manager = ready_manager(tier=2)          # holds Stamped Crown Travel Papers
+    _open_causeway_graph(manager)
+
+    # Not yet promoted -> blocked on the arena promotion.
     status = location_status(manager, "rattlebridge")
     assert status["can_travel"] is False
     assert "promotion" in status["reason"]
 
-    return_docket_to_bram(manager)
+    # Winning the promotion match sets tier1_promoted. Papers already held, and
+    # no ceremony is required, so the causeway opens immediately.
     mark_promotion_victory(manager)
     status = location_status(manager, "rattlebridge")
-    assert status["can_travel"] is False
-    assert "farewell" in status["reason"]
-
-    complete_ceremony(manager)
-    status = location_status(manager, "rattlebridge")
     assert status["can_travel"] is True
+
+
+def test_league_promotion_is_not_gated_by_the_finale_questline():
+    # The league-menu patch must never block ranking up behind finale progress.
+    # Ranking out of Tier 0 is arena-only (Top 2 + promotion match).
+    import inspect
+    import systems.tier0_finale_integration as integ
+
+    src = inspect.getsource(integ._patch_league_menu)
+    assert "finale_requirements" not in src
+    assert "promotion_lock_reason" not in src
+    assert "FINAL LOCKED" not in src
+
+
+def test_rattlebridge_travel_still_needs_crown_papers_from_the_causeway():
+    _patch_low_fields_world_map()
+    manager = ready_manager(tier=2)
+    manager.inventory.pop("Stamped Crown Travel Papers", None)  # not yet earned
+    mark_promotion_victory(manager)                             # promoted (arena)
+    _open_causeway_graph(manager)
+
+    status = location_status(manager, "rattlebridge")
+    assert status["can_travel"] is False
+    assert "Crown Travel Papers" in status["reason"]
