@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pygame
 
-from citys.rattlebridge.rattlebridge_art import load_rattlebridge_image
+from citys.rattlebridge.interior_scenes import get_scene
 from citys.rattlebridge.rattlebridge_data import LOCAL_TEAMS
 from menus.base_menu import BaseMenu
 from settings import GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
@@ -17,22 +17,26 @@ class TheSpanMenu(BaseMenu):
 
     def __init__(self, manager):
         super().__init__(manager)
-        self.background = load_rattlebridge_image(
-            "the_span", (SCREEN_WIDTH, SCREEN_HEIGHT)
-        )
+        # Koodilla maalattu tupa: takka, siiderikattila, unionin väkeä.
+        self.scene = get_scene("span")
         self.feedback = ""
         self.feedback_timer = 0
         self.show_rumors = False
+        self.show_teams = False
         cx = SCREEN_WIDTH // 2
-        y = SCREEN_HEIGHT - 125
-        self.btn_rest = UIButton(cx - 500, y, 280, 58,
+        y = SCREEN_HEIGHT - 96
+        self.btn_rest = UIButton(cx - 640, y, 270, 58,
                                  f"RENT BUNKS ({self.REST_COST} GP)", None, GREEN)
-        self.btn_rumors = UIButton(cx - 190, y, 280, 58,
+        self.btn_rumors = UIButton(cx - 350, y, 250, 58,
                                    "UNION RUMORS", None, (115, 145, 190))
-        self.btn_talk = UIButton(cx + 120, y, 280, 58,
+        self.btn_teams = UIButton(cx - 80, y, 250, 58,
+                                  "ARENA TALK", None, (150, 110, 150))
+        self.btn_talk = UIButton(cx + 190, y, 270, 58,
                                  "TALK TO HENDRIK", None, (170, 120, 65))
-        self.btn_leave = UIButton(cx + 430, y, 220, 58,
+        self.btn_leave = UIButton(cx + 480, y, 190, 58,
                                   "LEAVE", None, GRAY)
+        self._buttons = (self.btn_rest, self.btn_rumors, self.btn_teams,
+                         self.btn_talk, self.btn_leave)
 
     def on_enter(self):
         self.manager.city_spawn_point = "the_span"
@@ -104,8 +108,9 @@ class TheSpanMenu(BaseMenu):
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            if self.show_rumors:
+            if self.show_rumors or self.show_teams:
                 self.show_rumors = False
+                self.show_teams = False
             else:
                 self._leave()
             return
@@ -113,6 +118,11 @@ class TheSpanMenu(BaseMenu):
             self._rest()
         elif self.btn_rumors.is_clicked(event):
             self.show_rumors = not self.show_rumors
+            self.show_teams = False
+            sound_system.play_sound("click")
+        elif self.btn_teams.is_clicked(event):
+            self.show_teams = not self.show_teams
+            self.show_rumors = False
             sound_system.play_sound("click")
         elif self.btn_talk.is_clicked(event):
             self._talk()
@@ -122,8 +132,7 @@ class TheSpanMenu(BaseMenu):
     def update(self):
         super().update()
         mouse = pygame.mouse.get_pos()
-        for button in (self.btn_rest, self.btn_rumors,
-                       self.btn_talk, self.btn_leave):
+        for button in self._buttons:
             button.update_hover(mouse)
         if self.feedback_timer > 0:
             self.feedback_timer -= 1
@@ -145,96 +154,87 @@ class TheSpanMenu(BaseMenu):
         return lines
 
     def draw(self, screen):
-        screen.blit(self.background, (0, 0))
-        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        shade.fill((14, 8, 4, 90))
-        screen.blit(shade, (0, 0))
+        # Maalattu tupa animaatioineen on näkymän tähti.
+        self.scene.draw(screen)
         title = font_title.render("BOIL-CIDER HOUSE ‘THE SPAN’", True, GOLD_COLOR)
-        self.draw_header_bar(screen, title, y=28)
+        self.draw_header_bar(screen, title, y=24)
 
-        left = pygame.Rect(80, 155, 680, 650)
-        right = pygame.Rect(800, 155, 1040, 650)
-        self.draw_soft_panel(screen, left, alpha=215, border_alpha=185, radius=12)
-        self.draw_soft_panel(screen, right, alpha=215, border_alpha=185, radius=12)
-
-        draw_text("HENDRIK IRONSPAN", font_title, GOLD_COLOR,
-                  screen, left.x + 28, left.y + 28)
+        # Kompakti majoituskortti - ei peitä tupaa.
+        card = pygame.Rect(36, SCREEN_HEIGHT - 420, 470, 280)
+        self.draw_soft_panel(screen, card, alpha=185, border_alpha=170, radius=12)
+        draw_text("HENDRIK IRONSPAN", font_main, GOLD_COLOR,
+                  screen, card.x + 24, card.y + 20)
         draw_text("Ironspan Union trusted keeper", font_small,
-                  (175, 190, 205), screen, left.x + 30, left.y + 72)
-        y = left.y + 118
-        intro = (
-            "Warm cider, union notices, bridgeguard gossip and disciplined "
-            "workers fill the room. Hendrik permits no brawl without a cause "
-            "the whole taproom accepts."
+                  (175, 190, 205), screen, card.x + 24, card.y + 52)
+        bullets = (
+            "Bunks restore HP to 72%+, mana & stamina",
+            "Minor injuries settle overnight",
+            "Advances the world clock by 8 hours",
         )
-        for line in self._wrap(intro, left.w - 60):
-            draw_text(line, font_main, WHITE, screen, left.x + 30, y)
-            y += 31
-        y += 24
-        draw_text("LODGING", font_main, (145, 210, 165),
-                  screen, left.x + 30, y)
-        y += 34
-        draw_text("• Restores HP to at least 72%", font_small, WHITE,
-                  screen, left.x + 42, y)
-        y += 26
-        draw_text("• Refills mana and stamina", font_small, WHITE,
-                  screen, left.x + 42, y)
-        y += 26
-        draw_text("• Clears Minor injuries", font_small, WHITE,
-                  screen, left.x + 42, y)
-        y += 26
-        draw_text("• Advances the world clock by 8 hours", font_small, WHITE,
-                  screen, left.x + 42, y)
+        y = card.y + 96
+        for line in bullets:
+            draw_text(f"• {line}", font_small, WHITE, screen, card.x + 28, y)
+            y += 30
         draw_text(f"Funds: {format_money(getattr(self.manager, 'gold', 0))}",
-                  font_main, GOLD_COLOR, screen, left.x + 30, left.bottom - 65)
+                  font_main, GOLD_COLOR, screen, card.x + 24, card.bottom - 48)
 
-        draw_text("RATTLEBRIDGE ARENA TALK", font_title, GOLD_COLOR,
-                  screen, right.x + 28, right.y + 28)
-        y = right.y + 86
-        for team in LOCAL_TEAMS.values():
-            card = pygame.Rect(right.x + 30, y, right.w - 60, 205)
-            pygame.draw.rect(screen, (30, 31, 36), card, border_radius=10)
-            pygame.draw.rect(screen, (100, 112, 125), card, 2, border_radius=10)
-            draw_text(team["name"], font_main, WHITE, screen,
-                      card.x + 22, card.y + 18)
-            draw_text(f"Manager: {team['manager']}  |  Rep {team['reputation']}",
-                      font_small, (175, 190, 205), screen,
-                      card.x + 22, card.y + 52)
-            draw_text(team["style"], font_small, (210, 205, 190),
-                      screen, card.x + 22, card.y + 82)
-            draw_text(team["relation"], font_small, (205, 165, 105),
-                      screen, card.x + 22, card.y + 110)
-            draw_text(" • ".join(team["members"]), font_small, GRAY,
-                      screen, card.x + 22, card.y + 148)
-            y += 230
-
+        if self.show_teams:
+            self._draw_teams_modal(screen)
         if self.show_rumors:
-            modal = pygame.Rect(360, 260, SCREEN_WIDTH - 720, 470)
-            pygame.draw.rect(screen, (17, 18, 22), modal, border_radius=14)
-            pygame.draw.rect(screen, (185, 145, 85), modal, 3, border_radius=14)
-            draw_text("UNION RUMORS", font_title, GOLD_COLOR,
-                      screen, modal.x + 32, modal.y + 26)
-            rumors = (
-                "• Three lower-deck grates were welded shut from the inside.",
-                "• A cargo bell vanished into fog without making a sound.",
-                "• Sera is testing sponsor objectives during ordinary matches.",
-                "• Bridgeguard Five refuses to patrol Canal Seven after midnight.",
-                "• Rivet Row buyers are quietly paying extra for Nightcap Fungus.",
-            )
-            ry = modal.y + 95
-            for rumor in rumors:
-                draw_text(rumor, font_main, WHITE, screen, modal.x + 45, ry)
-                ry += 58
-            draw_text("[ESC] close", font_small, GRAY,
-                      screen, modal.right - 130, modal.bottom - 35)
+            self._draw_rumors_modal(screen)
 
         if self.feedback_timer > 0 and self.feedback:
-            box = pygame.Rect(310, 835, SCREEN_WIDTH - 620, 55)
+            box = pygame.Rect(310, SCREEN_HEIGHT - 175, SCREEN_WIDTH - 620, 55)
             pygame.draw.rect(screen, (20, 20, 24), box, border_radius=9)
             pygame.draw.rect(screen, (180, 145, 85), box, 2, border_radius=9)
             draw_text(self.feedback, font_main, WHITE,
                       screen, box.x + 20, box.y + 15)
 
-        for button in (self.btn_rest, self.btn_rumors,
-                       self.btn_talk, self.btn_leave):
+        for button in self._buttons:
             button.draw(screen)
+
+    def _draw_teams_modal(self, screen):
+        modal = pygame.Rect(340, 130, SCREEN_WIDTH - 680, 720)
+        pygame.draw.rect(screen, (17, 18, 22), modal, border_radius=14)
+        pygame.draw.rect(screen, (150, 110, 150), modal, 3, border_radius=14)
+        draw_text("RATTLEBRIDGE ARENA TALK", font_title, GOLD_COLOR,
+                  screen, modal.x + 32, modal.y + 24)
+        y = modal.y + 90
+        for team in LOCAL_TEAMS.values():
+            card = pygame.Rect(modal.x + 30, y, modal.w - 60, 195)
+            pygame.draw.rect(screen, (30, 31, 36), card, border_radius=10)
+            pygame.draw.rect(screen, (100, 112, 125), card, 2, border_radius=10)
+            draw_text(team["name"], font_main, WHITE, screen,
+                      card.x + 22, card.y + 16)
+            draw_text(f"Manager: {team['manager']}  |  Rep {team['reputation']}",
+                      font_small, (175, 190, 205), screen,
+                      card.x + 22, card.y + 50)
+            draw_text(team["style"], font_small, (210, 205, 190),
+                      screen, card.x + 22, card.y + 78)
+            draw_text(team["relation"], font_small, (205, 165, 105),
+                      screen, card.x + 22, card.y + 106)
+            draw_text(" • ".join(team["members"]), font_small, GRAY,
+                      screen, card.x + 22, card.y + 142)
+            y += 215
+        draw_text("[ESC] close", font_small, GRAY,
+                  screen, modal.right - 130, modal.bottom - 35)
+
+    def _draw_rumors_modal(self, screen):
+        modal = pygame.Rect(360, 260, SCREEN_WIDTH - 720, 470)
+        pygame.draw.rect(screen, (17, 18, 22), modal, border_radius=14)
+        pygame.draw.rect(screen, (185, 145, 85), modal, 3, border_radius=14)
+        draw_text("UNION RUMORS", font_title, GOLD_COLOR,
+                  screen, modal.x + 32, modal.y + 26)
+        rumors = (
+            "• Three lower-deck grates were welded shut from the inside.",
+            "• A cargo bell vanished into fog without making a sound.",
+            "• Sera is testing sponsor objectives during ordinary matches.",
+            "• Bridgeguard Five refuses to patrol Canal Seven after midnight.",
+            "• Rivet Row buyers are quietly paying extra for Nightcap Fungus.",
+        )
+        ry = modal.y + 95
+        for rumor in rumors:
+            draw_text(rumor, font_main, WHITE, screen, modal.x + 45, ry)
+            ry += 58
+        draw_text("[ESC] close", font_small, GRAY,
+                  screen, modal.right - 130, modal.bottom - 35)

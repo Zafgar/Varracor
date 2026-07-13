@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pygame
 
-from citys.rattlebridge.rattlebridge_art import load_rattlebridge_image
+from citys.rattlebridge.interior_scenes import get_scene
 from menus.base_menu import BaseMenu
 from settings import GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
@@ -32,21 +32,20 @@ class BridgewardHospitalMenu(BaseMenu):
 
     def __init__(self, manager):
         super().__init__(manager)
-        self.background = load_rattlebridge_image(
-            "bridgeward_hospital", (SCREEN_WIDTH, SCREEN_HEIGHT)
-        )
+        # Koodilla maalattu kappelisairaala: aurinkoikkuna, vuoteet, karanteeni.
+        self.scene = get_scene("chapel")
         self.feedback = ""
         self.feedback_timer = 0
         self.selected = "triage"
         self.service_buttons = {}
-        start_y = 300
+        start_y = 285
         for index, service_id in enumerate(self.SERVICES):
             data = self.SERVICES[service_id]
             self.service_buttons[service_id] = UIButton(
-                140,
-                start_y + index * 150,
-                540,
-                92,
+                96,
+                start_y + index * 142,
+                480,
+                88,
                 f"{data['name']} — {data['cost']} GP",
                 None,
                 (115, 128, 105),
@@ -175,56 +174,51 @@ class BridgewardHospitalMenu(BaseMenu):
         return lines
 
     def draw(self, screen):
-        screen.blit(self.background, (0, 0))
-        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        shade.fill((8, 10, 12, 100))
-        screen.blit(shade, (0, 0))
+        # Maalattu kappelisali kynttilöineen ja valokeiloineen taustana.
+        self.scene.draw(screen)
         title = font_title.render("BRIDGEWARD CHAPEL-HOSPITAL", True, GOLD_COLOR)
-        self.draw_header_bar(screen, title, y=28)
+        self.draw_header_bar(screen, title, y=24)
 
-        left = pygame.Rect(80, 145, 690, 760)
-        right = pygame.Rect(805, 145, SCREEN_WIDTH - 885, 760)
-        self.draw_soft_panel(screen, left, alpha=220, border_alpha=190, radius=12)
-        self.draw_soft_panel(screen, right, alpha=220, border_alpha=190, radius=12)
+        left = pygame.Rect(60, 150, 560, 620)
+        self.draw_soft_panel(screen, left, alpha=185, border_alpha=170, radius=12)
 
-        draw_text("PRIOR JANNIK VOSS", font_title, GOLD_COLOR,
-                  screen, left.x + 32, left.y + 28)
+        draw_text("PRIOR JANNIK VOSS", font_main, GOLD_COLOR,
+                  screen, left.x + 32, left.y + 24)
         draw_text("Sacred medicine. Commercial accounting.", font_small,
-                  (180, 190, 200), screen, left.x + 34, left.y + 74)
+                  (180, 190, 200), screen, left.x + 34, left.y + 60)
         draw_text("SELECT TREATMENT", font_main, WHITE,
-                  screen, left.x + 34, left.y + 112)
+                  screen, left.x + 34, left.y + 104)
 
         for service_id, button in self.service_buttons.items():
-            button.rect.x = left.x + 34
+            button.rect.x = left.x + 36
             if service_id == self.selected:
                 pygame.draw.rect(screen, (210, 180, 105),
                                  button.rect.inflate(10, 10), 3,
                                  border_radius=12)
             button.draw(screen)
             description = self.SERVICES[service_id]["description"]
-            draw_text(description, font_small, (205, 202, 190), screen,
-                      button.rect.x + 12, button.rect.bottom + 8)
+            draw_text(description, font_small, (215, 212, 200), screen,
+                      button.rect.x + 12, button.rect.bottom + 6)
 
+        # Kompakti tilannekortti oikealla - kappeli jää näkyviin.
+        right = pygame.Rect(SCREEN_WIDTH - 590, 150, 530, 470)
+        self.draw_soft_panel(screen, right, alpha=185, border_alpha=170, radius=12)
         minor, serious = self._injury_count()
-        draw_text("ROSTER CONDITION", font_title, GOLD_COLOR,
-                  screen, right.x + 32, right.y + 28)
-        draw_text(f"Minor injuries: {minor}", font_main,
-                  (220, 190, 105), screen, right.x + 34, right.y + 90)
-        draw_text(f"Serious injuries: {serious}", font_main,
-                  (225, 120, 105), screen, right.x + 34, right.y + 130)
-        draw_text(f"Available funds: {format_money(getattr(self.manager, 'gold', 0))}",
-                  font_main, GOLD_COLOR, screen, right.x + 34, right.y + 180)
+        draw_text("ROSTER CONDITION", font_main, GOLD_COLOR,
+                  screen, right.x + 30, right.y + 22)
+        draw_text(f"Minor injuries: {minor}", font_small,
+                  (220, 190, 105), screen, right.x + 32, right.y + 62)
+        draw_text(f"Serious injuries: {serious}", font_small,
+                  (225, 120, 105), screen, right.x + 32, right.y + 92)
+        draw_text(f"Funds: {format_money(getattr(self.manager, 'gold', 0))}",
+                  font_small, GOLD_COLOR, screen, right.x + 32, right.y + 122)
 
         selected = self.SERVICES[self.selected]
-        card = pygame.Rect(right.x + 34, right.y + 245,
-                           right.w - 68, 285)
-        pygame.draw.rect(screen, (29, 30, 34), card, border_radius=10)
-        pygame.draw.rect(screen, (120, 125, 118), card, 2, border_radius=10)
-        draw_text(selected["name"], font_title, WHITE,
-                  screen, card.x + 28, card.y + 24)
-        draw_text(f"Price: {selected['cost']} GP", font_main, GOLD_COLOR,
-                  screen, card.x + 30, card.y + 74)
-        y = card.y + 125
+        draw_text(selected["name"], font_main, WHITE,
+                  screen, right.x + 30, right.y + 172)
+        draw_text(f"Price: {selected['cost']} GP", font_small, GOLD_COLOR,
+                  screen, right.x + 32, right.y + 206)
+        y = right.y + 244
         explanation = {
             "triage": (
                 "Fast arena medicine for bruises, cuts and minor fractures. "
@@ -239,19 +233,16 @@ class BridgewardHospitalMenu(BaseMenu):
                 "private recovery beds for a complete restoration."
             ),
         }[self.selected]
-        for line in self._wrap(explanation, card.w - 60):
-            draw_text(line, font_main, (210, 205, 192), screen,
-                      card.x + 30, y)
-            y += 31
-
-        quote = (
-            "‘Healing is sacred. Specialist treatment is expensive.’"
-        )
-        draw_text(quote, font_main, (180, 170, 145),
-                  screen, right.x + 34, right.bottom - 110)
+        for line in self._wrap(explanation, right.w - 64):
+            draw_text(line, font_small, (215, 212, 200), screen,
+                      right.x + 32, y)
+            y += 27
+        draw_text("‘Healing is sacred. Specialist treatment is expensive.’",
+                  font_small, (190, 180, 155),
+                  screen, right.x + 30, right.bottom - 46)
 
         if self.feedback_timer > 0 and self.feedback:
-            box = pygame.Rect(370, 900, SCREEN_WIDTH - 740, 50)
+            box = pygame.Rect(370, SCREEN_HEIGHT - 190, SCREEN_WIDTH - 740, 50)
             pygame.draw.rect(screen, (20, 20, 24), box, border_radius=8)
             pygame.draw.rect(screen, (170, 145, 90), box, 2, border_radius=8)
             draw_text(self.feedback, font_main, WHITE,
