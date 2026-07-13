@@ -87,4 +87,7 @@ def install_muckford_opening_integration() -> None:
     install_muckford_opening_core()
     install_muckford_forest_tutorial()
     install_muckford_city_opening()
+    # Opening core wraps Bram's root dialogue, so the finale layer must be
+    # checked again here to remain the highest-priority story branch.
+    install_tier0_finale_integration()
     _INSTALLED = True
