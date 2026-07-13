@@ -1,6 +1,7 @@
 import pygame
 from settings import *
 from menus.base_menu import BaseMenu
+from menus.tier0_team_intro import Tier0TeamIntroOverlay
 from ui_kit import UIButton, draw_panel, draw_text, font_title, font_main, font_small, GOLD_COLOR, WHITE, GRAY, GREEN, RED
 from sound_manager import sound_system
 
@@ -30,6 +31,17 @@ class LeagueMenu(BaseMenu):
         self.message = ""
         self._tab_rects = {}
         self._rebuild_layout()
+
+        # Tarkistetaan vasta ensimmäisellä oikealla LeagueMenu-käynnillä. Näin
+        # tallennuksen lataus ehtii palauttaa npc_state-flägin ennen introa.
+        self._team_intro_checked = False
+        self.team_intro = None
+
+    def _team_intro_active(self):
+        if not self._team_intro_checked:
+            self.team_intro = Tier0TeamIntroOverlay(self.manager)
+            self._team_intro_checked = True
+        return bool(self.team_intro and self.team_intro.active)
 
     def _rebuild_layout(self):
         margin = 30
@@ -70,6 +82,10 @@ class LeagueMenu(BaseMenu):
         return roster
 
     def handle_event(self, event):
+        if self._team_intro_active():
+            self.team_intro.handle_event(event)
+            return
+
         mouse_pos = pygame.mouse.get_pos()
         le = self.manager.league_engine
 
@@ -141,6 +157,10 @@ class LeagueMenu(BaseMenu):
         self.next_state = "prepare"
 
     def update(self):
+        if self._team_intro_active():
+            self.team_intro.update()
+            return
+
         try:
             if hasattr(self.manager, "league_engine") and self.manager.league_engine:
                 self.manager.league_engine.tick_simulation(budget_ms=4.0, max_matches=1)
@@ -181,6 +201,10 @@ class LeagueMenu(BaseMenu):
         _dt(screen, label, rect.x + 10, rect.y + 12, font_main, text_col)
 
     def draw(self, screen):
+        if self._team_intro_active():
+            self.team_intro.draw(screen)
+            return
+
         screen.fill((14, 14, 18))
         mouse_pos = pygame.mouse.get_pos()
         le = self.manager.league_engine
