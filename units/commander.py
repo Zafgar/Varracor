@@ -296,22 +296,46 @@ class Commander(Gladiator):
         # --- COMMANDER SKILL TREE EFFECTS ---
         # Gladiator-luokka käsittelee vain perus SKILL_TREE:n.
         # Meidän täytyy käsitellä Commanderin omat taidot tässä.
+
+        # Elämäntaitojen kertymät (nollataan aina ennen silmukkaa, jotta
+        # respec/lataus ei tuplaa). Näitä lukevat mm. CropPlot.harvest,
+        # IronOre.mine, MuckfordTree.chop, lypsy ja kauppojen hinnoittelu.
+        self.mining_speed = 0.0
+        self.mining_yield = 0
+        self.chop_speed = 0.0
+        self.wood_yield = 0
+        self.harvest_yield = 0
+        self.harvest_quality = 0.0
+        self.husbandry = 0
+        self.haggler = 0
+
+        _LIFE_INT_EFFECTS = ("mining_yield", "wood_yield", "harvest_yield",
+                             "husbandry", "haggler")
+        _LIFE_FLOAT_EFFECTS = ("mining_speed", "chop_speed", "harvest_quality")
+
         for s_id in self.unlocked_skills:
             if s_id in COMMANDER_SKILL_TREE:
                 data = COMMANDER_SKILL_TREE[s_id]
                 effects = data.get("effects", {})
-                
+
                 if "str" in effects: self.strength += effects["str"]
                 if "dex" in effects: self.dexterity += effects["dex"]
                 if "int" in effects: self.intelligence += effects["int"]
-                
+
                 if "weapon_prof" in effects:
                     prof = effects["weapon_prof"]
                     # Lisätään weapon_masteries settiin
                     self.weapon_masteries.add(prof)
-                
+
                 if "max_dashes" in effects:
                     self.max_dashes += effects["max_dashes"]
+
+                for key in _LIFE_INT_EFFECTS:
+                    if key in effects:
+                        setattr(self, key, getattr(self, key) + int(effects[key]))
+                for key in _LIFE_FLOAT_EFFECTS:
+                    if key in effects:
+                        setattr(self, key, getattr(self, key) + float(effects[key]))
         
         # --- STAT SCALING (Attributes -> Pools) ---
         # Lisätään statsien vaikutus HP:hen ja Manaan

@@ -164,6 +164,12 @@ class FarmAnimalAI(BaseAI):
             manager.current_arena.props.append(egg)
             manager.all_units.add(egg)
             self.egg_timer = random.randint(3000, 6000) # Uusi muna
+            # Animal Husbandry: hyvin hoidetut kanat munivat tiheämmin
+            # (-15 % odotusta per taso, max -30 %)
+            husbandry = int(getattr(getattr(manager, "player_character", None),
+                                    "husbandry", 0))
+            if husbandry > 0:
+                self.egg_timer = int(self.egg_timer * (1.0 - 0.15 * min(2, husbandry)))
 
     def _has_reached_target(self):
         if not self.target_pos: return True

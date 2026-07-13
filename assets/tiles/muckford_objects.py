@@ -165,8 +165,8 @@ class MuckfordTree(HarvestableProp):
             manager.vfx.create_impact_sparks(self.rect.centerx, self.rect.centery, color=(150, 100, 50), count=3)
             manager.vfx.create_falling_leaves(self.rect.centerx, self.rect.centery)
 
-        # 3. Resurssi per isku (Chance)
-        if random.random() < 0.4:
+        # 3. Resurssi per isku (Chance) - Lumberjack II:n chop_speed parantaa
+        if random.random() < 0.4 + float(getattr(attacker, "chop_speed", 0.0)):
             if manager:
                 manager.add_material(self.resource_name, 1)
                 manager.vfx.show_damage(self.rect.centerx, self.rect.top - 40, f"+1 {self.resource_name}", color=(150, 255, 100))
@@ -185,7 +185,9 @@ class MuckfordTree(HarvestableProp):
                     self.image_pos = (self.image_pos[0], self.image_pos[1] + h - stump_h)
             
             if manager:
-                manager.add_material(self.resource_name, 2)
+                # Forest Lordin wood_yield antaa lisäpuuta kaadosta
+                bonus = int(getattr(attacker, "wood_yield", 0))
+                manager.add_material(self.resource_name, 2 + bonus)
                 manager.vfx.show_damage(self.rect.centerx, self.rect.top - 60, "Timber!", color=(255, 200, 100))
                 sound_system.play_sound("mining_break")
 

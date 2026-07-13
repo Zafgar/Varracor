@@ -52,8 +52,16 @@ class DistrictShopMenu(BaseMenu):
     def _rep(self) -> int:
         return get_faction_rep(self.manager, self.shop["faction"])
 
+    def _haggler_bonus(self) -> int:
+        """Commander-puun Haggler: hinnat kuin maine olisi +10/taso."""
+        hero = getattr(self.manager, "player_character", None)
+        return 10 * int(getattr(hero, "haggler", 0))
+
+    def _effective_rep(self) -> int:
+        return self._rep() + self._haggler_bonus()
+
     def _final_price(self, entry) -> int:
-        return shop_price(entry["price"], self._rep())
+        return shop_price(entry["price"], self._effective_rep())
 
     def _buy(self, entry):
         price = self._final_price(entry)
@@ -128,11 +136,13 @@ class DistrictShopMenu(BaseMenu):
                   screen, panel.x + 30, panel.y + 54)
 
         rep = self._rep()
-        pct = discount_percent(rep)
+        pct = discount_percent(self._effective_rep())
         rep_color = GREEN if pct < 0 else ((225, 165, 95) if pct > 0 else WHITE)
         sign = "+" if pct > 0 else ""
-        draw_text(f"Your standing with {self.shop['faction_label']}: {rep}  "
-                  f"({sign}{pct}% prices)", font_small, rep_color,
+        haggler = self._haggler_bonus()
+        haggler_note = f"  [Haggler +{haggler}]" if haggler else ""
+        draw_text(f"Your standing with {self.shop['faction_label']}: {rep}"
+                  f"{haggler_note}  ({sign}{pct}% prices)", font_small, rep_color,
                   screen, panel.x + 30, panel.y + 88)
         draw_text(f"Funds: {format_money(getattr(self.manager, 'gold', 0))}",
                   font_main, GOLD_COLOR, screen, panel.right - 280, panel.y + 20)

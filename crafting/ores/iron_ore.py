@@ -154,6 +154,8 @@ class IronOre(pygame.sprite.Sprite):
         # Commander Skill vaikutus (Mining yield / luck)
         if hasattr(attacker, "mining_yield"):
             drop_chance += getattr(attacker, "mining_yield", 0) * 0.05
+        # Pickaxe Training II:n mining_speed = tehokkaammat iskut
+        drop_chance += float(getattr(attacker, "mining_speed", 0.0))
 
         # 4. Arvo droppi (Iron Ore)
         dropped_ore = 0

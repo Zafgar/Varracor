@@ -279,11 +279,15 @@ class CropPlot(Prop):
         amount = random.randint(low, high)
         amount += max(0, tool_tier - required_tier)
         amount += max(0, skill_level - required_level)
+        # Commander-puun harvest_yield (Harvesting II) - ei koske NPC:itä
+        amount += int(getattr(harvester, "harvest_yield", 0))
 
         destination = manager.city_storage if to_storage else manager.inventory
         destination[self.crop_name] = destination.get(self.crop_name, 0) + amount
 
         quality_chance = max(0.0, 0.12 * (tool_tier - 1) + 0.08 * (skill_level - 1))
+        # Master Harvesterin harvest_quality kasvattaa laatusadon mahdollisuutta
+        quality_chance += float(getattr(harvester, "harvest_quality", 0.0))
         quality = 1 if random.random() < quality_chance else 0
         if quality:
             destination["Quality Produce"] = destination.get("Quality Produce", 0) + quality

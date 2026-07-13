@@ -65,6 +65,48 @@ COMMANDER_SKILL_TREE = {
                     "harvest_quality": 0.20}
     },
 
+    # --- ANIMAL HUSBANDRY BRANCH (Far Left) ---
+    # Lypsy tuottaa Milk-materiaalia keittiöön ja kanat munivat tiheämmin.
+    "husbandry_1": {
+        "name": "Animal Husbandry I",
+        "desc": "Gentle hands: milking also fills a jug of Milk, hens lay more often.",
+        "pos": (-320, 80),
+        "cost": 1,
+        "min_level": 1,
+        "requires": [],
+        "effects": {"husbandry": 1, "dex": 1}
+    },
+    "husbandry_2": {
+        "name": "Animal Husbandry II",
+        "desc": "Herd whisperer: even more Milk per milking and quicker layers.",
+        "pos": (-320, -20),
+        "cost": 2,
+        "min_level": 3,
+        "requires": ["husbandry_1"],
+        "effects": {"husbandry": 1, "dex": 1}
+    },
+
+    # --- TRADE BRANCH (Far Right) ---
+    # Vaikuttaa market-alueen liikkeiden hintoihin (systems/faction_reputation).
+    "trade_1": {
+        "name": "Haggler",
+        "desc": "Shopkeepers warm to you: prices as if your standing were 10 higher.",
+        "pos": (320, 80),
+        "cost": 1,
+        "min_level": 1,
+        "requires": [],
+        "effects": {"haggler": 1, "int": 1}
+    },
+    "trade_2": {
+        "name": "Silver Tongue",
+        "desc": "A famous customer: prices as if your standing were 20 higher.",
+        "pos": (320, -20),
+        "cost": 2,
+        "min_level": 3,
+        "requires": ["trade_1"],
+        "effects": {"haggler": 1, "int": 2}
+    },
+
     # --- LUMBER AXE BRANCH (Right) ---
     "lumber_1": {
         "name": "Lumberjack I",

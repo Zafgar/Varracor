@@ -2012,6 +2012,13 @@ class MuckfordCityMenu(BaseMenu):
                 sound_system.play_sound('recruit') # "Splosh" ääni
                 self.manager.vfx.show_damage(cow.rect.centerx, cow.rect.top, "Milked!", color=(255, 255, 255))
                 self.manager.grant_hero_xp(5, cow.rect.centerx, cow.rect.top)
+                # Animal Husbandry: taitava lypsäjä saa talteen myös kannun
+                # Milk-materiaalia keittiöön per taso
+                husbandry = int(getattr(self.player, "husbandry", 0))
+                if husbandry > 0:
+                    self.manager.add_material("Milk", husbandry)
+                    self.manager.vfx.show_damage(cow.rect.centerx, cow.rect.top - 30,
+                                                 f"+{husbandry} Milk", color=(235, 235, 220))
             else:
                 self.manager.vfx.show_damage(self.player.rect.centerx, self.player.rect.top, "Need Bucket!", color=(200, 50, 50))
         else:
