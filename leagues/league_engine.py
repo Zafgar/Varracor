@@ -372,6 +372,55 @@ class LeagueEngine:
             "tier": self.tier
         }
 
+    # ------------------------------------------------------------------
+    # ALL-TIME HALL OF FAME (pysyva kronikka koko pelin ajalta)
+    # ------------------------------------------------------------------
+    def _chronicle(self):
+        """Pysyva kronikka manager.npc_statessa -> tallentuu saveen."""
+        mgr = getattr(self, "manager", None)
+        state = getattr(mgr, "npc_state", None)
+        if not isinstance(state, dict):
+            return None
+        return state.setdefault("global", {}).setdefault("hall_of_fame", [])
+
+    def _top_killer(self):
+        best_name, best_kills = "", 0
+        for season in self.seasons.values():
+            for name, kills in season.hof_kills.items():
+                if kills > best_kills:
+                    best_name, best_kills = name, int(kills)
+        return best_name, best_kills
+
+    def record_chronicle(self, kind: str, note: str = ""):
+        """Kirjaa kausi-/ylennystapahtuman all-time Hall of Fameen."""
+        log = self._chronicle()
+        if log is None:
+            return None
+        try:
+            standings = self.get_grand_slam_standings()
+            champion = standings[0]["team_name"] if standings else "?"
+            player_rank = self.get_player_rank()
+        except Exception:
+            champion, player_rank = "?", 0
+        killer_name, killer_kills = self._top_killer()
+        entry = {
+            "type": kind,
+            "tier": int(self.tier),
+            "season": int(self.season_number),
+            "champion": champion,
+            "player_rank": int(player_rank),
+            "top_killer": killer_name,
+            "top_kills": int(killer_kills),
+            "note": note,
+        }
+        log.append(entry)
+        del log[:-100]
+        return entry
+
+    def get_chronicle(self, count: int = 50):
+        log = self._chronicle() or []
+        return list(reversed(log[-count:]))
+
     def next_season(self):
         """Siirrytään seuraavaan kauteen (reset)."""
         self.season_number += 1
@@ -401,6 +450,36 @@ class LeagueEngine:
         self._ensure_initialized()
         s = self.seasons.get(mode)
         return s.get_recent_matches(count) if s else []
+
+    def build_scout_report(self, mode: str) -> dict | None:
+        """Seuraavan vastustajan tiedustelutiedot: rosteri + varusteet.
+
+        Taktiikka- ja kykytiedot avautuvat myohemmin commanderin
+        tiedustelukykyjen kautta - raportti kertoo mika on lukossa.
+        """
+        self._ensure_initialized()
+        team = self.get_next_opponent(mode)
+        if team is None:
+            return None
+        rows = []
+        for u in _safe_roster(team):
+            weapon = getattr(u.equipment.get("main_hand"), "name", "Fists")                 if hasattr(u, "equipment") else "?"
+            rows.append({
+                "name": getattr(u, "name", "?"),
+                "race": getattr(u, "race_name", "?"),
+                "level": int(getattr(u, "level", 1)),
+                "weapon": weapon,
+                "armor": getattr(u, "armor_name", "No Armor"),
+            })
+        return {
+            "team_name": getattr(team, "name", "?"),
+            "manager": getattr(team, "manager", None),
+            "style": getattr(team, "style", ""),
+            "motto": getattr(team, "motto", ""),
+            "reputation": getattr(team, "reputation", ""),
+            "roster": rows,
+            "locked_info": "Tactics & abilities require Commander insight (future skill).",
+        }
 
     def prepare_battle(self, mode: str):
         """
@@ -530,16 +609,22 @@ class LeagueEngine:
 
         # Relegaatio: pidä paikkasi tai putoat. Tier 1 (lore Tier 0) on pohja.
         if self.tier > 1 and rank > (total // 2):
+            self.record_chronicle("relegation",
+                                  note=f"Finished #{rank}; dropped a tier.")
             self.relegate_player()
             tier_name = self.tier_names.get(self.tier, f"Tier {self.tier}")
             return (f"{winner} won promotion. You finished #{rank} and were "
                     f"relegated to {tier_name}.")
 
+        self.record_chronicle("season", note=f"{winner} took the season.")
         self.next_season()
         tier_name = self.tier_names.get(self.tier, f"Tier {self.tier}")
         return f"{winner} won promotion. Season reset — hold your ground in {tier_name}."
 
     def promote_player(self):
+        old = self.tier
+        self.record_chronicle("promotion",
+                              note=f"Won the promotion final (5v5) out of tier {old}.")
         self.tier = min(self.tier + 1, 6)
         self.next_season()
         return True

@@ -99,6 +99,8 @@ class GameManager:
 
         # --- LEAGUE SYSTEM ---
         self.league_engine = LeagueEngine()
+        # Kronikka (all-time Hall of Fame) kirjoitetaan npc_stateen -> save.
+        self.league_engine.manager = self
 
         # --- KYLÄTEHTÄVÄT (side-tasks) ---
         try:

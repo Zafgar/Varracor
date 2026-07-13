@@ -16,6 +16,8 @@ class LeagueMenu(BaseMenu):
         self.btn_back = UIButton(30, 30, 120, 50, "BACK", None, GRAY)
         self.btn_hof = UIButton(SCREEN_WIDTH - 260, 30, 230, 50, "HALL OF FAME", None, (90, 70, 130))
         self.btn_fight = UIButton(SCREEN_WIDTH - 260, SCREEN_HEIGHT - 80, 230, 55, "FIGHT NEXT", None, GREEN)
+        self.btn_scout = UIButton(SCREEN_WIDTH - 500, SCREEN_HEIGHT - 80, 220, 55, "SCOUT OPPONENT", None, (120, 100, 160))
+        self.show_scout = False
 
         # Voitto / Rank Up -nappi
         self.btn_promote = UIButton(
@@ -93,6 +95,13 @@ class LeagueMenu(BaseMenu):
         if self.btn_back.is_clicked(event):
             sound_system.play_sound("click"); self.next_state = "hub"; return
 
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.show_scout:
+            self.show_scout = False
+            return
+        if self.selected_mode != "TOTAL" and self.btn_scout.is_clicked(event):
+            sound_system.play_sound("click")
+            self.show_scout = not self.show_scout
+            return
         if self.btn_hof.is_clicked(event):
             sound_system.play_sound("click"); self.next_state = "hall_of_fame"; return
 
@@ -201,6 +210,54 @@ class LeagueMenu(BaseMenu):
         pygame.draw.rect(screen, (20, 20, 30), rect, 2, border_radius=10)
         _dt(screen, label, rect.x + 10, rect.y + 12, font_main, text_col)
 
+    def _draw_scout_modal(self, screen):
+        """Tiedusteluraportti: rosteri + varusteet. Taktiikat/kyvyt avautuvat
+        commanderin tulevilla tiedustelukyvyilla."""
+        report = None
+        try:
+            report = self.manager.league_engine.build_scout_report(self.selected_mode)
+        except Exception:
+            report = None
+        modal = pygame.Rect(360, 140, SCREEN_WIDTH - 720, 740)
+        pygame.draw.rect(screen, (16, 17, 22), modal, border_radius=14)
+        pygame.draw.rect(screen, (140, 115, 185), modal, 3, border_radius=14)
+        if not report:
+            _dt(screen, "No opponent to scout.", modal.x + 40, modal.y + 60, font_main, GRAY)
+            _dt(screen, "[ESC] close", modal.right - 130, modal.bottom - 36, font_small, GRAY)
+            return
+        _dt(screen, f"SCOUT REPORT: {report['team_name']}", modal.x + 32, modal.y + 24,
+            font_title, GOLD_COLOR)
+        y = modal.y + 84
+        if report.get("manager"):
+            _dt(screen, f"Manager: {report['manager']}", modal.x + 36, y, font_main, WHITE)
+            y += 34
+        if report.get("style"):
+            _dt(screen, f"Style: {report['style']}", modal.x + 36, y, font_main, (210, 200, 185))
+            y += 34
+        if report.get("motto"):
+            _dt(screen, f"Motto: '{report['motto']}'", modal.x + 36, y, font_small, (180, 180, 190))
+            y += 40
+        _dt(screen, "ROSTER", modal.x + 36, y, font_main, (150, 200, 165)); y += 36
+        _dt(screen, "Name", modal.x + 46, y, font_small, GRAY)
+        _dt(screen, "Race", modal.x + 340, y, font_small, GRAY)
+        _dt(screen, "Lv", modal.x + 470, y, font_small, GRAY)
+        _dt(screen, "Weapon", modal.x + 540, y, font_small, GRAY)
+        _dt(screen, "Armor", modal.x + 800, y, font_small, GRAY)
+        y += 28
+        for row in report["roster"][:6]:
+            _dt(screen, row["name"], modal.x + 46, y, font_main, WHITE)
+            _dt(screen, row["race"], modal.x + 340, y, font_small, (200, 200, 205))
+            _dt(screen, str(row["level"]), modal.x + 470, y, font_small, (200, 200, 205))
+            _dt(screen, row["weapon"], modal.x + 540, y, font_small, (215, 195, 160))
+            _dt(screen, row["armor"], modal.x + 800, y, font_small, (185, 195, 210))
+            y += 38
+        lock = pygame.Rect(modal.x + 32, modal.bottom - 120, modal.w - 64, 70)
+        pygame.draw.rect(screen, (30, 26, 38), lock, border_radius=10)
+        pygame.draw.rect(screen, (110, 90, 150), lock, 2, border_radius=10)
+        _dt(screen, "LOCKED INTEL", lock.x + 20, lock.y + 10, font_small, (170, 145, 215))
+        _dt(screen, report.get("locked_info", ""), lock.x + 20, lock.y + 36, font_small, (170, 170, 180))
+        _dt(screen, "[ESC] close", modal.right - 130, modal.bottom - 36, font_small, GRAY)
+
     def draw(self, screen):
         if self._team_intro_active():
             self.team_intro.draw(screen)
@@ -294,6 +351,8 @@ class LeagueMenu(BaseMenu):
                     
                     self.btn_fight.check_hover(mouse_pos)
                     self.btn_fight.draw(screen)
+                    self.btn_scout.check_hover(mouse_pos)
+                    self.btn_scout.draw(screen)
                 else:
                     _dt(screen, "No opponent scheduled.", sx2, sy2 + 40, font_small, GRAY)
                     _dt(screen, "Check TOTAL tab for season status.", sx2, sy2 + 70, font_small, GRAY)
@@ -340,3 +399,5 @@ class LeagueMenu(BaseMenu):
         self.btn_back.check_hover(mouse_pos); self.btn_back.draw(screen)
         self.btn_hof.check_hover(mouse_pos); self.btn_hof.draw(screen)
         if self.message: _dt(screen, self.message, 30, SCREEN_HEIGHT - 30, font_small, RED)
+        if self.show_scout and self.selected_mode != "TOTAL":
+            self._draw_scout_modal(screen)
