@@ -43,6 +43,7 @@ from menus.options_menu import OptionsMenu
 from menus.barracks_menu import BarracksMenu
 from menus.notice_board_menu import NoticeBoardMenu
 from menus.market_menu import MarketMenu
+from menus.district_shop_menu import DistrictShopMenu
 from menus.world_map_menu import WorldMapMenu
 from menus.regional_staging_menu import RegionalStagingMenu
 from citys.mucford.tavern_menu import TavernMenu
@@ -127,6 +128,7 @@ def main():
         "notice_board": NoticeBoardMenu(manager),
         "forest_excursion": None,
         "market": MarketMenu(manager),
+        "district_shop": None,
         "world_map": WorldMapMenu(manager),
         "regional_staging": RegionalStagingMenu(manager),
         "rattlebridge_city": None,
@@ -158,6 +160,7 @@ def main():
         "notice_board": NoticeBoardMenu,
         "forest_excursion": ForestExcursionMenu,
         "market": MarketMenu,
+        "district_shop": DistrictShopMenu,
         "tavern_sunk_cask": TavernMenu,
         "muckford_city": MuckfordCityMenu,
         "blacksmith_interior": BlacksmithMenu,
@@ -179,7 +182,8 @@ def main():
         "prepare", "mission_prepare", "loading", "manager_menu",
         "commander_skills", "workshop_locations", "sponsors", "reputation",
         "magic_school", "necro_school", "shop_locations", "city_storage",
-        "muckford_intro", "test_arena", "options", "market", "barracks",
+        "muckford_intro", "test_arena", "options", "market",
+        "district_shop", "barracks",
         "notice_board", "world_map", "regional_staging",
         "rattlebridge_span", "rattlebridge_hospital",
         "rattlebridge_scrapring", "rattlebridge_contracts",

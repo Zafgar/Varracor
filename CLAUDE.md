@@ -77,6 +77,12 @@ tiedostot kuuluu pudottaa.
 - **Markkinat** — MuckfordStall → "market"-tila (menus/market_menu.py).
   Hinnat lore/world_data.py MARKET_PRICES. Myy maito/munat/puu/romu/lanta,
   osta ämpäri yms.
+- **Market-alue** — 5 nimettyä liikettä kentällä (citys/mucford/
+  market_data.py + market_stalls.py), E kojulla → "district_shop"
+  (menus/district_shop_menu.py). Hinnat korjataan PAIKKAKOHTAISELLA
+  maineella (systems/faction_reputation.py: rep 0 → +15 %, 30 → listahinta,
+  70+ → -20 %); jokainen ostos +1 rep sen liikkeen faktiolle
+  (manager.reputations, tallentuu saveen).
 - **Rat-raidit** — Rat King lähettää parvia ~2-3 pv välein (klo 9-20) kunnes
   quest hunt_01 on suoritettu. 3 vartijaa puolustaa; rotat perääntyvät 60 s
   jälkeen elleivät kuole. Pelaajan tapot → +5 rep, kultaa, XP:tä. Ilman

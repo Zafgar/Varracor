@@ -25,6 +25,7 @@ from assets.tiles.muckford_objects import MuckfordTree, ScrapPileBig, TavernBuil
 from crafting.swamp.scrap_pile import ScrapPile
 from quest_system import quest_manager
 from ai.life_ai import DIALOGUE_TOPICS
+from citys.mucford.market_stalls import MarketStall, build_market_row
 
 class MuckfordCityMenu(BaseMenu):
     def __init__(self, manager):
@@ -97,6 +98,15 @@ class MuckfordCityMenu(BaseMenu):
         # generoidut puut) - muuten AI voi valita ne työkohteiksi ja
         # jäädä kävelemään seinää päin
         self._remove_out_of_bounds_props()
+
+        # --- MARKET ROW ---
+        # Nimetyt liikkeet market-aukiolle (lavan eteläpuoli, kadun pohjois-
+        # puolella). Jokaisesta aukeaa oma kauppasivu (district_shop) ja
+        # jokaisella on oma maine-faktio joka vaikuttaa hintoihin.
+        self.market_stalls = build_market_row(
+            self.arena.width // 2 - 50, 1150, spacing=270)
+        for stall in self.market_stalls:
+            self.arena.props.append(stall)
 
         # --- RAT RAID -JÄRJESTELMÄ ---
         # Rat King lähettää parvia kylään kunnes hänet kukistetaan (quest hunt_01)
@@ -200,7 +210,7 @@ class MuckfordCityMenu(BaseMenu):
                      self.gathering_spots.append((p.rect.centerx + ox, base_y + random.randint(-20, 40)))
                  self.stage = p  # Talteen ambient-bardieventtiä varten
             
-            elif isinstance(p, MuckfordStall):
+            elif isinstance(p, (MuckfordStall, MarketStall)):
                  # Kojun eteen
                  self.gathering_spots.append((p.rect.centerx, p.rect.bottom + 40))
 
@@ -735,6 +745,15 @@ class MuckfordCityMenu(BaseMenu):
                     self.next_state = "forest_excursion"
                     sound_system.play_sound('click')
                     return
+
+                # Market-kojut ENNEN NPC-chattia: kyläläiset kerääntyvät
+                # kojujen eteen, eikä asiakas saa jäädä jutun panttivangiksi
+                for stall in getattr(self, "market_stalls", []):
+                    if self.player.rect.colliderect(stall.rect.inflate(30, 40)):
+                        self.manager.pending_shop_id = stall.shop_id
+                        self.next_state = "district_shop"
+                        sound_system.play_sound('click')
+                        return
 
                 # Tarkista NPC interaktio
                 for npc in self.npcs:
@@ -1396,6 +1415,8 @@ class MuckfordCityMenu(BaseMenu):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 30, "E", offset, "Team Quarters")
                 elif prop is getattr(self, "notice_board", None):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 20, "E", offset, "Notice Board")
+                elif isinstance(prop, MarketStall):
+                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, prop.shop["name"])
                 elif isinstance(prop, MuckfordStall):
                     self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Trade")
                 elif isinstance(prop, AppleTree):
@@ -2038,6 +2059,13 @@ class MuckfordCityMenu(BaseMenu):
             
         if isinstance(prop, TownHall):
             self.next_state = "sponsors"
+            sound_system.play_sound('click')
+            return True
+
+        if isinstance(prop, MarketStall):
+            # Market-alueen nimetty liike -> liikkeen oma kauppasivu
+            self.manager.pending_shop_id = prop.shop_id
+            self.next_state = "district_shop"
             sound_system.play_sound('click')
             return True
 
