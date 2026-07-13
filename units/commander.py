@@ -648,19 +648,21 @@ class Commander(Gladiator):
         else:
             self.set_blocking(False)
 
-        # SPRINT (Shift)
-        is_sprinting = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
-        self.set_sprinting(is_sprinting)
+        from systems import keybinds
 
-        # DASH (Space)
-        if keys[pygame.K_SPACE]:
+        # SPRINT
+        self.set_sprinting(keybinds.pressed(keys, "sprint"))
+
+        # DASH
+        if keybinds.pressed(keys, "dash"):
             dx = world_mx - self.rect.centerx
             dy = world_my - self.rect.centery
             self.perform_dash(dx, dy)
             if self.is_dashing: return
 
-        # RACIAL ABILITY (R) - kerran painallusta kohti
-        if keys[pygame.K_r] and not self.prev_keys[pygame.K_r]:
+        # RACIAL ABILITY - kerran painallusta kohti
+        _racial = keybinds.key("racial_ability")
+        if keys[_racial] and not self.prev_keys[_racial]:
             if self.racial_cooldown <= 0:
                 self.use_racial_ability(manager)
             else:
@@ -675,14 +677,13 @@ class Commander(Gladiator):
                 else:
                     self.selected_spell_slot = slot_name # Activate
         
-        check_toggle(pygame.K_1, "spell1")
-        check_toggle(pygame.K_2, "spell2")
-        check_toggle(pygame.K_3, "spell3")
-        check_toggle(pygame.K_4, "usable")
-        check_toggle(pygame.K_5, "spell5")
-        check_toggle(pygame.K_6, "spell6")
-        check_toggle(pygame.K_7, "usable")
-        check_toggle(pygame.K_8, "usable2")
+        check_toggle(keybinds.key("spell_1"), "spell1")
+        check_toggle(keybinds.key("spell_2"), "spell2")
+        check_toggle(keybinds.key("spell_3"), "spell3")
+        check_toggle(keybinds.key("usable_1"), "usable")
+        check_toggle(keybinds.key("spell_5"), "spell5")
+        check_toggle(keybinds.key("spell_6"), "spell6")
+        check_toggle(keybinds.key("usable_2"), "usable2")
         
         # Päivitetään edelliset näppäimet seuraavaa framea varten
         self.prev_keys = keys
@@ -713,12 +714,12 @@ class Commander(Gladiator):
                     w.release_charge(self, manager, target_pos=(world_mx, world_my))
 
 
-        # 4. LIIKKUMINEN (WASD)
+        # 4. LIIKKUMINEN (oletus WASD, sidottavissa)
         dx, dy = 0, 0
-        if keys[pygame.K_w]: dy = -1
-        if keys[pygame.K_s]: dy = 1
-        if keys[pygame.K_a]: dx = -1
-        if keys[pygame.K_d]: dx = 1
+        if keybinds.pressed(keys, "move_up"): dy = -1
+        if keybinds.pressed(keys, "move_down"): dy = 1
+        if keybinds.pressed(keys, "move_left"): dx = -1
+        if keybinds.pressed(keys, "move_right"): dx = 1
         
         if dx != 0 or dy != 0:
             l = math.hypot(dx, dy)

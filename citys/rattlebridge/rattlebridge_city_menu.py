@@ -368,10 +368,11 @@ class RattlebridgeCityMenu(BaseMenu):
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_e:
+            from systems import keybinds
+            if keybinds.matches(event.key, "interact"):
                 self._interact()
                 return
-            if event.key == pygame.K_m:
+            if keybinds.matches(event.key, "map"):
                 self.show_map = not self.show_map
                 self._close_dialogue()
                 sound_system.play_sound("click")
@@ -382,7 +383,7 @@ class RattlebridgeCityMenu(BaseMenu):
                 sound_system.play_sound("click")
                 return
             # Commander-toimintavalikko pelin sisältä - palaa kaupunkiin
-            if event.key == pygame.K_c and not self.dialogue_npc:
+            if keybinds.matches(event.key, "commander_menu") and not self.dialogue_npc:
                 self.manager.manager_return_state = "rattlebridge_city"
                 self.next_state = "manager_menu"
                 sound_system.play_sound("click")
@@ -396,7 +397,7 @@ class RattlebridgeCityMenu(BaseMenu):
                     self.manager.world_map_return_state = "rattlebridge_city"
                     self.next_state = "world_map"
                 return
-            if event.key == pygame.K_SPACE and not self.show_map:
+            if keybinds.matches(event.key, "dash") and not self.show_map:
                 mx, my = pygame.mouse.get_pos()
                 dx = mx + self.camera_x - self.player.rect.centerx
                 dy = my + self.camera_y - self.player.rect.centery
@@ -415,7 +416,8 @@ class RattlebridgeCityMenu(BaseMenu):
             return
         keys = pygame.key.get_pressed()
         speed = 4.2
-        wants_sprint = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+        from systems import keybinds as _kb
+        wants_sprint = _kb.pressed(keys, "sprint")
         try:
             self.player.set_sprinting(wants_sprint)
             if self.player.is_sprinting and self.player.current_stamina > 0.5:
@@ -423,8 +425,8 @@ class RattlebridgeCityMenu(BaseMenu):
         except Exception:
             pass
 
-        dx = float(keys[pygame.K_d] - keys[pygame.K_a]) * speed
-        dy = float(keys[pygame.K_s] - keys[pygame.K_w]) * speed
+        dx = float(_kb.pressed(keys, "move_right") - _kb.pressed(keys, "move_left")) * speed
+        dy = float(_kb.pressed(keys, "move_down") - _kb.pressed(keys, "move_up")) * speed
         if dx and dy:
             dx *= 0.7071
             dy *= 0.7071

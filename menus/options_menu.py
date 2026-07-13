@@ -2,8 +2,10 @@
 import pygame
 from menus.base_menu import BaseMenu
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, GRAY, GOLD_COLOR
-from ui_kit import draw_text, font_main, font_title, font_small, UIButton
+from ui_kit import (draw_text, font_main, font_title, font_small, UIButton,
+                    COLOR_TRIM)
 from sound_manager import sound_system
+from systems import keybinds
 
 
 class Slider:
@@ -58,32 +60,59 @@ class Slider:
 
 
 class OptionsMenu(BaseMenu):
-    """Asetukset: musiikin ja efektien äänenvoimakkuus. Palaa tilaan,
-    josta tultiin (manager.options_return_state)."""
+    """Asetukset: äänenvoimakkuudet + näppäinasettelu (CONTROLS).
+    Näppäimen voi sitoa uudelleen klikkaamalla riviä ja painamalla uutta
+    näppäintä. Palaa tilaan, josta tultiin (manager.options_return_state)."""
 
     def __init__(self, manager):
         super().__init__(manager)
-        cx = SCREEN_WIDTH // 2
-        cy = SCREEN_HEIGHT // 2
 
-        slider_w = 400
-        self.music_slider = Slider(cx - slider_w // 2, cy - 80, slider_w,
+        # Vasen palsta: äänet
+        col_x = SCREEN_WIDTH // 2 - 620
+        slider_w = 380
+        self.music_slider = Slider(col_x + 60, 280, slider_w,
                                    "MUSIC VOLUME", sound_system.music_volume)
-        self.sfx_slider = Slider(cx - slider_w // 2, cy + 40, slider_w,
+        self.sfx_slider = Slider(col_x + 60, 400, slider_w,
                                  "SOUND EFFECTS", sound_system.sfx_volume)
 
-        self.btn_back = UIButton(cx - 100, cy + 160, 200, 55, "BACK", None, GRAY)
-        self._sfx_preview_cd = 0
+        self.btn_back = UIButton(col_x + 130, SCREEN_HEIGHT - 160, 240, 55,
+                                 "BACK", None, GRAY)
+        self.btn_reset = UIButton(col_x + 130, SCREEN_HEIGHT - 240, 240, 55,
+                                  "RESET KEYS", None, (200, 140, 90))
+
+        # Oikea palsta: kontrollit
+        self.bind_rows = []        # (rect, action)
+        self.awaiting_bind = None  # toiminto jota sidotaan
+        self.bind_feedback = ""
 
     def _return_state(self):
         return getattr(self.manager, "options_return_state", None) or "menu"
 
     def _close(self):
         sound_system.save_options()
+        keybinds.save()
         sound_system.play_sound("click")
         self.next_state = self._return_state()
 
     def handle_event(self, event):
+        # --- REBIND-TILA: seuraava näppäin sidotaan ---
+        if self.awaiting_bind:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.bind_feedback = "Rebind cancelled."
+                else:
+                    keybinds.set_key(self.awaiting_bind, event.key)
+                    keybinds.save()
+                    self.bind_feedback = (
+                        f"{dict(keybinds.LABELS).get(self.awaiting_bind, self.awaiting_bind)}"
+                        f" is now {pygame.key.name(event.key).upper()}")
+                    sound_system.play_sound("click")
+                self.awaiting_bind = None
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                self.awaiting_bind = None
+                self.bind_feedback = "Rebind cancelled."
+            return
+
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self._close()
             return
@@ -98,6 +127,20 @@ class OptionsMenu(BaseMenu):
         if result is None:  # drag päättyi -> ääninäyte uudella tasolla
             sound_system.play_sound("click")
 
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for rect, action in self.bind_rows:
+                if rect.collidepoint(event.pos):
+                    self.awaiting_bind = action
+                    self.bind_feedback = ""
+                    sound_system.play_sound("hover")
+                    return
+
+        if self.btn_reset.is_clicked(event):
+            keybinds.reset_defaults()
+            self.bind_feedback = "Controls reset to defaults."
+            sound_system.play_sound("click")
+            return
+
         if self.btn_back.is_clicked(event):
             self._close()
 
@@ -108,14 +151,62 @@ class OptionsMenu(BaseMenu):
         self.draw_themed_background(screen, "guild")
 
         title = font_title.render("OPTIONS", True, GOLD_COLOR)
-        self.draw_header_bar(screen, title)
+        self.draw_header_bar(screen, title, y=10)
 
-        panel = pygame.Rect(SCREEN_WIDTH // 2 - 300, SCREEN_HEIGHT // 2 - 200, 600, 460)
-        self.draw_soft_panel(screen, panel)
-
+        # --- VASEN: ÄÄNET ---
+        left = pygame.Rect(SCREEN_WIDTH // 2 - 660, 170, 560,
+                           SCREEN_HEIGHT - 260)
+        self.draw_soft_panel(screen, left)
+        draw_text("AUDIO", font_main, GOLD_COLOR, screen, left.x + 30,
+                  left.y + 20)
         self.music_slider.draw(screen)
         self.sfx_slider.draw(screen)
-
+        self.btn_reset.draw(screen)
         self.btn_back.draw(screen)
-        draw_text("ESC palaa takaisin", font_small, GRAY, screen,
-                  SCREEN_WIDTH // 2 - 60, panel.bottom - 40)
+        draw_text("ESC to go back", font_small, GRAY, screen,
+                  left.x + 30, left.bottom - 36)
+
+        # --- OIKEA: KONTROLLIT ---
+        right = pygame.Rect(SCREEN_WIDTH // 2 - 60, 170, 700,
+                            SCREEN_HEIGHT - 260)
+        self.draw_soft_panel(screen, right)
+        draw_text("CONTROLS", font_main, GOLD_COLOR, screen, right.x + 30,
+                  right.y + 20)
+        draw_text("Click a row, then press the new key.", font_small, GRAY,
+                  screen, right.x + 230, right.y + 24)
+
+        self.bind_rows = []
+        mouse = pygame.mouse.get_pos()
+        row_y = right.y + 62
+        row_h = 34
+        for action, label in keybinds.LABELS:
+            rect = pygame.Rect(right.x + 20, row_y, right.w - 40, row_h - 4)
+            hover = rect.collidepoint(mouse)
+            waiting = (self.awaiting_bind == action)
+            if waiting:
+                pygame.draw.rect(screen, (70, 60, 30), rect, border_radius=6)
+                pygame.draw.rect(screen, GOLD_COLOR, rect, 1, border_radius=6)
+            elif hover:
+                pygame.draw.rect(screen, (44, 44, 58), rect, border_radius=6)
+                pygame.draw.rect(screen, COLOR_TRIM, rect, 1, border_radius=6)
+            draw_text(label, font_small, WHITE, screen, rect.x + 14,
+                      rect.y + 6)
+            key_txt = "PRESS A KEY..." if waiting else keybinds.key_name(action)
+            key_col = GOLD_COLOR if waiting else (200, 220, 255)
+            surf = font_small.render(key_txt, True, key_col)
+            screen.blit(surf, (rect.right - surf.get_width() - 16, rect.y + 6))
+            self.bind_rows.append((rect, action))
+            row_y += row_h
+
+        # Kiinteät kontrollit (info)
+        row_y += 8
+        for label, key_txt in keybinds.FIXED:
+            draw_text(label, font_small, (150, 150, 160), screen,
+                      right.x + 34, row_y + 4)
+            surf = font_small.render(key_txt, True, (150, 150, 160))
+            screen.blit(surf, (right.right - surf.get_width() - 36, row_y + 4))
+            row_y += 28
+
+        if self.bind_feedback:
+            draw_text(self.bind_feedback, font_small, (170, 230, 170), screen,
+                      right.x + 30, right.bottom - 36)

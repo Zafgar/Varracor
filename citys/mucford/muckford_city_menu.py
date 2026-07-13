@@ -720,7 +720,8 @@ class MuckfordCityMenu(BaseMenu):
             return
 
         # KARTTA (M) - toggle, ja kartan ollessa auki muut eventit ohitetaan
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+        from systems import keybinds
+        if event.type == pygame.KEYDOWN and keybinds.matches(event.key, "map"):
             self.show_map = not self.show_map
             sound_system.play_sound('click')
             return
@@ -731,7 +732,7 @@ class MuckfordCityMenu(BaseMenu):
             
         # 0.5 SMELTERY UI HANDLING
         if self.active_smeltery:
-            if event.type == pygame.KEYDOWN and (event.key == pygame.K_ESCAPE or event.key == pygame.K_e):
+            if event.type == pygame.KEYDOWN and (event.key == pygame.K_ESCAPE or keybinds.matches(event.key, "interact")):
                 self.active_smeltery = None
                 sound_system.play_sound('click')
                 return
@@ -787,13 +788,13 @@ class MuckfordCityMenu(BaseMenu):
 
             # Commander-toimintavalikko (profiili, skillit, tiimi,
             # sponsorit, maine) suoraan pelin sisältä - palaa kaupunkiin
-            if event.key == pygame.K_c:
+            if keybinds.matches(event.key, "commander_menu"):
                 self.manager.manager_return_state = "muckford_city"
                 self.next_state = "manager_menu"
                 sound_system.play_sound('click')
                 return
 
-            if event.key == pygame.K_e:
+            if keybinds.matches(event.key, "interact"):
                 # --- KALASTUS: kesken sessio -> E = tartutus ---
                 if self.fishing_session:
                     if self.fishing_session.state == "REELING":
@@ -1011,17 +1012,18 @@ class MuckfordCityMenu(BaseMenu):
                 # (Apple ja Egg lisätään arena.props listaan kun ne spawnataan)
 
             # --- PLAYER ABILITIES (1-5) ---
-            if event.key == pygame.K_1: self._use_player_ability("spell1")
-            if event.key == pygame.K_2: self._use_player_ability("spell2")
-            if event.key == pygame.K_3: self._use_player_ability("spell3")
+            if keybinds.matches(event.key, "spell_1"): self._use_player_ability("spell1")
+            if keybinds.matches(event.key, "spell_2"): self._use_player_ability("spell2")
+            if keybinds.matches(event.key, "spell_3"): self._use_player_ability("spell3")
             if event.key == pygame.K_4: self._use_player_ability("spell4")
-            if event.key == pygame.K_5: self._use_player_ability("spell5")
-            if event.key == pygame.K_6: self._use_player_ability("spell6")
-            if event.key == pygame.K_7: self._use_player_ability("usable")
-            if event.key == pygame.K_8: self._use_player_ability("usable2")
+            if keybinds.matches(event.key, "spell_5"): self._use_player_ability("spell5")
+            if keybinds.matches(event.key, "spell_6"): self._use_player_ability("spell6")
+            if keybinds.matches(event.key, "usable_1") and event.key != pygame.K_4:
+                self._use_player_ability("usable")
+            if keybinds.matches(event.key, "usable_2"): self._use_player_ability("usable2")
 
             # --- COMBAT CONTROLS ---
-            if event.key == pygame.K_SPACE:
+            if keybinds.matches(event.key, "dash"):
                 mx, my = pygame.mouse.get_pos()
                 wx = mx + self.camera_x
                 wy = my + self.camera_y
@@ -1047,17 +1049,18 @@ class MuckfordCityMenu(BaseMenu):
         # Block
         # Shift = sprintti (sama kuin taistelussa; kuluttaa staminaa).
         # Block ei ole hyödyllinen rauhallisessa kaupungissa.
-        wants_sprint = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+        from systems import keybinds as _kb
+        wants_sprint = _kb.pressed(keys, "sprint")
         self.player.set_sprinting(wants_sprint)
         if self.player.is_sprinting and self.player.current_stamina > 0.5:
             speed *= 1.5
         
         # Estä manuaalinen liike jos dash on käynnissä (Commander hoitaa sen itse)
         if not self.player.is_dashing:
-            if keys[pygame.K_w]: dy = -speed
-            if keys[pygame.K_s]: dy = speed
-            if keys[pygame.K_a]: dx = -speed
-            if keys[pygame.K_d]: dx = speed
+            if _kb.pressed(keys, "move_up"): dy = -speed
+            if _kb.pressed(keys, "move_down"): dy = speed
+            if _kb.pressed(keys, "move_left"): dx = -speed
+            if _kb.pressed(keys, "move_right"): dx = speed
         
         if dx != 0 or dy != 0:
             # Liikkuminen keskeyttää kalastuksen
@@ -1130,7 +1133,8 @@ class MuckfordCityMenu(BaseMenu):
             session = self.fishing_session
             if session.state == "REELING":
                 # Väsytys: E pohjassa kelaa, hellitys lepuuttaa siimaa
-                pressed = pygame.key.get_pressed()[pygame.K_e]
+                from systems import keybinds as _kb
+                pressed = _kb.pressed(pygame.key.get_pressed(), "interact")
                 result = session.reel(pressed)
                 spot = self.active_fishing_spot
                 if result == "caught":

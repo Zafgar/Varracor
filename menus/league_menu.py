@@ -48,7 +48,7 @@ class LeagueMenu(BaseMenu):
     def _rebuild_layout(self):
         margin = 30
         header_h = 175  # keskitetty otsikkopalkki + kausi-info vievät ylätilan
-        tab_w, tab_h = 140, 46 # Slightly wider tabs for progress text
+        tab_w, tab_h = 170, 46 # progressiteksti "3v3  5/5 DONE" mahtuu
         tab_y, tab_x = margin + 125, margin
 
         self._tab_rects = {
@@ -189,15 +189,16 @@ class LeagueMenu(BaseMenu):
         
         if mode != "TOTAL":
             is_done = le.is_mode_complete(mode)
-            # Hae progress: esim "1v1 1/2"
+            # Progress: pelatut / kauden vaaditut matsit TÄSTÄ moodista.
+            # BUGIKORJAUS: req oli kovakoodattu 2, vaikka engine vaatii
+            # REQ_GAMES-määrät (6/5/5) - näytti "0/2" ja valehteli.
+            from leagues.league_engine import REQ_GAMES
             grand_data = le.get_grand_score("PLAYER")
             played = grand_data["games"].get(mode, 0)
-            
-            # Kovakoodattu hätävara jos ei muuten saada tietoa (varmista että tämä vastaa engineä!)
-            req = 2 
-            
-            label = f"{mode} {played}/{req}"
-            if is_done: label += " (Done)"
+            req = REQ_GAMES.get(mode, 0)
+
+            label = f"{mode}  {min(played, req)}/{req}"
+            if is_done: label += " DONE"
 
         active = (mode == self.selected_mode)
         
@@ -306,7 +307,9 @@ class LeagueMenu(BaseMenu):
             if isinstance(r, dict):
                 tid, tname = r.get('team_id'), r.get('team_name', 'Unknown')
                 if tid == "PLAYER": tname = "My Guild"
-                w, l, p = r.get('total_wins',0), r.get('total_losses',0), r.get('score',0)
+                # BUGIKORJAUS: engine palauttaa avaimet wins/losses
+                # (total_wins ei ollut olemassa -> W/L näytti aina 0)
+                w, l, p = r.get('wins', 0), r.get('losses', 0), r.get('score', 0)
             else:
                 tid = getattr(r, "team_id", "")
                 tname = "My Guild" if tid == "PLAYER" else (getattr(r.team, "name", tid) or tid)
@@ -329,17 +332,38 @@ class LeagueMenu(BaseMenu):
         sx2, sy2 = self._scout_rect.x + 20, self._scout_rect.y + 20
         if self.selected_mode == "TOTAL":
             _dt(screen, "SEASON SUMMARY", sx2, sy2, font_main, GOLD_COLOR)
-            
-            # Lisää season info
+
+            # Kauden vaatimukset + pelaajan eteneminen suoraan enginestä
+            from leagues.league_engine import REQ_GAMES, POINTS_PER_WIN
+            p_stats = le.get_grand_score("PLAYER")
             info = [
                 "", f"Season {s_info['number']} ({s_info['theme']})",
                 "Grand Slam combines points from all modes.",
-                "--- RULES ---", "1. Finish all 1v1, 3v3, 5v5 matches.", "2. Top 2 qualify for Promotion Match.",
-                "", f"Your Rank: #{le.get_player_rank()}"
+                "",
+                "--- SEASON REQUIREMENTS ---",
+            ]
+            for mode in ("1v1", "3v3", "5v5"):
+                played = p_stats["games"].get(mode, 0)
+                req = REQ_GAMES.get(mode, 0)
+                pts = POINTS_PER_WIN.get(mode, 0)
+                mark = "[X]" if played >= req else "[ ]"
+                info.append(f"{mark} {mode}: {min(played, req)}/{req} matches"
+                            f"   (win = {pts} pts)")
+            info += [
+                "",
+                "Top 2 in Grand Slam -> Promotion Match (5v5).",
+                "", f"Your Rank: #{le.get_player_rank()}",
+                f"Your record: {p_stats['wins']}W - {p_stats['losses']}L"
+                f"   ({p_stats['score']} pts)",
             ]
             iy = sy2 + 30
             for line in info:
-                _dt(screen, line, sx2, iy, font_small, WHITE)
+                col = WHITE
+                if line.startswith("[X]"):
+                    col = (130, 230, 150)
+                elif line.startswith("---"):
+                    col = GRAY
+                _dt(screen, line, sx2, iy, font_small, col)
                 iy += 25
         else:
             _dt(screen, "NEXT OPPONENT", sx2, sy2, font_main, RED)
