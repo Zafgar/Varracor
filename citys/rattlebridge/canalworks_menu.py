@@ -12,7 +12,7 @@ import random
 
 import pygame
 
-from citys.rattlebridge.rattlebridge_art import load_rattlebridge_image
+from citys.rattlebridge.interior_scenes import CanalworksScene
 from menus.base_menu import BaseMenu
 from settings import GOLD_COLOR, GRAY, GREEN, RED, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
@@ -24,9 +24,6 @@ class CanalworksMenu(BaseMenu):
     def __init__(self, manager):
         super().__init__(manager)
         self.rng = random.Random(91337)
-        self.background = load_rattlebridge_image(
-            "canalworks", (SCREEN_WIDTH, SCREEN_HEIGHT)
-        )
         self.player = manager.player_character
         self.feedback = ""
         self.feedback_timer = 0
@@ -52,6 +49,11 @@ class CanalworksMenu(BaseMenu):
         ]
         self.boss_point = (1210, 525)
         self.exit_rect = pygame.Rect(70, 80, 145, 85)
+        # Kohtaus maalataan suoraan ylla olevasta layoutista, joten grafiikka
+        # vastaa aina kavelykaistoja, esteita ja pesapaikkoja.
+        self.scene = CanalworksScene(self.walkable, self.blockers,
+                                     self.nest_points, self.boss_point,
+                                     self.exit_rect)
 
     def _state(self):
         root = self.manager.npc_state.setdefault("rattlebridge", {})
@@ -281,14 +283,8 @@ class CanalworksMenu(BaseMenu):
             pygame.draw.circle(screen, (92, 67, 48), (px, py), 10)
 
     def draw(self, screen):
-        screen.blit(self.background, (0, 0))
-        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        shade.fill((8, 14, 13, 55))
-        screen.blit(shade, (0, 0))
-
-        for blocker in self.blockers:
-            pygame.draw.rect(screen, (77, 62, 47), blocker, border_radius=6)
-            pygame.draw.rect(screen, (43, 39, 35), blocker, 3, border_radius=6)
+        # Kanaalikohtaus sisaltaa kaistat, esteet, ritilat ja tippuvan veden.
+        self.scene.draw(screen)
         pygame.draw.rect(screen, (125, 100, 64), self.exit_rect, 3, border_radius=8)
         draw_text("LIFT EXIT", font_small, WHITE, screen,
                   self.exit_rect.x + 27, self.exit_rect.y + 30)

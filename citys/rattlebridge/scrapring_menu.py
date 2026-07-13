@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pygame
 
-from citys.rattlebridge.rattlebridge_art import load_rattlebridge_image
+from citys.rattlebridge.interior_scenes import get_scene
 from citys.rattlebridge.rattlebridge_data import (
     LOCAL_TEAMS,
     SCRAPRING_HAZARDS,
@@ -19,9 +19,8 @@ from ui_kit import UIButton, draw_text, font_main, font_small, font_title
 class ScrapringMenu(BaseMenu):
     def __init__(self, manager):
         super().__init__(manager)
-        self.background = load_rattlebridge_image(
-            "scrapring", (SCREEN_WIDTH, SCREEN_HEIGHT)
-        )
+        # Seran parveke areenakulhon ylla; vaarat ja viirit elavat.
+        self.scene = get_scene("scrapring")
         self.selected_hazard = "crushing_gears"
         self.feedback = ""
         self.feedback_timer = 0
@@ -158,20 +157,17 @@ class ScrapringMenu(BaseMenu):
         return lines
 
     def draw(self, screen):
-        screen.blit(self.background, (0, 0))
-        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        shade.fill((7, 8, 10, 112))
-        screen.blit(shade, (0, 0))
+        self.scene.draw(screen)
         title = font_title.render("THE SCRAPRING — TIER 1 CIRCUIT", True, GOLD_COLOR)
         self.draw_header_bar(screen, title, y=25)
 
         left = pygame.Rect(55, 145, 590, 755)
         right = pygame.Rect(675, 145, SCREEN_WIDTH - 730, 755)
-        self.draw_soft_panel(screen, left, alpha=220, border_alpha=190, radius=12)
-        self.draw_soft_panel(screen, right, alpha=220, border_alpha=190, radius=12)
+        self.draw_soft_panel(screen, left, alpha=185, border_alpha=170, radius=12)
+        self.draw_soft_panel(screen, right, alpha=185, border_alpha=170, radius=12)
 
-        draw_text("ARENA HAZARD TRAINING", font_title, GOLD_COLOR,
-                  screen, left.x + 28, left.y + 28)
+        draw_text("ARENA HAZARD TRAINING", font_main, GOLD_COLOR,
+                  screen, left.x + 28, left.y + 24)
         draw_text("Inspect hazards before entering the match card.",
                   font_small, (190, 195, 200), screen,
                   left.x + 30, left.y + 73)
@@ -184,8 +180,8 @@ class ScrapringMenu(BaseMenu):
             button.draw(screen)
 
         hazard = SCRAPRING_HAZARDS[self.selected_hazard]
-        draw_text("SERA QUENCH", font_title, GOLD_COLOR,
-                  screen, right.x + 32, right.y + 28)
+        draw_text("SERA QUENCH", font_main, GOLD_COLOR,
+                  screen, right.x + 32, right.y + 24)
         draw_text("Tier 1 manager • sponsor architect • ruthless organizer",
                   font_small, (175, 195, 210), screen,
                   right.x + 34, right.y + 74)
@@ -201,8 +197,8 @@ class ScrapringMenu(BaseMenu):
                            right.w - 68, 260)
         pygame.draw.rect(screen, (29, 29, 33), card, border_radius=12)
         pygame.draw.rect(screen, (132, 118, 92), card, 2, border_radius=12)
-        draw_text(hazard["name"], font_title, WHITE,
-                  screen, card.x + 28, card.y + 24)
+        draw_text(hazard["name"], font_main, WHITE,
+                  screen, card.x + 28, card.y + 22)
         draw_text(f"Telegraph: {hazard['telegraph_frames']} frames",
                   font_main, (215, 180, 105), screen,
                   card.x + 30, card.y + 76)

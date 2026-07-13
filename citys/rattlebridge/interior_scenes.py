@@ -624,6 +624,264 @@ def get_scene(name):
             _SCENES[name] = SpanTaproomScene()
         elif name == "chapel":
             _SCENES[name] = BridgewardChapelScene()
+        elif name == "scrapring":
+            _SCENES[name] = ScrapringOverlookScene()
         else:
             raise KeyError(f"unknown interior scene '{name}'")
     return _SCENES[name]
+
+
+# ----------------------------------------------------------------------
+# Scrapring - Seran parveke areenan ylla
+# ----------------------------------------------------------------------
+class ScrapringOverlookScene:
+    """Sera Quenchin toimistoparveke: alla areenakulho jossa OIKEAT vaarat
+    (murskaavat rattaat, hoyryventtiilit, magneettilaatat), katsomot yleisoineen
+    ja sponsoriviirit - sponsorien varit suoraan systems.sponsors-datasta."""
+
+    def __init__(self, seed=553311):
+        rng = random.Random(seed)
+        self.base = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        try:
+            from systems.sponsors import SPONSORS
+            self.sponsor_colors = [s["banner"] for s in SPONSORS.values()]
+        except Exception:
+            self.sponsor_colors = [(100, 120, 140), (170, 90, 120),
+                                   (120, 150, 90), (150, 130, 70)]
+        self.arena_rect = pygame.Rect(360, 300, 1200, 560)
+        self._paint_static(rng)
+        self.gears = ((640, 520, 66, 0.35), (1290, 640, 78, -0.28))
+        self.vents = ((960, 470), (860, 700), (1120, 690))
+        self.pennant_y = 176
+
+    def _paint_static(self, rng):
+        s = self.base
+        w, h = s.get_size()
+        # Iltatäivas ja kaupungin siluetti
+        for i in range(14):
+            t = i / 13
+            color = (int(30 + 26 * t), int(30 + 20 * t), int(44 + 26 * t))
+            pygame.draw.rect(s, color, (0, i * 26, w, 28))
+        pygame.draw.rect(s, (24, 26, 34), (0, 330, w, h - 330))
+        for bx in range(-40, w, 120):
+            bh = rng.randint(60, 190)
+            pygame.draw.rect(s, (34, 36, 46), (bx, 364 - bh, 96, bh))
+            for wy in range(374 - bh, 350, 26):
+                if rng.random() < 0.5:
+                    pygame.draw.rect(s, (222, 186, 100), (bx + rng.randint(8, 74), wy, 8, 10))
+        # Areenakulho
+        bowl = self.arena_rect
+        pygame.draw.ellipse(s, (52, 50, 48), bowl.inflate(220, 150))
+        # Katsomoportaat
+        for ring in range(4):
+            band = bowl.inflate(200 - ring * 44, 132 - ring * 30)
+            pygame.draw.ellipse(s, (66 + ring * 7, 62 + ring * 6, 58 + ring * 6), band)
+        # Yleiso pistein
+        crowd = pygame.Surface((w, h), pygame.SRCALPHA)
+        for _ in range(2600):
+            a = rng.uniform(0, math.tau)
+            ring = rng.uniform(0.56, 0.96)
+            cxp = bowl.centerx + math.cos(a) * bowl.w * 0.5 * (1 + (1 - ring) * 0.36) * ring / ring
+            px = bowl.centerx + math.cos(a) * (bowl.w * 0.52 + rng.uniform(6, 96))
+            py = bowl.centery + math.sin(a) * (bowl.h * 0.52 + rng.uniform(4, 62))
+            color = rng.choice(((198, 178, 150), (150, 128, 104), (120, 140, 160),
+                                (170, 120, 110), (110, 150, 120)))
+            pygame.draw.circle(crowd, (*color, 190), (int(px), int(py)), 3)
+        s.blit(crowd, (0, 0))
+        # Hiekkapohja + kaistamaalaukset
+        pygame.draw.ellipse(s, (150, 128, 96), bowl)
+        pygame.draw.ellipse(s, (120, 100, 76), bowl, 6)
+        pygame.draw.ellipse(s, (168, 146, 112), bowl.inflate(-260, -180), 3)
+        # Magneettilaatat (siniset) kuten oikeassa areenassa
+        for mx, my in ((bowl.centerx - 70, bowl.centery - 40),
+                       (bowl.left + 170, bowl.centery + 60),
+                       (bowl.right - 300, bowl.centery + 30)):
+            plate = pygame.Rect(mx, my, 140, 92)
+            pygame.draw.rect(s, (44, 60, 82), plate, border_radius=8)
+            pygame.draw.rect(s, (70, 100, 140), plate, 3, border_radius=8)
+            for gx in range(plate.left + 14, plate.right - 8, 22):
+                pygame.draw.line(s, (60, 84, 116), (gx, plate.top + 6),
+                                 (gx, plate.bottom - 6), 1)
+        # Parvekekaide etualalla
+        rail_y = h - 210
+        pygame.draw.rect(s, (58, 52, 44), (0, rail_y, w, 26))
+        pygame.draw.rect(s, BRASS, (0, rail_y, w, 6))
+        for px in range(40, w, 130):
+            pygame.draw.rect(s, (58, 52, 44), (px, rail_y + 20, 18, 190))
+        # Seran tyopoyta oikealla: sopimuksia, sinettivaha, mustepullo
+        desk = pygame.Rect(w - 620, h - 190, 560, 190)
+        pygame.draw.rect(s, (86, 62, 42), desk, border_top_left_radius=18)
+        pygame.draw.rect(s, (60, 44, 32), desk, 5, border_top_left_radius=18)
+        for i in range(3):
+            paper = pygame.Rect(desk.left + 40 + i * 150, desk.top + 26, 110, 76)
+            pygame.draw.rect(s, (216, 204, 174), paper)
+            pygame.draw.rect(s, (150, 140, 118), paper, 2)
+            for ly in range(paper.top + 14, paper.bottom - 8, 12):
+                pygame.draw.line(s, (150, 140, 118), (paper.left + 10, ly),
+                                 (paper.right - 10, ly), 1)
+            pygame.draw.circle(s, (150, 46, 44), (paper.right - 18, paper.bottom - 14), 9)
+        pygame.draw.rect(s, (40, 36, 34), (desk.right - 90, desk.top + 20, 34, 46),
+                         border_radius=6)
+        # Sera itse parvekkeella (terava siluetti, viininpunainen takki)
+        _standing_figure(s, w - 700, h - 66, "human", (122, 52, 64), height=150)
+        pygame.draw.rect(s, BRASS, (w - 712, h - 210, 24, 6))
+        _noise(s, rng, 2000)
+        _vignette(s, 130)
+
+    def draw(self, screen, tick=None):
+        if tick is None:
+            tick = pygame.time.get_ticks()
+        screen.blit(self.base, (0, 0))
+        # Pyorivat rattaat areenassa
+        for gx, gy, radius, speed in self.gears:
+            angle = tick * 0.001 * speed
+            pygame.draw.circle(screen, (74, 72, 68), (gx, gy), radius)
+            pygame.draw.circle(screen, (40, 40, 38), (gx, gy), radius, 5)
+            for k in range(8):
+                a = angle + k * (math.tau / 8)
+                pygame.draw.circle(screen, (74, 72, 68),
+                                   (gx + int(math.cos(a) * (radius + 9)),
+                                    gy + int(math.sin(a) * (radius + 9))),
+                                   max(6, radius // 7))
+            pygame.draw.circle(screen, BRASS, (gx, gy), max(8, radius // 5))
+        # Hoyryventtiilien purkaukset sykleissa
+        for i, (vx, vy) in enumerate(self.vents):
+            phase = (tick * 0.0011 + i * 0.83) % 2.2
+            pygame.draw.circle(screen, (70, 70, 78), (vx, vy), 15)
+            pygame.draw.circle(screen, (44, 44, 50), (vx, vy), 15, 3)
+            if phase < 0.9:
+                for k in range(3):
+                    r = 8 + int(phase * 26) + k * 7
+                    alpha = max(0, 90 - int(phase * 90) - k * 18)
+                    puff = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(puff, (228, 230, 226, alpha), (r, r), r)
+                    screen.blit(puff, (vx - r, vy - r - k * 16 - int(phase * 30)))
+        # Sponsoriviirit heiluvat ylhaalla
+        sway = math.sin(tick * 0.0016)
+        n = max(1, len(self.sponsor_colors))
+        for i, color in enumerate(self.sponsor_colors):
+            px = 200 + i * (SCREEN_WIDTH - 400) // n
+            top = self.pennant_y + int(math.sin(tick * 0.0016 + i) * 5)
+            pygame.draw.line(screen, (50, 48, 44), (px, top - 40), (px, top), 3)
+            pygame.draw.polygon(screen, color,
+                                [(px, top - 36), (px + 46 + sway * 6, top - 22),
+                                 (px, top - 8)])
+        pygame.draw.line(screen, (60, 58, 52), (140, self.pennant_y - 40),
+                         (SCREEN_WIDTH - 140, self.pennant_y - 40), 2)
+
+
+# ----------------------------------------------------------------------
+# Canalworks - kanaalitunnelit (maalataan pelialueen layoutista)
+# ----------------------------------------------------------------------
+class CanalworksScene:
+    """Alakannen kanaalit: kavelykaistat, ritilat, putket ja pesapaikat
+    maalataan SUORAAN pelialueen layout-datasta, joten grafiikka vastaa
+    aina tormayksia ja spawneja."""
+
+    def __init__(self, walkable, blockers, nest_points, boss_point, exit_rect,
+                 seed=664422):
+        rng = random.Random(seed)
+        self.base = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.nest_points = tuple(nest_points)
+        self.boss_point = tuple(boss_point)
+        self._paint_static(rng, walkable, blockers, exit_rect)
+        self.drips = [(rng.randint(60, SCREEN_WIDTH - 60),
+                       rng.randint(90, SCREEN_HEIGHT - 90),
+                       rng.uniform(0, 6.28)) for _ in range(9)]
+
+    def _paint_static(self, rng, walkable, blockers, exit_rect):
+        s = self.base
+        w, h = s.get_size()
+        # Pohja: tumma kanaalivesi
+        s.fill((16, 30, 36))
+        for y in range(0, h, 34):
+            pygame.draw.line(s, (26, 44, 50), (0, y), (w, y), 2)
+        # Levaa ja limaa veden pinnassa
+        for _ in range(46):
+            gx = rng.randint(0, w - 80)
+            gy = rng.randint(0, h - 30)
+            pygame.draw.ellipse(s, (30, 52, 42),
+                                (gx, gy, rng.randint(30, 90), rng.randint(8, 18)))
+        # Kavelykaistat kivilaattoina
+        for lane in walkable:
+            pygame.draw.rect(s, (30, 32, 34), lane.inflate(18, 18), border_radius=8)
+            pygame.draw.rect(s, (84, 82, 76), lane, border_radius=6)
+            pygame.draw.rect(s, (54, 54, 52), lane, 5, border_radius=6)
+            if lane.w >= lane.h:  # vaakakaista
+                for x in range(lane.left + 40, lane.right, 90):
+                    pygame.draw.line(s, (66, 64, 60), (x, lane.top + 6),
+                                     (x, lane.bottom - 6), 2)
+            else:
+                for y in range(lane.top + 40, lane.bottom, 90):
+                    pygame.draw.line(s, (66, 64, 60), (lane.left + 6, y),
+                                     (lane.right - 6, y), 2)
+        # Viemariritilat kaistojen risteyksissa
+        for lane in walkable[:3]:
+            for gx in range(lane.left + 150, lane.right - 60, 420):
+                grate = pygame.Rect(gx, lane.centery - 20, 66, 40)
+                pygame.draw.rect(s, (36, 36, 38), grate, border_radius=6)
+                for bar_x in range(grate.left + 8, grate.right - 4, 10):
+                    pygame.draw.line(s, (70, 70, 72), (bar_x, grate.top + 5),
+                                     (bar_x, grate.bottom - 5), 3)
+        # Seinaputket ylareunassa + venttiilipyorat
+        for px in range(80, w, 300):
+            pygame.draw.line(s, (74, 64, 52), (px, 0), (px, 60), 14)
+            pygame.draw.circle(s, (120, 96, 60), (px, 46), 13, 4)
+        pygame.draw.line(s, (74, 64, 52), (0, 26), (w, 26), 10)
+        # Esteet: romukasat ja kaatuneet tynnyrit
+        for rect in blockers:
+            pygame.draw.rect(s, (24, 22, 20), rect.move(5, 7), border_radius=8)
+            pygame.draw.rect(s, (88, 66, 44), rect, border_radius=8)
+            pygame.draw.rect(s, (52, 40, 30), rect, 3, border_radius=8)
+            pygame.draw.line(s, (110, 84, 56), rect.topleft, rect.bottomright, 3)
+            pygame.draw.line(s, (110, 84, 56), rect.bottomleft, rect.topright, 3)
+        # Pesapaikkojen limarenkaat (itse pesat piirtaa pelilogiikka)
+        for nx, ny in self.nest_points:
+            ring = pygame.Surface((190, 120), pygame.SRCALPHA)
+            for k in range(3):
+                pygame.draw.ellipse(ring, (66, 120, 66, 60 - k * 16),
+                                    (k * 16, k * 10, 190 - k * 32, 120 - k * 20), 6)
+            s.blit(ring, (nx - 95, ny - 60))
+        bx, by = self.boss_point
+        ring = pygame.Surface((240, 150), pygame.SRCALPHA)
+        for k in range(3):
+            pygame.draw.ellipse(ring, (140, 66, 88, 56 - k * 14),
+                                (k * 18, k * 12, 240 - k * 36, 150 - k * 24), 7)
+        s.blit(ring, (bx - 120, by - 75))
+        # Ulosjohtavat portaat exit-kohdassa
+        pygame.draw.rect(s, (70, 68, 62), exit_rect.inflate(16, 16), border_radius=8)
+        for step in range(4):
+            sy = exit_rect.top + 12 + step * 18
+            pygame.draw.rect(s, (110 + step * 8, 106 + step * 8, 98 + step * 8),
+                             (exit_rect.left + 8, sy, exit_rect.w - 16, 14),
+                             border_radius=4)
+        # Riippuvat kettingit
+        for cx in (rng.randint(200, w - 200) for _ in range(5)):
+            length = rng.randint(60, 150)
+            for ly in range(0, length, 12):
+                pygame.draw.circle(s, (60, 60, 62), (cx, ly), 4, 2)
+        _noise(s, rng, 2400)
+        _vignette(s, 170)
+
+    def draw(self, screen, tick=None):
+        if tick is None:
+            tick = pygame.time.get_ticks()
+        screen.blit(self.base, (0, 0))
+        # Tippuva vesi: pisara + rengas
+        for dx, dy, phase in self.drips:
+            t = (tick * 0.0013 + phase) % 1.6
+            if t < 0.8:
+                pygame.draw.line(screen, (150, 190, 196),
+                                 (dx, dy - 40 + int(t * 56)),
+                                 (dx, dy - 30 + int(t * 56)), 2)
+            else:
+                r = int((t - 0.8) * 34)
+                if r > 1:
+                    pygame.draw.ellipse(screen, (120, 170, 176),
+                                        (dx - r, dy - r // 3, r * 2, r // 2), 1)
+        # Pesien hidas mataneva hehku
+        pulse = 30 + int(math.sin(tick * 0.002) * 16)
+        for nx, ny in self.nest_points:
+            glow = pygame.Surface((150, 90), pygame.SRCALPHA)
+            pygame.draw.ellipse(glow, (90, 160, 80, pulse), glow.get_rect())
+            screen.blit(glow, (nx - 75, ny - 45))
