@@ -15,6 +15,7 @@ install_muckford_opening_integration()
 
 from menus.promotion_menu import PromotionMenu
 from npc.dwarf_league_manager import DwarfLeagueManager
+from systems.muckford_low_fields_integration import _patch_world_map_data as _patch_low_fields_world_map
 from systems.tier0_finale import (
     FINAL_REWARD_SP,
     complete_ceremony,
@@ -251,6 +252,9 @@ def test_complete_ceremony_is_safe_for_loaded_promoted_save():
 
 
 def test_world_map_cannot_bypass_papers_promotion_or_farewell_to_rattlebridge():
+    # Other tests may reload lore.world_map_data. Restore runtime-only local nodes
+    # before world progression rebuilds its surveyed route graph.
+    _patch_low_fields_world_map()
     manager = ready_manager(tier=2)
     world = ensure_world_state(manager)
     world["current_location"] = "kingsreach_toll"
