@@ -16,11 +16,17 @@ class BarracksMenu(BaseMenu):
         super().__init__(manager)
         cx = SCREEN_WIDTH // 2
 
-        self.btn_equip = UIButton(cx - 330, SCREEN_HEIGHT - 120, 300, 60,
+        self.btn_equip = UIButton(cx - 480, SCREEN_HEIGHT - 120, 300, 60,
                                   "MANAGE EQUIPMENT", None, GREEN)
-        self.btn_back = UIButton(cx + 30, SCREEN_HEIGHT - 120, 300, 60,
+        self.btn_recruits = UIButton(cx - 150, SCREEN_HEIGHT - 120, 300, 60,
+                                     "RECRUIT FIGHTERS", None, (120, 170, 230))
+        self.btn_back = UIButton(cx + 180, SCREEN_HEIGHT - 120, 300, 60,
                                  "LEAVE", None, GRAY)
-        self.card_rects = []  # (rect, unit)
+        self.card_rects = []       # (rect, unit)
+        self.action_rects = []     # (rect, "skills"|"dismiss", unit)
+        self.pending_dismiss = None  # varmistus: klikkaa kahdesti
+        self.feedback = ""
+        self.feedback_timer = 0
 
     def _roster(self):
         roster = list(self.manager.my_team)
@@ -39,6 +45,11 @@ class BarracksMenu(BaseMenu):
             self.next_state = "guild"
             sound_system.play_sound('click')
             return
+        if self.btn_recruits.is_clicked(event):
+            self.manager.recruit_return_state = "barracks"
+            self.next_state = "recruit"
+            sound_system.play_sound('click')
+            return
         if self.btn_back.is_clicked(event):
             self.next_state = getattr(self.manager, "barracks_return_state",
                                       None) or "muckford_city"
@@ -46,10 +57,41 @@ class BarracksMenu(BaseMenu):
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # Korttien toimintonapit ensin (SKILLS / DISMISS)
+            for rect, action, unit in self.action_rects:
+                if rect.collidepoint(event.pos):
+                    if action == "skills":
+                        self.manager.selected_hero = unit
+                        self.manager.skill_tree_return_state = "barracks"
+                        self.next_state = ("commander_skills"
+                                           if unit is self.manager.player_character
+                                           else "skill_tree")
+                        sound_system.play_sound('click')
+                    elif action == "dismiss":
+                        self._dismiss(unit)
+                    return
             for rect, unit in self.card_rects:
                 if rect.collidepoint(event.pos):
                     self._talk_to(unit)
                     return
+
+    def _dismiss(self, unit):
+        """Erottaa taistelijan tiimistä. Vaatii kaksi klikkausta
+        (vahinkoerotusten estämiseksi). Commanderia ei voi erottaa."""
+        if unit is self.manager.player_character:
+            return
+        if self.pending_dismiss is not unit:
+            self.pending_dismiss = unit
+            self.feedback = f"Click DISMISS again to release {unit.name}."
+            self.feedback_timer = 240
+            sound_system.play_sound('hover')
+            return
+        self.manager.my_team.remove(unit)
+        self.manager.update_all_groups()
+        self.pending_dismiss = None
+        self.feedback = f"{unit.name} left the team."
+        self.feedback_timer = 240
+        sound_system.play_sound('click')
 
     def _talk_to(self, unit):
         if unit is self.manager.player_character:
@@ -63,6 +105,8 @@ class BarracksMenu(BaseMenu):
 
     def update(self):
         super().update()
+        if self.feedback_timer > 0:
+            self.feedback_timer -= 1
 
     def draw(self, screen):
         self.draw_themed_background(screen, "guild")
@@ -72,6 +116,7 @@ class BarracksMenu(BaseMenu):
                   font_small, GRAY, screen, 60, 120)
 
         self.card_rects = []
+        self.action_rects = []
         roster = self._roster()
         card_w, card_h = 210, 270
         gap = 30
@@ -83,7 +128,7 @@ class BarracksMenu(BaseMenu):
             col = i % per_row
             row = i // per_row
             x = start_x + col * (card_w + gap)
-            y = start_y + row * (card_h + 20)
+            y = start_y + row * (card_h + 58)
             rect = pygame.Rect(x, y, card_w, card_h)
             hover = rect.collidepoint(mouse)
             self.card_rects.append((rect, unit))
@@ -97,7 +142,35 @@ class BarracksMenu(BaseMenu):
                 draw_text("(You)", font_small, GOLD_COLOR, screen,
                           x + 10, y + card_h - 24)
 
+            # Toimintonapit kortin alle: SKILLS aina, DISMISS vain muille
+            by = y + card_h + 6
+            skills_rect = pygame.Rect(x, by, 100, 34)
+            pygame.draw.rect(screen, (48, 60, 48), skills_rect, border_radius=7)
+            pygame.draw.rect(screen, GREEN, skills_rect, 1, border_radius=7)
+            draw_text("SKILLS", font_small, WHITE, screen,
+                      skills_rect.x + 20, skills_rect.y + 8)
+            self.action_rects.append((skills_rect, "skills", unit))
+            if unit is not self.manager.player_character:
+                dis_rect = pygame.Rect(x + 110, by, 100, 34)
+                arming = self.pending_dismiss is unit
+                pygame.draw.rect(screen, (86, 40, 36) if arming else (56, 40, 40),
+                                 dis_rect, border_radius=7)
+                pygame.draw.rect(screen, (220, 110, 90), dis_rect, 1,
+                                 border_radius=7)
+                draw_text("DISMISS", font_small,
+                          (255, 200, 190) if arming else WHITE, screen,
+                          dis_rect.x + 12, dis_rect.y + 8)
+                self.action_rects.append((dis_rect, "dismiss", unit))
+
+        if self.feedback_timer > 0 and self.feedback:
+            box = pygame.Rect(60, SCREEN_HEIGHT - 180, 760, 42)
+            pygame.draw.rect(screen, (22, 22, 26), box, border_radius=8)
+            pygame.draw.rect(screen, (180, 145, 85), box, 2, border_radius=8)
+            draw_text(self.feedback, font_small, WHITE, screen,
+                      box.x + 16, box.y + 11)
+
         self.btn_equip.draw(screen)
+        self.btn_recruits.draw(screen)
         self.btn_back.draw(screen)
 
 

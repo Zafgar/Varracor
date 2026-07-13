@@ -76,12 +76,13 @@ class PrepareMenu(BaseMenu):
             mouse_pos = event.pos
             
             # Käydään läpi omat hahmot ja katsotaan osuiko klikkaus korttiin
-            # (Lasketaan korttien sijainnit samalla tavalla kuin draw-funktiossa)
+            # HUOM: mittojen PITÄÄ vastata draw-funktiota (320/90/100),
+            # muuten klikkaukset osuvat väärien korttien kohdalle
             start_x = 50
             start_y = 150
-            card_w = 280
-            card_h = 100
-            gap_y = 110
+            card_w = 320
+            card_h = 90
+            gap_y = 100
             
             # Käytetään samaa listaa kuin piirrossa
             my_roster = []
@@ -105,9 +106,10 @@ class PrepareMenu(BaseMenu):
                 # Soita ääni (select)
 
     def update(self):
-        # Back nappi
+        # Back nappi - liigasta palataan liigavalikkoon, ei hubiin
         if self.btn_back.update():
-            self.next_state = "hub"
+            self.next_state = "league" if self.manager.mode == "League" \
+                else "hub"
 
         # Fight nappi
         if self.btn_fight.update():

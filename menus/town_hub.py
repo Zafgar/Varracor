@@ -136,7 +136,9 @@ class TownHub(BaseMenu):
         if self.btn_workshop.update(): self.next_state = "workshop_locations"
         if self.btn_hospital.update(): self.next_state = "hospital"
         if self.btn_mage.update(): self.next_state = "magic_school"
-        if self.btn_recruit.update(): self.next_state = "recruit"
+        if self.btn_recruit.update():
+            self.manager.recruit_return_state = "hub"
+            self.next_state = "recruit"
         
         if self.btn_hunt.update():
             self.manager.mode = "Monster Hunt"

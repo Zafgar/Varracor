@@ -73,7 +73,8 @@ class RecruitMenu(BaseMenu):
         mouse_pos = pygame.mouse.get_pos()
         
         if self.btn_back.is_clicked(event):
-            self.next_state = "hub"
+            self.next_state = getattr(self.manager, "recruit_return_state",
+                                      None) or "hub"
             sound_system.play_sound('click')
             return
 
