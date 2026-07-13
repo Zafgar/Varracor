@@ -154,6 +154,96 @@ def test_fish_economy_and_recipe():
     assert "Mudfin" in MEAL_RECIPES["Mudwater Fish Stew"]["ingredients"]
 
 
+def test_fishing_progression_levels_1_to_30():
+    """Opittu kalastustaso: XP saaliista, tasot 1-30, tallentuu saveen."""
+    import json
+    m = _manager()
+    st = fs.get_progress(m)
+    assert st == {"level": 1, "xp": 0}
+    leveled = False
+    for _ in range(10):
+        leveled |= fs.grant_catch_xp(m, {"xp": 20})
+    assert leveled and fs.get_progress(m)["level"] > 1
+    json.dumps(m.npc_state)  # save-yhteensopiva
+    # Katto 30
+    fs.get_progress(m)["level"] = fs.MAX_LEVEL
+    assert fs.grant_catch_xp(m, {"xp": 999}) is False
+
+
+def test_rod_tiers_gate_fish_pools_and_require_level():
+    import random as _r
+    from items.item_registry import create_item
+    m = _manager()
+    tiers = {"FishingRod": (1, 1), "BogwoodRod": (2, 7),
+             "IronwireRod": (3, 13), "DuskwillowRod": (4, 20),
+             "VortexlineRod": (5, 26)}
+    for cls, (tier, req) in tiers.items():
+        rod = create_item(cls)
+        assert rod is not None, cls
+        assert rod.tool_tier == tier and rod.fishing_level_required == req
+
+    # Paras käytettävä vapa kunnioittaa opittua tasoa
+    m.equipment_bag += [create_item("FishingRod"), create_item("VortexlineRod")]
+    _rod, t = fs.best_rod(m)
+    assert t == 1, "tason 1 kalastaja ei voi käyttää Vortexline-vapaa"
+    fs.get_progress(m)["level"] = 30
+    _rod, t = fs.best_rod(m)
+    assert t == 5
+
+    # Tier rajaa kalapoolin
+    rng = _r.Random(1)
+    t1 = {fs.roll_fish(rng, 0, 1)["name"] for _ in range(300)}
+    assert t1 == {"Mudfin", "Bog Perch"}
+    rng = _r.Random(1)
+    t5 = {fs.roll_fish(rng, 3, 5)["name"] for _ in range(4000)}
+    assert "Vortex Koi" in t5 and "Blind Abyss Sturgeon" in t5
+    # Kaikilla kaloilla myyntihinta
+    from lore.world_data import MARKET_PRICES
+    for f in fs.FISH_SPECIES:
+        assert MARKET_PRICES["sell"].get(f["name"]) == f["price"], f["name"]
+
+
+def test_editor_paints_water_and_places_jetty():
+    """Karttaeditori: raahaus = yhtenäinen vesialue (joki/järvi), laituri
+    lisää kalastuspaikan, save/load säilyttää kaiken."""
+    m = _manager()
+    from citys.mucford.muckford_city_menu import MuckfordCityMenu
+    from tools.map_editor import MapEditor
+    from assets.tiles.water import WaterBody, FishingJetty
+    city = MuckfordCityMenu(m)
+    city.on_enter()
+    m.current_arena = city.arena
+    ed = MapEditor(m)
+    ed.active = True
+    assert "Water" in ed.categories
+
+    waters0 = sum(1 for p in city.arena.floor_props if isinstance(p, WaterBody))
+    ed.selected_prop_class = WaterBody
+    ed.execute_fill((1000, 2400), (1900, 2900))
+    waters1 = sum(1 for p in city.arena.floor_props if isinstance(p, WaterBody))
+    assert waters1 == waters0 + 1, "raahaus loi YHDEN altaan, ei ruudukkoa"
+
+    spots0 = len(city.arena.fishing_spots)
+    ed.selected_prop_class = FishingJetty
+    ed.place_prop(980, 2600)
+    assert len(city.arena.fishing_spots) == spots0 + 1
+
+    tmp = os.path.join(os.environ.get("TMPDIR", "/tmp"), "_water_proj.json")
+    ed.save_project(tmp)
+    ed.load_project(tmp)
+    os.remove(tmp)
+    waters2 = sum(1 for p in city.arena.floor_props if isinstance(p, WaterBody))
+    jetties2 = sum(1 for p in city.arena.floor_props if isinstance(p, FishingJetty))
+    assert waters2 == waters1 and jetties2 >= 2
+    assert len(city.arena.fishing_spots) == spots0 + 1
+    # Lähin laituri valikoituu pelaajan sijainnin mukaan
+    spots = city.arena.fishing_spots
+    river_spot = min(spots, key=lambda s: s[0])  # uusi jokilaituri (länsi)
+    city.player.rect.center = (river_spot[0] - 40, river_spot[1])
+    near = city._nearest_fishing_spot()
+    assert near == river_spot, "uusi jokilaituri on lähin"
+
+
 def test_fishing_skill_nodes_in_commander_tree():
     from skills.commander_skills_data import COMMANDER_SKILL_TREE
     assert "fishing_1" in COMMANDER_SKILL_TREE

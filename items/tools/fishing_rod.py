@@ -27,6 +27,7 @@ class FishingRod(Weapon):
 
         self.tool_type = "fishing"
         self.tool_tier = 1
+        self.fishing_level_required = 1   # opittu kalastustaso (1-30)
 
         self.image = None
         self._load_image()

@@ -110,9 +110,10 @@ class MuckfordCityMenu(BaseMenu):
         for stall in self.market_stalls:
             self.arena.props.append(stall)
 
-        # --- KALASTUS (Mudwater Pond) ---
+        # --- KALASTUS (Mudwater Pond + editorilla lisätyt vedet) ---
         self.fishing_session = None
         self.fishing_flash = 0     # "!"-huomio nykäisyn ajan
+        self.active_fishing_spot = None
         self._pond_water = next((p for p in self.arena.floor_props
                                  if isinstance(p, WaterBody)), None)
 
@@ -283,6 +284,28 @@ class MuckfordCityMenu(BaseMenu):
 
                     self.npcs.append(v)
                     break
+
+    def _water_at(self, point):
+        """Vesialue jossa piste on (roiskeet oikeaan altaaseen)."""
+        if point:
+            for p in self.arena.floor_props:
+                if isinstance(p, WaterBody) and \
+                        p.rect.inflate(120, 120).collidepoint(point):
+                    return p
+        return self._pond_water
+
+    def _nearest_fishing_spot(self, max_dist=170):
+        """Lähin kalastuspaikka (laitureita voi olla useita)."""
+        spots = getattr(self.arena, "fishing_spots", None) or \
+            ([self.arena.fishing_spot]
+             if getattr(self.arena, "fishing_spot", None) else [])
+        best, best_d = None, max_dist
+        for spot in spots:
+            d = math.hypot(self.player.rect.centerx - spot[0],
+                           self.player.rect.centery - spot[1])
+            if d < best_d:
+                best, best_d = spot, d
+        return best
 
     def _remove_out_of_bounds_props(self):
         bounds = pygame.Rect(0, 0, self.arena.width, self.arena.height)
@@ -678,7 +701,7 @@ class MuckfordCityMenu(BaseMenu):
                 # --- KALASTUS: kesken sessio -> E = tartutus ---
                 if self.fishing_session:
                     fish = self.fishing_session.hook()
-                    spot = getattr(self.arena, "fishing_spot", None)
+                    spot = self.active_fishing_spot
                     if fish:
                         self.manager.add_material(fish["name"], 1)
                         self.manager.vfx.show_damage(
@@ -686,9 +709,18 @@ class MuckfordCityMenu(BaseMenu):
                             f"+1 {fish['name']}!", color=(150, 220, 255))
                         self.manager.grant_hero_xp(3, self.player.rect.centerx,
                                                    self.player.rect.top)
+                        # Kalastusskilli 1-30: XP saaliista, taso tallentuu
+                        if fishing_system.grant_catch_xp(self.manager, fish):
+                            lvl = fishing_system.get_progress(self.manager)["level"]
+                            self.manager.vfx.show_damage(
+                                self.player.rect.centerx,
+                                self.player.rect.top - 60,
+                                f"Fishing level {lvl}!", color=(255, 215, 0))
+                            sound_system.play_sound('win')
                         sound_system.play_sound('coin')
-                        if self._pond_water and spot:
-                            self._pond_water.splash(*spot)
+                        water = self._water_at(spot)
+                        if water and spot:
+                            water.splash(*spot)
                     else:
                         self.manager.vfx.show_damage(
                             self.player.rect.centerx, self.player.rect.top - 30,
@@ -698,18 +730,21 @@ class MuckfordCityMenu(BaseMenu):
                     return
 
                 # --- KALASTUS: laiturilla E aloittaa ---
-                spot = getattr(self.arena, "fishing_spot", None)
-                if spot and math.hypot(self.player.rect.centerx - spot[0],
-                                       self.player.rect.centery - spot[1]) < 170:
-                    if fishing_system.has_rod(self.manager):
-                        skill = fishing_system.fishing_skill(self.player)
-                        self.fishing_session = fishing_system.FishingSession(skill)
+                spot = self._nearest_fishing_spot()
+                if spot:
+                    rod, rod_tier = fishing_system.best_rod(self.manager)
+                    if rod is not None:
+                        power = fishing_system.skill_power(self.manager)
+                        self.fishing_session = fishing_system.FishingSession(
+                            power, rod_tier=rod_tier)
+                        self.active_fishing_spot = spot
                         self.manager.vfx.show_damage(
                             self.player.rect.centerx, self.player.rect.top - 30,
                             "Cast... wait for the bite.", color=(150, 220, 255))
                         sound_system.play_sound('click')
-                        if self._pond_water:
-                            self._pond_water.splash(*spot)
+                        water = self._water_at(spot)
+                        if water:
+                            water.splash(*spot)
                     else:
                         self.manager.vfx.show_damage(
                             self.player.rect.centerx, self.player.rect.top - 30,
@@ -991,9 +1026,10 @@ class MuckfordCityMenu(BaseMenu):
             if event_name == "bite":
                 self.fishing_flash = self.fishing_session.timer
                 sound_system.play_sound('click')
-                spot = getattr(self.arena, "fishing_spot", None)
-                if self._pond_water and spot:
-                    self._pond_water.splash(*spot)
+                spot = self.active_fishing_spot
+                water = self._water_at(spot)
+                if water and spot:
+                    water.splash(*spot)
             elif event_name == "escaped":
                 self.fishing_flash = 0
                 self.manager.vfx.show_damage(
@@ -1465,7 +1501,8 @@ class MuckfordCityMenu(BaseMenu):
                 self.manager._draw_floating_prompt(screen, door_x, door_y - 40, "E", offset, "Enter Smithy")
 
         # Kalastus: koho vedessä + prompt laiturilla
-        spot = getattr(self.arena, "fishing_spot", None)
+        spot = self.active_fishing_spot if self.fishing_session \
+            else self._nearest_fishing_spot()
         if spot:
             if self.fishing_session:
                 # Koho keinuu; nykäisyssä painuu pinnan alle + "!"
@@ -1490,10 +1527,11 @@ class MuckfordCityMenu(BaseMenu):
                     self.manager._draw_floating_prompt(
                         screen, self.player.rect.centerx,
                         self.player.rect.top - 26, "E", offset, "HOOK IT!")
-            elif math.hypot(self.player.rect.centerx - spot[0],
-                            self.player.rect.centery - spot[1]) < 170:
-                label = "Fish" if fishing_system.has_rod(self.manager) \
-                    else "Fish (need rod)"
+            else:
+                rod, rod_tier = fishing_system.best_rod(self.manager)
+                lvl = fishing_system.get_progress(self.manager)["level"]
+                label = (f"Fish (Lv {lvl}, T{rod_tier} rod)" if rod
+                         else "Fish (need rod)")
                 self.manager._draw_floating_prompt(
                     screen, spot[0], spot[1] - 36, "E", offset, label)
 

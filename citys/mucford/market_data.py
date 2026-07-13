@@ -99,6 +99,8 @@ MARKET_SHOPS = OrderedDict({
              "class": "WeakPickaxe"},
             {"name": "Fishing Rod", "price": 18, "kind": "item",
              "class": "FishingRod"},
+            {"name": "Bogwood Rod", "price": 45, "kind": "item",
+             "class": "BogwoodRod"},
             {"name": "Twisted Stick", "price": 18, "kind": "item"},
             {"name": "Heavy Branch", "price": 22, "kind": "item"},
         ),

@@ -49,11 +49,13 @@ class WaterBlocker:
 class WaterBody:
     """Animoitu vesialue lattiakerrokseen."""
 
-    def __init__(self, x, y, w, h, seed=7):
+    def __init__(self, x, y, w=400, h=300, seed=7):
         self.rect = pygame.Rect(int(x), int(y), int(w), int(h))
+        self.seed = seed
         self._t = random.random() * 100.0
         rng = random.Random(seed)
         self.base = self._paint_base(rng)
+        self.image = self.base   # editorin ghost-esikatselulle
 
         # Kimalluspisteet: (rx, ry, vaihe, nopeus) suhteessa altaan kulmaan
         self.glints = []
@@ -67,6 +69,14 @@ class WaterBody:
         self.ripples = []
         self._ripple_timer = rng.randint(40, 120)
         self._rng = random.Random(seed * 31 + 1)
+
+    # Karttaeditorin serialisointi (save/load project)
+    @property
+    def image_pos(self):
+        return self.rect.topleft
+
+    def serialize_extra(self):
+        return {"w": self.rect.w, "h": self.rect.h, "seed": self.seed}
 
     # ------------------------------------------------------------- pohja
     def _paint_base(self, rng) -> pygame.Surface:
@@ -216,8 +226,9 @@ class WaterBody:
 class FishingJetty:
     """Puinen laituri joka ulottuu veteen - lattiakerros, kävelykelpoinen."""
 
-    def __init__(self, x, y, w, h, seed=3):
+    def __init__(self, x, y, w=170, h=64, seed=3):
         self.rect = pygame.Rect(int(x), int(y), int(w), int(h))
+        self.seed = seed
         rng = random.Random(seed)
         s = pygame.Surface((self.rect.w, self.rect.h), pygame.SRCALPHA)
         plank_h = 12
@@ -237,49 +248,108 @@ class FishingJetty:
     def update(self, *args, **kwargs):
         pass
 
+    @property
+    def image_pos(self):
+        return self.rect.topleft
+
+    def serialize_extra(self):
+        return {"w": self.rect.w, "h": self.rect.h, "seed": self.seed}
+
     def draw(self, screen, offset=(0, 0)):
         screen.blit(self.image, (self.rect.x - offset[0],
                                  self.rect.y - offset[1]))
 
 
-def carve_pond(arena, pond_rect, jetty_side="left", seed=11):
-    """Upottaa lammen areenaan: siivoaa alle jäävät propit, lisää veden
-    lattiakerrokseen, laiturin ja kulkuesteet (laiturikaista jää auki).
+def _subtract_rect(pieces, hole):
+    """Vähentää holen jokaisesta palasta (max 4 uutta palaa/pala).
+    Näin joessa voi olla monta laituria/siltakaistaa."""
+    result = []
+    for r in pieces:
+        cut = r.clip(hole)
+        if cut.w <= 0 or cut.h <= 0:
+            result.append(r)
+            continue
+        if cut.top > r.top:
+            result.append(pygame.Rect(r.x, r.y, r.w, cut.top - r.top))
+        if cut.bottom < r.bottom:
+            result.append(pygame.Rect(r.x, cut.bottom, r.w,
+                                      r.bottom - cut.bottom))
+        if cut.left > r.left:
+            result.append(pygame.Rect(r.x, cut.top, cut.left - r.left, cut.h))
+        if cut.right < r.right:
+            result.append(pygame.Rect(cut.right, cut.top,
+                                      r.right - cut.right, cut.h))
+    return [p for p in result if p.w > 0 and p.h > 0]
 
-    Palauttaa (water, jetty). Asettaa arena.fishing_pond/jetty/spot.
+
+def _jetty_tip(jetty_rect, water_rect):
+    """Kalastuspiste laiturin kärjen edessä (kärki = veden keskustaa
+    lähinnä oleva pää)."""
+    j = jetty_rect
+    dx = water_rect.centerx - j.centerx
+    dy = water_rect.centery - j.centery
+    if abs(dx) >= abs(dy):
+        return (j.right + 46, j.centery) if dx >= 0 else (j.left - 46, j.centery)
+    return (j.centerx, j.bottom + 46) if dy >= 0 else (j.centerx, j.top - 46)
+
+
+def rebuild_water_blockers(arena):
+    """Laskee kaikkien vesien kulkuesteet uudelleen laituriaukkoineen.
+
+    Kutsutaan aina kun vesiä/laitureita lisätään, poistetaan tai
+    siirretään (karttaeditori). Asettaa arena.fishing_spots-listan
+    (+ fishing_pond/jetty/spot yhteensopivuusaliakset).
     """
-    pond = pygame.Rect(pond_rect)
+    arena.obstacles[:] = [o for o in arena.obstacles
+                          if not getattr(o, "is_water", False)]
+    waters = [p for p in arena.floor_props if isinstance(p, WaterBody)]
+    jetties = [p for p in arena.floor_props if isinstance(p, FishingJetty)]
 
-    # Siivoa alle jäävät propit (puut, pensaat, kivet...)
-    clear = pond.inflate(60, 60)
+    spots = []
+    for water in waters:
+        pieces = [pygame.Rect(water.rect)]
+        for jetty in jetties:
+            if jetty.rect.colliderect(water.rect):
+                pieces = _subtract_rect(pieces, jetty.rect.inflate(4, 4))
+        for piece in pieces:
+            arena.obstacles.append(WaterBlocker(piece.x, piece.y,
+                                                piece.w, piece.h))
+    for jetty in jetties:
+        touching = [w for w in waters if jetty.rect.colliderect(
+            w.rect.inflate(80, 80))]
+        if touching:
+            spots.append(_jetty_tip(jetty.rect, touching[0].rect))
+
+    arena.fishing_spots = spots
+    # Yhteensopivuus: vanha yhden lammen rajapinta
+    arena.fishing_pond = pygame.Rect(waters[0].rect) if waters else None
+    arena.fishing_jetty = pygame.Rect(jetties[0].rect) if jetties else None
+    arena.fishing_spot = spots[0] if spots else None
+
+
+def carve_water(arena, rect, seed=11):
+    """Upottaa vesialueen areenaan: siivoaa alle jäävät propit, lisää
+    WaterBodyn lattiakerrokseen ja laskee esteet. Palauttaa WaterBodyn."""
+    area = pygame.Rect(rect)
+    clear = area.inflate(60, 60)
     for prop in list(arena.props):
         if clear.colliderect(prop.rect):
             arena.props.remove(prop)
             if prop in arena.obstacles:
                 arena.obstacles.remove(prop)
-
-    water = WaterBody(pond.x, pond.y, pond.w, pond.h, seed=seed)
+    water = WaterBody(area.x, area.y, area.w, area.h, seed=seed)
     arena.floor_props.append(water)
+    rebuild_water_blockers(arena)
+    return water
 
-    # Laituri länsirannalta veteen
+
+def carve_pond(arena, pond_rect, jetty_side="left", seed=11):
+    """Lampi + laituri länsirannalta. Palauttaa (water, jetty)."""
+    pond = pygame.Rect(pond_rect)
+    water = carve_water(arena, pond, seed=seed)
     jw, jh = 170, 64
     jetty = FishingJetty(pond.x - 26, pond.centery - jh // 2, jw, jh,
                          seed=seed + 1)
     arena.floor_props.append(jetty)
-
-    # Esteet: vesi kiinni paitsi laiturikaistalta
-    j = jetty.rect
-    blocks = [
-        WaterBlocker(pond.x, pond.y, pond.w, j.top - pond.y),
-        WaterBlocker(pond.x, j.bottom, pond.w, pond.bottom - j.bottom),
-        WaterBlocker(j.right, j.top, pond.right - j.right, j.h),
-    ]
-    for b in blocks:
-        if b.rect.w > 0 and b.rect.h > 0:
-            arena.obstacles.append(b)
-
-    arena.fishing_pond = pond
-    arena.fishing_jetty = j
-    # Koho laiturin kärjen edessä
-    arena.fishing_spot = (j.right + 46, j.centery)
+    rebuild_water_blockers(arena)
     return water, jetty

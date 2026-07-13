@@ -1,6 +1,7 @@
 import pygame
 import json
 import os
+import random
 from settings import *
 from ui_kit import draw_text, font_small, font_main, GOLD_COLOR, WHITE, GRAY, GREEN, RED
 
@@ -36,6 +37,9 @@ from units.corrupted_crow import CorruptedCrow
 from units.bog_leech import BogLeech
 from units.giant_frog import GiantFrog
 from units.mnemonic_devourer import MnemonicDevourer
+from assets.tiles.water import (
+    FishingJetty, WaterBody, carve_water, rebuild_water_blockers,
+)
 
 class StoneFloor(Prop):
     def __init__(self, x, y, variant=1):
@@ -95,8 +99,12 @@ class MapEditor:
                       BarrelGroup, MagicCrystal, StagePlatform, InnDrink, InnFood],
             "City": [TavernBuilding, TownHall, ScrapIronBuilding, ShantyHouse, Well, StreetLamp, 
                      SewerGrate, ScrapBarrel, MuckfordStage, MuckfordStall],
-            "Nature": [MuckfordTree, AppleTree, ForestBush, ForestRockBig, ForestGrass, 
+            "Nature": [MuckfordTree, AppleTree, ForestBush, ForestRockBig, ForestGrass,
                        GrassPatch, BogTree, BogReed, MudPool],
+            # Vesi: WaterBody maalataan SHIFT+raahauksella (mikä tahansa koko
+            # -> lammet/joet/meret), FishingJetty klikillä rannalle. Esteet
+            # lasketaan automaattisesti laituriaukkoineen.
+            "Water": [WaterBody, FishingJetty],
             "Farm": [Barn, ChickenCoop, FarmStorage, FarmFenceHorizontal, FarmFenceVertical, 
                      MuckfordField, ManurePile],
             "Crypt": [CryptPillar, CryptBigPillar, CryptRock, BrokenPillar, CryptCoffin, CryptTree, CryptGrass],
@@ -422,11 +430,15 @@ class MapEditor:
         }
         
         def serialize(p):
+            pos = getattr(p, "image_pos", None) or p.rect.topleft
             obj_data = {
                 "class": p.__class__.__name__,
-                "x": p.image_pos[0],
-                "y": p.image_pos[1],
+                "x": pos[0],
+                "y": pos[1],
             }
+            # Vesi/laituri yms: mitat ja seed talteen
+            if hasattr(p, "serialize_extra"):
+                obj_data.update(p.serialize_extra())
             if hasattr(p, "variant"): obj_data["variant"] = p.variant
             if hasattr(p, "angle") and p.angle != 0: obj_data["angle"] = p.angle
             if hasattr(p, "facing_right"): obj_data["facing_right"] = p.facing_right
@@ -480,6 +492,8 @@ class MapEditor:
             
             self._reconstruct_list(data.get("props", []), is_floor=False)
             self._reconstruct_list(data.get("floor_props", []), is_floor=True)
+            # Vesien esteet lasketaan uudestaan laituriaukkoineen
+            rebuild_water_blockers(self.manager.current_arena)
             
             print(f"Project loaded from {filename}")
             if hasattr(self.manager, "vfx"):
@@ -507,7 +521,15 @@ class MapEditor:
             try:
                 # Yritetään luoda objekti (erikoiskäsittely yksiköille)
                 try:
-                    if cls == Villager: obj = Villager("Villager", "Human", x, y, col or GREEN)
+                    if cls is WaterBody:
+                        obj = WaterBody(x, y, obj_data.get("w", 400),
+                                        obj_data.get("h", 300),
+                                        seed=obj_data.get("seed", 7))
+                    elif cls is FishingJetty:
+                        obj = FishingJetty(x, y, obj_data.get("w", 170),
+                                           obj_data.get("h", 64),
+                                           seed=obj_data.get("seed", 3))
+                    elif cls == Villager: obj = Villager("Villager", "Human", x, y, col or GREEN)
                     elif cls == Bard: obj = Bard("Bard", "Elf", x, y, col or GREEN)
                     elif cls == MardaShant: obj = MardaShant(x, y)
                     elif cls == GiantRat: obj = GiantRat("Rat", x, y, team_color=col or RED)
@@ -557,20 +579,32 @@ class MapEditor:
         """Täyttää alueen valitulla objektilla."""
         x1, y1 = start
         x2, y2 = end
-        
+
         # Järjestä koordinaatit (min -> max)
         sx = min(x1, x2)
         sy = min(y1, y2)
         ex = max(x1, x2)
         ey = max(y1, y2)
-        
+
         # Snap to grid
         gs = self.grid_size
         sx = round(sx / gs) * gs
         sy = round(sy / gs) * gs
         ex = round(ex / gs) * gs
         ey = round(ey / gs) * gs
-        
+
+        # Vesi: raahaus = YKSI yhtenäinen allas/joki, ei ruudukkotäyttö
+        if self.selected_prop_class is WaterBody:
+            w = max(self.grid_size * 2, int(ex - sx))
+            h = max(self.grid_size * 2, int(ey - sy))
+            arena = self.manager.current_arena
+            if arena is not None:
+                water = carve_water(arena, (int(sx), int(sy), w, h),
+                                    seed=random.randint(1, 9999))
+                self.history.append({"type": "place", "obj": water})
+                print(f"Water carved: {water.rect}")
+            return
+
         # Loop ja aseta
         for cy in range(int(sy), int(ey) + 1, gs):
             for cx in range(int(sx), int(ex) + 1, gs):
@@ -991,13 +1025,29 @@ class MapEditor:
 
     def place_prop(self, x, y):
         if not self.manager.current_arena: return
-        
+
         obj = None
-        
+
         # Try with variant first
         try:
             if isinstance(self.selected_prop_class, str): return # Skip strings (commands)
-            
+
+            # Vesi ja laituri: lattiakerrokseen + esteet uusiksi
+            arena = self.manager.current_arena
+            if self.selected_prop_class is WaterBody:
+                water = carve_water(arena, (x, y, 400, 300),
+                                    seed=random.randint(1, 9999))
+                self.history.append({"type": "place", "obj": water})
+                return
+            if self.selected_prop_class is FishingJetty:
+                jetty = FishingJetty(x, y)
+                arena.floor_props.append(jetty)
+                rebuild_water_blockers(arena)
+                self.history.append({"type": "place", "obj": jetty})
+                print(f"Jetty placed; fishing spots: "
+                      f"{getattr(arena, 'fishing_spots', [])}")
+                return
+
             current_color = self.team_colors[self.team_color_idx][1]
             
             # Special handling for Units
@@ -1315,6 +1365,9 @@ class MapEditor:
                 self.manager.current_arena.obstacles.remove(obj)
             if hasattr(self.manager.current_arena, "floor_props") and obj in self.manager.current_arena.floor_props:
                 self.manager.current_arena.floor_props.remove(obj)
+            # Vesi/laituri poistui -> esteet uusiksi
+            if isinstance(obj, (WaterBody, FishingJetty)):
+                rebuild_water_blockers(self.manager.current_arena)
             print(f"Undo Place: {obj}")
             
         elif action["type"] == "delete":

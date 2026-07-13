@@ -459,9 +459,11 @@ MARKET_PRICES = {
         "Spider Silk": 6, "Venom Gland": 12, "Silver Ore": 25,
         "Blacksteel Ore": 18, "Ironbark": 14, "Direhide": 16,
         "Silent Veil": 22, "Plague Bone": 6, "Toxic Sludge": 5,
-        # Suokalat (kalastus, systems/fishing.py)
+        # Kalat tiereittäin (kalastus, systems/fishing.py)
         "Mudfin": 3, "Bog Perch": 5, "Rat-tail Eel": 9,
-        "Whisker Catfish": 14, "Marsh Pike": 26,
+        "Whisker Catfish": 14, "Bronze Bream": 20, "Marsh Pike": 26,
+        "Duskgill": 42, "Silver Eelmother": 60,
+        "Vortex Koi": 120, "Blind Abyss Sturgeon": 150,
     },
     # Mitä pelaaja voi ostaa kojulta
     "buy": {
