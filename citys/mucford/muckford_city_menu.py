@@ -1463,6 +1463,7 @@ class MuckfordCityMenu(BaseMenu):
         if not self.manager.world_paused:
             self._update_simulation()
             self._update_ambient_event()
+            self._update_ground_birds()
 
         # 3. VFX
         self.vfx.update(self.manager)
@@ -1723,11 +1724,106 @@ class MuckfordCityMenu(BaseMenu):
             pass
 
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Maassa nokkivat linnut (pelitesti 14: ambient-elämä)
+    # ------------------------------------------------------------------
+    def _update_ground_birds(self):
+        """Päivisin pikkulintuja laskeutuu nokkimaan katua; pelaajan
+        lähestyminen (tai yö/sade) ajaa ne siivilleen."""
+        if not hasattr(self, "_ground_birds"):
+            self._ground_birds = []
+            self._next_ground_bird = 400
+        clock = self.manager.world_clock
+        daytime = 6 <= clock.hour < 20
+        good_weather = clock.weather not in ("rain", "storm")
+
+        self._next_ground_bird -= 1
+        if self._next_ground_bird <= 0 and daytime and good_weather and \
+                len(self._ground_birds) < 3:
+            self._next_ground_bird = self.rng.randint(500, 1200)
+            # Laskeudutaan kadulle pelaajan näköpiirin liepeille
+            px, py = self.player.rect.center
+            bx = px + self.rng.randint(-700, 700)
+            by = py + self.rng.randint(-450, 450)
+            bx = max(80, min(self.arena.width - 80, bx))
+            by = max(80, min(self.arena.height - 80, by))
+            self._ground_birds.append({
+                "x": float(bx), "y": float(by) - 260.0, "ty": float(by),
+                "state": "landing", "timer": self.rng.randint(500, 900),
+                "peck": 0, "hop_vx": 0.0,
+                "col": self.rng.choice(((94, 78, 62), (70, 70, 78),
+                                        (118, 92, 60))),
+            })
+
+        px, py = self.player.rect.center
+        alive = []
+        for b in self._ground_birds:
+            if b["state"] == "landing":
+                b["y"] += 4.5
+                if b["y"] >= b["ty"]:
+                    b["y"] = b["ty"]
+                    b["state"] = "ground"
+            elif b["state"] == "ground":
+                b["timer"] -= 1
+                near = math.hypot(px - b["x"], py - b["y"]) < 130
+                if b["timer"] <= 0 or near or not daytime:
+                    b["state"] = "flying"
+                    b["hop_vx"] = self.rng.choice((-1, 1)) * 3.2
+                else:
+                    # Nokkiminen + pienet hypähdykset
+                    b["peck"] = (b["peck"] + 1) % 90
+                    if b["peck"] == 0 and self.rng.random() < 0.6:
+                        b["hop_vx"] = self.rng.uniform(-14, 14)
+                    if abs(b["hop_vx"]) > 0.2:
+                        b["x"] += b["hop_vx"] * 0.1
+                        b["hop_vx"] *= 0.82
+            else:  # flying pois
+                b["x"] += b["hop_vx"]
+                b["y"] -= 5.0
+                if b["y"] < b["ty"] - 320:
+                    continue
+            alive.append(b)
+        self._ground_birds = alive
+
+    def _draw_ground_birds(self, screen, offset):
+        for b in getattr(self, "_ground_birds", []):
+            sx = int(b["x"] - offset[0])
+            sy = int(b["y"] - offset[1])
+            if not (-40 < sx < SCREEN_WIDTH + 40 and
+                    -40 < sy < SCREEN_HEIGHT + 40):
+                continue
+            col = b["col"]
+            if b["state"] == "ground":
+                # Nokkiva lintu: runko, pää painuu alas nokkimaan
+                pecking = b["peck"] % 90 < 26
+                pygame.draw.ellipse(screen, col, (sx - 6, sy - 8, 12, 8))
+                hx = sx + 6
+                hy = sy - 9 + (5 if pecking else 0)
+                pygame.draw.circle(screen, col, (hx, hy), 3)
+                pygame.draw.line(screen, (214, 170, 60), (hx + 2, hy),
+                                 (hx + 6, hy + (2 if pecking else 0)), 2)
+                pygame.draw.line(screen, (30, 26, 22), (sx - 2, sy),
+                                 (sx - 2, sy + 3), 1)
+                pygame.draw.line(screen, (30, 26, 22), (sx + 2, sy),
+                                 (sx + 2, sy + 3), 1)
+            else:
+                # Lennossa: siivet "^"
+                t = pygame.time.get_ticks() * 0.02
+                wing = int(4 + math.sin(t + b["x"]) * 3)
+                pygame.draw.line(screen, col, (sx - 6, sy - wing),
+                                 (sx, sy), 2)
+                pygame.draw.line(screen, col, (sx + 6, sy - wing),
+                                 (sx, sy), 2)
+                pygame.draw.circle(screen, col, (sx, sy), 2)
+
     def _start_bard_performance(self, stage):
         """Iltashow: oikea bardihahmo (sama sprite/musiikki kuin tavernassa,
         oma nimi), yleisö kerääntyy ja Petra tarjoilee olutta."""
         from units.bard import Bard
-        bard = Bard("Wren Reedpipe", "Human",
+        # BUGIKORJAUS (pelitesti 14): rotu oli "Human", mutta bardisprite-
+        # kuvat ovat elf-kansiossa (sama hahmo kuin tavernassa) -> lavalla
+        # näkyi pelkkä sininen neliö. Sama sprite, oma nimi.
+        bard = Bard("Wren Reedpipe", "Elf",
                     stage.rect.centerx, stage.image_pos[1], team_color=GREEN)
         bard.rect.centerx = stage.rect.centerx
         bard.rect.bottom = stage.image_pos[1] + stage.image.get_height() - 20
@@ -2074,6 +2170,9 @@ class MuckfordCityMenu(BaseMenu):
                 obj.draw_on_screen(screen, offset)
             elif hasattr(obj, "image"):
                 screen.blit(obj.image, (obj.rect.x - offset[0], obj.rect.y - offset[1]))
+
+        # 2.5 Maassa nokkivat linnut (ambient-elämä, pelitesti 14)
+        self._draw_ground_birds(screen, offset)
 
         # 3. VFX
         self.vfx.draw_top(screen, offset)

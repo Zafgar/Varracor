@@ -678,14 +678,27 @@ class BaseAI:
         final_dy = ndy + (sep_y * 4.0) + (obs_y * 3.0) + (haz_y * 6.0)
         
         l = math.hypot(final_dx, final_dy) or 1
-        
+
+        # SUUNNAN PEHMENNYS (pelitesti 14): suunta laskettiin joka frame
+        # tyhjästä, jolloin viikset/separaatio/väistöt heiluttivat sitä
+        # puolelta toiselle ja kävelijät "tärisivät". Liu'utetaan uutta
+        # suuntaa edellisen päälle - kääntyminen näyttää kävelyltä.
+        desired = pygame.math.Vector2(final_dx / l, final_dy / l)
+        prev = getattr(self, "_smooth_dir", None)
+        if prev is not None and prev.length_squared() > 0.01:
+            desired = prev * 0.55 + desired * 0.45
+            if desired.length_squared() > 0.0001:
+                desired = desired.normalize()
+        self._smooth_dir = pygame.math.Vector2(desired)
+
         speed = self.unit.speed
-        move_x = (final_dx / l) * speed
-        move_y = (final_dy / l) * speed
-        
+        move_x = desired.x * speed
+        move_y = desired.y * speed
+
         self.unit.check_wall_collision(move_x, move_y, obstacles)
-        
-        if abs(move_x) > 0.1:
+
+        # Hystereesi: pieni sivuttaishuojunta ei enää räpsytä katsetta
+        if abs(move_x) > 0.35:
             self.unit.facing_right = (move_x > 0)
 
     def _calculate_separation(self, all_units):

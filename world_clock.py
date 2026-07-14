@@ -26,9 +26,9 @@ DAYS_PER_YEAR = DAYS_PER_SEASON * len(SEASONS)
 # 1 pelipäivä = 15 min reaaliaikaa -> 1440 pelimin / (15*60*60) framea
 MINUTES_PER_FRAME = 1440.0 / (15 * 60 * 60)
 
-WEATHER_TYPES = ["clear", "wind", "rain", "storm"]
-# Painot: selkeä yleisin, myrsky harvinainen
-WEATHER_WEIGHTS = [55, 20, 20, 5]
+WEATHER_TYPES = ["clear", "cloudy", "wind", "rain", "storm"]
+# Painot: selkeä yleisin, myrsky harvinainen (pelitesti 14: + pilvinen)
+WEATHER_WEIGHTS = [42, 16, 18, 19, 5]
 
 
 class WorldClock:
@@ -48,6 +48,10 @@ class WorldClock:
         self._lightning_flash = 0
         self._thunder_delay = 0
         self._overlay = None  # yö-tummennuksen jaettu pinta
+        self._clouds = None   # pilvisen sään ajelehtivat pilvivarjot
+        # Taivaan elämä: linnut päivällä, lepakot yöllä (ruutuavaruudessa)
+        self._sky_life = []
+        self._next_flock = 240
 
         # Ambient-luupit (sade/tuuli). Kanavat pidetään tallessa jotta
         # luuppi voidaan feidata pois sään vaihtuessa.
@@ -159,6 +163,7 @@ class WorldClock:
             "storm": ["rain_medium", "wind_loop_normal"],
             "wind":  ["wind_loop_normal"],
             "clear": ["wind_loop_gentle"],
+            "cloudy": ["wind_loop_gentle"],
         }.get(self.weather, [])
         for name in loops:
             try:
@@ -199,6 +204,7 @@ class WorldClock:
 
     def draw_overlays(self, screen):
         self._draw_weather(screen)
+        self._draw_sky_life(screen)
         self._draw_night(screen)
 
     def _draw_night(self, screen):
@@ -208,6 +214,8 @@ class WorldClock:
             alpha = max(alpha, 70)
         elif self.weather == "rain":
             alpha = max(alpha, 40)
+        elif self.weather == "cloudy":
+            alpha = max(alpha, 24)
         if alpha <= 0:
             return
         if self._overlay is None:
@@ -222,6 +230,8 @@ class WorldClock:
             screen.blit(flash, (0, 0))
 
     def _draw_weather(self, screen):
+        if self.weather == "cloudy":
+            self._draw_clouds(screen)
         if self.weather in ("rain", "storm"):
             self._update_and_draw_rain(screen)
         elif self.weather == "wind":
@@ -236,6 +246,81 @@ class WorldClock:
                     "life": 300,
                 })
             self._update_and_draw_rain(screen, wind_only=True)
+
+    def _draw_clouds(self, screen):
+        """Pilvinen päivä: suuria pehmeitä pilvivarjoja jotka ajelehtivat
+        hitaasti ruudun poikki tuulen suuntaan."""
+        if self._clouds is None:
+            rng = random.Random(17)
+            self._clouds = [{
+                "x": rng.uniform(-400, SCREEN_WIDTH + 400),
+                "y": rng.uniform(-120, SCREEN_HEIGHT - 120),
+                "w": rng.randint(420, 900),
+                "h": rng.randint(180, 320),
+                "v": rng.uniform(0.25, 0.6),
+                "a": rng.randint(26, 44),
+            } for _ in range(5)]
+        for c in self._clouds:
+            c["x"] += c["v"] * self.wind_dir
+            if self.wind_dir > 0 and c["x"] > SCREEN_WIDTH + 500:
+                c["x"] = -c["w"] - 100
+            elif self.wind_dir < 0 and c["x"] < -c["w"] - 500:
+                c["x"] = SCREEN_WIDTH + 100
+            shadow = pygame.Surface((c["w"], c["h"]), pygame.SRCALPHA)
+            pygame.draw.ellipse(shadow, (18, 20, 30, c["a"]),
+                                shadow.get_rect())
+            pygame.draw.ellipse(shadow, (18, 20, 30, c["a"] // 2),
+                                (c["w"] * 0.15, -c["h"] * 0.2,
+                                 c["w"] * 0.7, c["h"]))
+            screen.blit(shadow, (int(c["x"]), int(c["y"])))
+
+    def _draw_sky_life(self, screen):
+        """Linnut lentävät taivaalla päivisin, lepakot lepattavat öisin.
+        Piirretään ruutuavaruudessa maailman päälle (pelitesti 14)."""
+        night = self.is_night
+        bad_weather = self.weather in ("rain", "storm")
+        self._next_flock -= 1
+        if self._next_flock <= 0 and not bad_weather:
+            self._next_flock = random.randint(500, 1100)
+            going_right = random.random() < 0.5
+            n = random.randint(2, 5) if not night else random.randint(1, 3)
+            base_y = random.uniform(40, SCREEN_HEIGHT * 0.45)
+            for i in range(n):
+                self._sky_life.append({
+                    "x": (-30 - i * 34) if going_right
+                         else (SCREEN_WIDTH + 30 + i * 34),
+                    "y": base_y + random.uniform(-30, 30),
+                    "vx": (1 if going_right else -1) *
+                          random.uniform(2.2, 3.2) * (1.4 if night else 1.0),
+                    "phase": random.uniform(0, 6.28),
+                    "bat": night,
+                })
+        alive = []
+        t = pygame.time.get_ticks() * 0.02
+        for b in self._sky_life:
+            b["x"] += b["vx"]
+            if b["bat"]:
+                # Lepakot lepattavat epävakaasti
+                b["y"] += math.sin(t * 1.7 + b["phase"]) * 2.6
+            else:
+                b["y"] += math.sin(t * 0.6 + b["phase"]) * 0.8
+            if b["x"] < -60 or b["x"] > SCREEN_WIDTH + 60:
+                continue
+            x, y = int(b["x"]), int(b["y"])
+            flap = math.sin(t * (2.2 if b["bat"] else 1.4) + b["phase"])
+            wing = int(5 + flap * 4)
+            col = (26, 22, 30) if b["bat"] else (50, 46, 42)
+            # Siivet "^"-muotoina, lepakolla sahalaitaisemmat
+            pygame.draw.line(screen, col, (x - 7, y - wing), (x, y), 2)
+            pygame.draw.line(screen, col, (x + 7, y - wing), (x, y), 2)
+            if b["bat"]:
+                pygame.draw.line(screen, col, (x - 7, y - wing),
+                                 (x - 11, y - wing + 4), 2)
+                pygame.draw.line(screen, col, (x + 7, y - wing),
+                                 (x + 11, y - wing + 4), 2)
+            pygame.draw.circle(screen, col, (x, y), 2)
+            alive.append(b)
+        self._sky_life = alive
 
     def _update_and_draw_rain(self, screen, wind_only=False):
         # Uusia pisaroita

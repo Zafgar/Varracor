@@ -321,9 +321,13 @@ class UIButton:
         screen.blit(text_surf, text_rect)
 
     def is_clicked(self, event):
+        # BUGIKORJAUS (pelitesti 14): laukesi sekä DOWN- että UP-eventistä,
+        # jolloin samaan valikkoon jäävä nappi (esim. kaupan BUY) suoritti
+        # toimintonsa KAHDESTI - "fishing rod antaa niitä kaksi".
         if not self.enabled:
             return False
-        if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP) and getattr(event, "button", None) == 1:
+        if event.type == pygame.MOUSEBUTTONDOWN and \
+                getattr(event, "button", None) == 1:
             mx, my = event.pos
             return self._last_draw_rect.collidepoint((mx, my))
         return False

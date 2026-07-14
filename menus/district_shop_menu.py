@@ -52,6 +52,8 @@ class DistrictShopMenu(BaseMenu):
         # Ostovahvistus: klikkaus VALITSEE rivin, BUY-nappi ostaa.
         # Estää vahinko-ostot pelkällä klikillä.
         self.selected_entry = None
+        # Myyntivahvistus: 1. klikkaus valitsee, 2. klikkaus myy
+        self.selected_sell = None
         self.btn_buy = UIButton(SCREEN_WIDTH - 490, SCREEN_HEIGHT - 96,
                                 210, 58, "BUY", None, (65, 135, 80))
 
@@ -152,11 +154,18 @@ class DistrictShopMenu(BaseMenu):
             self._buy(self.selected_entry)
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            # Myyntirivit: klikkaus myy 1, SHIFT+klikkaus myy kaikki
+            # Myyntirivit: 1. klikkaus VALITSEE, 2. klikkaus samaan riviin
+            # myy (SHIFT = kaikki). Estää vahinkomyynnit (pelitesti 14).
             for rect, name in self.sell_rects:
                 if rect.collidepoint(event.pos):
                     mods = pygame.key.get_mods()
-                    self._sell(name, sell_all=bool(mods & pygame.KMOD_SHIFT))
+                    if self.selected_sell == name:
+                        self._sell(name,
+                                   sell_all=bool(mods & pygame.KMOD_SHIFT))
+                        self.selected_sell = None
+                    else:
+                        self.selected_sell = name
+                        sound_system.play_sound("hover")
                     return
             for rect, entry in self.row_rects:
                 if rect.collidepoint(event.pos):
@@ -215,7 +224,7 @@ class DistrictShopMenu(BaseMenu):
         # --- VASEN: YOUR GOODS (myynti, kuten Muckford Marketissa) ---
         left = pygame.Rect(160, 274, 620, 560)
         self.draw_soft_panel(screen, left, alpha=205, border_alpha=180, radius=12)
-        draw_text("YOUR GOODS (click = sell 1, SHIFT = all)", font_main,
+        draw_text("YOUR GOODS (click twice to sell, SHIFT = all)", font_main,
                   (150, 200, 165), screen, left.x + 26, left.y + 18)
         self.sell_rects = []
         sy = left.y + 62
@@ -228,9 +237,16 @@ class DistrictShopMenu(BaseMenu):
         for name, count, unit_price in goods[:8]:
             row = pygame.Rect(left.x + 22, sy, left.w - 44, 48)
             hover = row.collidepoint(mouse_pos)
-            pygame.draw.rect(screen, (44, 44, 52) if hover else (32, 33, 39),
+            sel = (self.selected_sell == name)
+            pygame.draw.rect(screen,
+                             (66, 62, 44) if sel else
+                             ((44, 44, 52) if hover else (32, 33, 39)),
                              row, border_radius=8)
-            pygame.draw.rect(screen, awning, row, 1, border_radius=8)
+            pygame.draw.rect(screen, GOLD_COLOR if sel else awning, row,
+                             2 if sel else 1, border_radius=8)
+            if sel:
+                draw_text("click again to sell", font_small, GOLD_COLOR,
+                          screen, row.x + 16, row.bottom - 18)
             draw_text(f"{name}  x{count}", font_main, WHITE, screen,
                       row.x + 16, row.y + 12)
             price_surf = font_main.render(format_money(unit_price), True,

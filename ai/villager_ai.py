@@ -362,8 +362,11 @@ class VillagerAI(BaseAI):
     def _try_talk(self, manager, phrases=None):
         if not manager: return
 
-        if self.speech_timer <= 0 and random.random() < 0.005: # 0.5% per frame (harvemmin)
-            self.speech_timer = random.randint(500, 1000) # 8-16s hiljaisuus
+        # Pelitesti 14: kylä tuntui hiljaiselta - juttuja useammin ja
+        # puheliaat (social_score) aloittavat herkemmin
+        chance = 0.008 + 0.008 * self.social_score
+        if self.speech_timer <= 0 and random.random() < chance:
+            self.speech_timer = random.randint(350, 700) # 6-12s hiljaisuus
 
             # Etsi keskustelukumppani (lähellä oleva joutilas villager)
             partner = None
@@ -374,7 +377,7 @@ class VillagerAI(BaseAI):
                 if not isinstance(ai, VillagerAI): continue
                 if ai.state not in (STATE_IDLE, STATE_WORK): continue
                 if math.hypot(u.rect.centerx - self.unit.rect.centerx,
-                              u.rect.centery - self.unit.rect.centery) < 150:
+                              u.rect.centery - self.unit.rect.centery) < 190:
                     partner = u
                     break
 
@@ -399,7 +402,7 @@ class VillagerAI(BaseAI):
                 reply = random.choice([l for l in lines if l != opener] or lines)
                 manager.vfx.create_speech_bubble(self.unit, opener, duration=200)
                 p_ai.pending_reply = (reply, random.randint(90, 140))
-            elif random.random() < 0.3: # Puhu yksikseen harvemmin
+            elif random.random() < 0.45: # Puhu yksikseen harvemmin
                 manager.vfx.create_speech_bubble(self.unit, random.choice(lines), duration=180)
 
     def _find_farm_work(self, all_units, manager):

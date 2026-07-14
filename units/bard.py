@@ -24,12 +24,18 @@ class Bard(Gladiator):
         self.sprites = {}
         self._load_bard_sprites(race)
         
+        # Rotukohtaisten kuvien puuttuessa käytetään elf-bardin kuvia
+        # (sama hahmo kuin tavernassa) - ei sinistä neliötä lavalle
+        if not self.sprites and race.lower() != "elf":
+            self._load_bard_sprites("Elf")
+
         # Default image
         if "idle" in self.sprites:
             self.image = self.sprites["idle"]
         else:
-            self.image = pygame.Surface((36, 60))
-            self.image.fill((100, 100, 200))
+            # Proseduraalinen bardi (repossa ei ole kuva-assetteja):
+            # hahmo luutun kanssa tasavärisen laatikon sijaan
+            self.image = self._draw_procedural_bard()
 
         # Portrait
         if not getattr(self, "big_image", None):
@@ -37,6 +43,28 @@ class Bard(Gladiator):
                 # Käytetään kuvan kokoa skaalaukseen, ei hitboxia (joka on vain jalat)
                 w, h = self.image.get_size()
                 self.big_image = pygame.transform.smoothscale(self.image, (w * 3, h * 3))
+
+    def _draw_procedural_bard(self):
+        """Koodipiirretty bardi: tunika, hilkka ja luuttu."""
+        surf = pygame.Surface((36, 60), pygame.SRCALPHA)
+        # Jalat + saappaat
+        pygame.draw.rect(surf, (74, 52, 36), (10, 46, 6, 12))
+        pygame.draw.rect(surf, (74, 52, 36), (20, 46, 6, 12))
+        # Tunika (viininpunainen)
+        pygame.draw.rect(surf, (128, 52, 64), (8, 24, 20, 24),
+                         border_radius=4)
+        pygame.draw.rect(surf, (96, 38, 48), (8, 24, 20, 24), 1,
+                         border_radius=4)
+        # Pää + hilkka sulalla
+        pygame.draw.circle(surf, (214, 176, 140), (18, 16), 8)
+        pygame.draw.polygon(surf, (60, 96, 70),
+                            [(9, 14), (27, 14), (24, 6), (12, 6)])
+        pygame.draw.line(surf, (226, 212, 120), (25, 8), (31, 2), 2)
+        # Luuttu (rungon soikio + kaula)
+        pygame.draw.ellipse(surf, (150, 108, 62), (18, 32, 14, 18))
+        pygame.draw.line(surf, (110, 78, 44), (24, 34), (33, 22), 3)
+        pygame.draw.line(surf, (230, 224, 200), (23, 44), (32, 24), 1)
+        return surf
 
     def _load_bard_sprites(self, race):
         base_path = os.path.join("assets", "races", race.lower())

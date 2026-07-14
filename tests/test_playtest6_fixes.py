@@ -141,8 +141,12 @@ def test_district_shop_sell_panel():
     assert menu.sell_rects, "myyntirivit piirtyvät"
     rect, name = menu.sell_rects[0]
     assert name == "Bitterleaf"
-    # Klikkaus myy yhden
+    # Pelitesti 14: 1. klikkaus VALITSEE (ei myy), 2. klikkaus myy yhden
     g0 = m.gold
+    menu.handle_event(pygame.event.Event(
+        pygame.MOUSEBUTTONDOWN, pos=rect.center, button=1))
+    assert m.gold == g0, "eka klikkaus vain valitsee rivin"
+    assert menu.selected_sell == "Bitterleaf"
     menu.handle_event(pygame.event.Event(
         pygame.MOUSEBUTTONDOWN, pos=rect.center, button=1))
     assert m.gold > g0

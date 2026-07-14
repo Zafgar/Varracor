@@ -30,6 +30,14 @@ except ImportError:
     quest_manager = None
     print("Warning: Quest System could not be loaded in GameManager.")
 
+# Tilat joissa quest journal -paneeli näytetään (J näyttää/piilottaa)
+QUEST_JOURNAL_STATES = (
+    "muckford_city", "mine_road", "mine_cave", "forest_excursion",
+    "forest_road", "low_fields", "greywash_ford", "kingsreach_toll",
+    "muckford_warrens", "drowned_chapel", "old_muckford_mine",
+    "whisper_marsh",
+)
+
 # --- UNITS ---
 from units.human import Human
 from units.orc import Orc
@@ -148,6 +156,9 @@ class GameManager:
         self.active_bet = None
         # Kaivoksen avain: Marda antaa kun velka on maksettu
         self.mine_key_owned = False
+        # Quest journal -paneeli pelinäkymässä (J tai klikkaus piilottaa)
+        self.show_quest_journal = True
+        self._journal_toggle_rect = None
 
         # --- GAME STATE ---
         self.mode = "Arena" 
@@ -2056,6 +2067,89 @@ class GameManager:
             if dist < 100:
                  self._draw_floating_prompt(screen, tx, target.rect.top - 40, "!", offset, "Arrived")
 
+    def _draw_quest_journal(self, screen):
+        """Quest journal: aktiiviset ja palautettavat questit tehtävineen
+        ja palkintoineen pelinäkymän oikeassa laidassa. Silmänappi (tai J)
+        piilottaa paneelin - piilossa näkyy vain pieni QUESTS-nuppi."""
+        from ui_kit import format_money
+        if quest_manager is None:
+            return
+        panel_w = 380
+        x = SCREEN_WIDTH - panel_w - 24
+        y = 170  # TEAM/NEXT-tavoitepaneelin alle
+
+        # Piilotettu: pelkkä avausnuppi
+        if not self.show_quest_journal:
+            chip = pygame.Rect(SCREEN_WIDTH - 150, y, 126, 34)
+            pygame.draw.rect(screen, (18, 18, 24), chip, border_radius=9)
+            pygame.draw.rect(screen, (150, 130, 80), chip, 2, border_radius=9)
+            draw_text("QUESTS [J]", font_small, (220, 200, 150), screen,
+                      chip.x + 14, chip.y + 8)
+            self._journal_toggle_rect = chip
+            return
+
+        active = [q for q in quest_manager.quests.values()
+                  if q.status == "active"]
+        turn_in = [q for q in quest_manager.quests.values()
+                   if q.status == "completed" and not q.is_finished]
+        rows = turn_in + active
+
+        # Korkeus sisällön mukaan (max 5 questia näkyvissä)
+        rows = rows[:5]
+        h = 54 + (len(rows) * 74 if rows else 40)
+        panel = pygame.Rect(x, y, panel_w, h)
+        surf = pygame.Surface(panel.size, pygame.SRCALPHA)
+        surf.fill((14, 14, 20, 205))
+        screen.blit(surf, panel.topleft)
+        pygame.draw.rect(screen, (150, 130, 80), panel, 2, border_radius=10)
+        draw_text("QUEST JOURNAL", font_small, GOLD_COLOR, screen,
+                  panel.x + 14, panel.y + 10)
+        # Silmänappi (piilota)
+        eye = pygame.Rect(panel.right - 42, panel.y + 6, 32, 26)
+        pygame.draw.rect(screen, (40, 38, 32), eye, border_radius=7)
+        pygame.draw.rect(screen, (150, 130, 80), eye, 1, border_radius=7)
+        pygame.draw.ellipse(screen, (220, 200, 150),
+                            (eye.x + 7, eye.y + 8, 18, 10), 2)
+        pygame.draw.circle(screen, (220, 200, 150), eye.center, 3)
+        self._journal_toggle_rect = eye
+
+        yy = panel.y + 40
+        if not rows:
+            draw_text("No active quests. Check the notice", font_small,
+                      GRAY, screen, panel.x + 14, yy)
+            draw_text("board and talk to villagers.", font_small,
+                      GRAY, screen, panel.x + 14, yy + 20)
+            return
+        for q in rows:
+            ready = (q.status == "completed")
+            col = (140, 230, 150) if ready else WHITE
+            title = q.title[:34]
+            draw_text(title, font_small, col, screen, panel.x + 14, yy)
+            # Edistyminen / palautuskehotus
+            req = int(getattr(q.definition, "required_amount", 0) or 0)
+            if ready:
+                status = "READY - return to the quest giver!"
+            elif req > 1:
+                status = f"Progress {int(q.progress)}/{req}"
+            else:
+                status = (q.description or "")[:52]
+            draw_text(status, font_small,
+                      (150, 200, 160) if ready else (170, 170, 180),
+                      screen, panel.x + 14, yy + 22)
+            # Palkinnot
+            rw = q.rewards or {}
+            parts = []
+            if rw.get("gold"):
+                parts.append(format_money(int(rw["gold"])))
+            if rw.get("reputation"):
+                parts.append(f"+{rw['reputation']} rep")
+            if rw.get("xp"):
+                parts.append(f"{rw['xp']} XP")
+            if parts:
+                draw_text("Reward: " + "  ".join(parts), font_small,
+                          (200, 180, 120), screen, panel.x + 14, yy + 44)
+            yy += 74
+
     def _draw_floating_prompt(self, screen, x, y, key_text, offset, label_text=None):
         # Floating effect (Siniaalto)
         float_y = math.sin(pygame.time.get_ticks() * 0.008) * 4
@@ -2366,6 +2460,19 @@ class GameManager:
             if handled is not None:
                 return handled
 
+        # Quest journal: J tai paneelin silmänappi näyttää/piilottaa
+        if current_state_key in QUEST_JOURNAL_STATES:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_j:
+                self.show_quest_journal = not self.show_quest_journal
+                sound_system.play_sound('click')
+                return True
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 \
+                    and self._journal_toggle_rect is not None \
+                    and self._journal_toggle_rect.collidepoint(event.pos):
+                self.show_quest_journal = not self.show_quest_journal
+                sound_system.play_sound('click')
+                return True
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 # Toggle pause (vain jos ei olla päävalikossa/latauksessa)
@@ -2613,6 +2720,14 @@ class GameManager:
                                  "town_hall") and not self.paused:
             try:
                 self.world_clock.draw_hud(screen, font_small)
+            except Exception:
+                pass
+
+        # 0.6 Quest journal -paneeli (J tai silmänappi piilottaa/näyttää)
+        if current_state_key in QUEST_JOURNAL_STATES and not self.paused \
+                and not self.active_dialogue and not self.show_inventory:
+            try:
+                self._draw_quest_journal(screen)
             except Exception:
                 pass
 
