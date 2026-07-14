@@ -1137,6 +1137,18 @@ class MuckfordCityMenu(BaseMenu):
                         if not self._stalls_open():
                             self._closed_stall_notice(stall)
                             return
+                        # BUGIKORJAUS (pelitesti 12): pitäjä seisoo kojun
+                        # TAKANA eikä pelaaja ylety häneen tiskin yli -
+                        # jos pitäjällä on quest otettavana/palautettavana,
+                        # E kojulla avaa quest-dialogin kaupan sijaan.
+                        keeper = self._keeper_for_stall(stall)
+                        if keeper is not None and quest_manager and \
+                                quest_manager.npc_has_actionable_quest(
+                                    keeper.name):
+                            self.manager.open_patron_dialogue(
+                                keeper, return_state="muckford_city")
+                            self.next_state = "dialogue_active"
+                            return
                         self.manager.pending_shop_id = stall.shop_id
                         self.next_state = "district_shop"
                         sound_system.play_sound('click')
@@ -2157,7 +2169,7 @@ class MuckfordCityMenu(BaseMenu):
                                   bx - 6, by - 58)
                     self.manager._draw_floating_prompt(
                         screen, self.player.rect.centerx,
-                        self.player.rect.top - 26, "E", "HOOK IT!")
+                        self.player.rect.top - 26, "E", offset, "HOOK IT!")
 
                 # Väsytysvaihe: kireys- ja kelausmittarit pelaajan yllä
                 if self.fishing_session.state == "REELING":
@@ -2724,6 +2736,17 @@ class MuckfordCityMenu(BaseMenu):
     def _stalls_open(self):
         """Kojut ja markkinat auki klo 8-20."""
         return 8 <= self.manager.world_clock.hour < 20
+
+    def _keeper_for_stall(self, stall):
+        """Palauttaa kojun pitäjä-NPC:n (nimi market_datasta) tai None."""
+        from citys.mucford.market_data import MARKET_SHOPS
+        name = MARKET_SHOPS.get(getattr(stall, "shop_id", ""), {}).get("keeper")
+        if not name:
+            return None
+        for keeper in getattr(self, "stall_keepers", []):
+            if keeper.name == name:
+                return keeper
+        return None
 
     def _closed_stall_notice(self, prop):
         self.manager.vfx.show_damage(

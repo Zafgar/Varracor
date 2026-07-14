@@ -101,8 +101,23 @@ class QuestManager:
             if q.status == "available":
                 dialogue = q.definition.get_dialogue_for_npc(npc_id, "available")
                 if dialogue: return dialogue
-                
+
         return None
+
+    def npc_has_actionable_quest(self, npc_id):
+        """True jos NPC:llä on quest jonka voi OTTAA tai PALAUTTAA juuri
+        nyt. Kojujen E-intercept käyttää tätä: active-tilassa (haku
+        kesken) kojun kauppa saa aueta normaalisti, jotta pelaaja pääsee
+        yhä ostoksille questin aikana."""
+        for q in self.quests.values():
+            if q.status == "completed" and not q.is_finished and \
+                    q.definition.get_dialogue_for_npc(npc_id, "completed"):
+                return True
+        for q in self.quests.values():
+            if q.status == "available" and \
+                    q.definition.get_dialogue_for_npc(npc_id, "available"):
+                return True
+        return False
 
     # --- QUEST LOGIIKKA ---
 

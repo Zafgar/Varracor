@@ -63,7 +63,17 @@ class GameplayScreen(BaseMenu):
         super().update() # BaseMenu update (editor)
         
         if self.manager.paused: return
-        
+
+        # BUGIKORJAUS (pelitesti 12): in-game dialogi pausaa pelilogiikan
+        # myös GameplayScreen-kartoilla - muuten dialogissa painetut
+        # napit (1-3, klikkaukset) castasivat loitsuja taustalla
+        if self.manager.active_dialogue:
+            if self.manager.dialogue_cooldown > 0:
+                self.manager.dialogue_cooldown -= 1
+            self.manager.vfx.update(
+                obstacles=getattr(self.arena, "obstacles", None))
+            return
+
         # Varmistetaan että peli on "käynnissä" jotta combat toimii
         self.manager.match_in_progress = True
 

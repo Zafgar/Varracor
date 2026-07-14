@@ -669,6 +669,21 @@ class Commander(Gladiator):
         if manager and getattr(manager, "show_inventory", False):
             return
 
+        # BUGIKORJAUS (pelitesti 12): syöte ei saa vuotaa pause-valikon
+        # tai dialogin läpi - nappien painelu valikossa castasi loitsuja
+        # taustalle. Kun valikko sulkeutuu, pohjassa oleva LMB (valikon
+        # sulkenut klikkaus) ei myöskään saa lyödä/castata heti.
+        if manager and (getattr(manager, "paused", False)
+                        or getattr(manager, "active_dialogue", None)):
+            self._resume_input_block = True
+            return
+        if getattr(self, "_resume_input_block", False):
+            self.prev_keys = pygame.key.get_pressed()
+            self.prev_mouse = pygame.mouse.get_pressed()
+            if self.prev_mouse[0]:
+                return  # odotetaan että LMB päästetään irti
+            self._resume_input_block = False
+
         # 1. INPUTS
         keys = pygame.key.get_pressed()
         mouse_buttons = pygame.mouse.get_pressed()

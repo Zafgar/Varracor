@@ -167,10 +167,15 @@ class Arena:
         # Stage (Keskellä ylhäällä, Town Hallin portaiden edessä)
         self._add_prop(MuckfordStage(market_x - 250, stage_y)) # Keskitetty (500w / 2)
 
-        # Ilmoitustaulu torilla (kylätehtävät) - siirretty kauemmas oikealle,
-        # ettei se jää kojun eteen (pelaajapalaute)
+        # Ilmoitustaulu torilla (kylätehtävät): kojurivin ja asuinkorttelin
+        # väliin avoimelle torille. BUGIKORJAUS (pelitesti 12): vanha
+        # paikka (market_x + 620) osui oikean asuinkorttelin generoitujen
+        # talojen alle - taulu "oli talon sisällä". Raivataan varalta
+        # myös alle jäävät propit.
         from assets.tiles.muckford_objects import NoticeBoard
-        self._add_prop(NoticeBoard(market_x + 620, stage_y - 20))
+        board = NoticeBoard(market_x + 470, stage_y + 100)
+        self._clear_overlapping(board)
+        self._add_prop(board)
         
         # Kojut (Stalls) - Torin laidoilla
         # Vasen puoli (Lava on 500 leveä. Kojut kauemmas)
