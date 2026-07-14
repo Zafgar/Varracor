@@ -82,6 +82,7 @@ class Commander(Gladiator):
         
         # Input & Spell Targeting
         self.selected_spell_slot = None # "spell1", "spell2", jne.
+        self._melee_hold_block = False  # estää meleen heti castin perään
         self.prev_keys = pygame.key.get_pressed() # Näppäinten tilan seurantaan (toggle)
         self.prev_mouse = (False, False, False) # Hiiren tilan seurantaan
 
@@ -669,14 +670,18 @@ class Commander(Gladiator):
                 sound_system.play_sound("error")
 
         # SPELL SELECTION (Toggle logic 1-4)
-        # Apufunktio tarkistamaan painettiinko nappia juuri nyt
+        # Apufunktio tarkistamaan painettiinko nappia juuri nyt.
+        # BUGIKORJAUS: tyhjää slottia ei voi enää valita - vanha koodi
+        # jätti valinnan päälle ja LMB-melee lakkasi toimimasta kokonaan.
         def check_toggle(key_code, slot_name):
             if keys[key_code] and not self.prev_keys[key_code]:
                 if self.selected_spell_slot == slot_name:
                     self.selected_spell_slot = None # Deactivate
-                else:
+                elif self.equipment.get(slot_name) is not None:
                     self.selected_spell_slot = slot_name # Activate
-        
+                else:
+                    sound_system.play_sound("error")
+
         check_toggle(keybinds.key("spell_1"), "spell1")
         check_toggle(keybinds.key("spell_2"), "spell2")
         check_toggle(keybinds.key("spell_3"), "spell3")
@@ -684,7 +689,7 @@ class Commander(Gladiator):
         check_toggle(keybinds.key("spell_5"), "spell5")
         check_toggle(keybinds.key("spell_6"), "spell6")
         check_toggle(keybinds.key("usable_2"), "usable2")
-        
+
         # Päivitetään edelliset näppäimet seuraavaa framea varten
         self.prev_keys = keys
         self.prev_mouse = mouse_buttons
@@ -692,11 +697,19 @@ class Commander(Gladiator):
         # ATTACK / CAST (LMB)
         if lmb_down:
             if self.selected_spell_slot:
-                # Yritä käyttää valittua loitsua
-                if self._try_use_slot(self.selected_spell_slot, world_mx, world_my, all_units, manager):
-                    # Jos onnistui, poista valinta (ellei haluta rapid fireä, mutta yleensä targetointi nollataan)
+                # Turvaverkko: jos valittu slotti on tyhjentynyt, vapauta
+                # valinta jotta melee toimii taas
+                if self.equipment.get(self.selected_spell_slot) is None:
                     self.selected_spell_slot = None
-            else:
+                # Yritä käyttää valittua loitsua
+                elif self._try_use_slot(self.selected_spell_slot, world_mx, world_my, all_units, manager):
+                    # Onnistui: poista valinta JA estä melee kunnes LMB
+                    # päästetään irti. BUGIKORJAUS: ilman estoa seuraava
+                    # frame (LMB yhä pohjassa, valinta poissa) laukaisi
+                    # melee-lyönnin heti castin perään.
+                    self.selected_spell_slot = None
+                    self._melee_hold_block = True
+            elif not getattr(self, "_melee_hold_block", False):
                 # Aseen käyttö (Charge tai Attack)
                 w = self.equipment.get("main_hand")
                 if w and getattr(w, "charge_enabled", False):
@@ -708,10 +721,18 @@ class Commander(Gladiator):
 
         # RELEASE ATTACK (Jouset yms.)
         if lmb_released:
-            if not self.selected_spell_slot:
+            # _melee_hold_block: sama klikkaus castasi loitsun - irtipäästö
+            # ei saa laukaista release_chargea (= melee-lyöntiä castin perään)
+            if not self.selected_spell_slot and \
+                    not getattr(self, "_melee_hold_block", False):
                 w = self.equipment.get("main_hand")
                 if w and getattr(w, "charge_enabled", False):
                     w.release_charge(self, manager, target_pos=(world_mx, world_my))
+
+        # Castin jälkeinen melee-esto raukeaa vasta kun LMB on irti
+        # (JA release-käsittely on jo ohitettu tälle framelle)
+        if not lmb_down:
+            self._melee_hold_block = False
 
 
         # 4. LIIKKUMINEN (oletus WASD, sidottavissa)

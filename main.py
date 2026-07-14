@@ -229,6 +229,14 @@ def main():
         # Nykyinen tila talteen (esim. Asset Studio palaa tähän F10:llä)
         manager.current_state_key = new_key
 
+        # Loitsuvalinta on hetkellinen taistelu-UI: nollaa aina tilaa
+        # vaihdettaessa. BUGIKORJAUS: intron jälkeen tavernassa herättyä
+        # spell 1 jäi valituksi ja cast-näkymä (kantamarinki) päälle.
+        pc = getattr(manager, "player_character", None)
+        if pc is not None:
+            pc.selected_spell_slot = None
+            pc._melee_hold_block = False
+
         # Sään ambient-luupit (sade/tuuli) soivat vain ulkotiloissa
         OUTDOOR_STATES = ("muckford_city", "forest_road", "rattlebridge_city",
                           "mine_road", "forest_excursion", "world_map")
@@ -357,6 +365,14 @@ def main():
                 current_menu = menus["squad_select"]
                 current_menu.next_state = None
                 continue
+
+            if is_dialogue_transition:
+                # Talteen viimeisin pelinäkymä dialogin taustaksi
+                # (ChatMenu piirtää tämän + himmennyksen mustan sijaan)
+                try:
+                    manager.scene_snapshot = screen.copy()
+                except Exception:
+                    manager.scene_snapshot = None
 
             if new_key.startswith("dialogue:"):
                 current_menu.next_state = None

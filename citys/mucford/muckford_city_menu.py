@@ -148,9 +148,10 @@ class MuckfordCityMenu(BaseMenu):
         self.btn_hub = UIButton(cx - btn_w//2, start_y + (btn_h+gap), btn_w, btn_h, "BACK TO HUB", None, GRAY)
         self.btn_save = UIButton(cx - btn_w//2, start_y + (btn_h+gap)*2, btn_w, btn_h, "SAVE GAME", None, GRAY)
         self.btn_load = UIButton(cx - btn_w//2, start_y + (btn_h+gap)*3, btn_w, btn_h, "LOAD GAME", None, GRAY)
-        self.btn_exit = UIButton(cx - btn_w//2, start_y + (btn_h+gap)*4, btn_w, btn_h, "EXIT GAME", None, (200, 60, 60))
+        self.btn_options = UIButton(cx - btn_w//2, start_y + (btn_h+gap)*4, btn_w, btn_h, "OPTIONS", None, GRAY)
+        self.btn_exit = UIButton(cx - btn_w//2, start_y + (btn_h+gap)*5, btn_w, btn_h, "EXIT GAME", None, (200, 60, 60))
         
-        self.pause_buttons = [self.btn_resume, self.btn_hub, self.btn_save, self.btn_load, self.btn_exit]
+        self.pause_buttons = [self.btn_resume, self.btn_hub, self.btn_save, self.btn_load, self.btn_options, self.btn_exit]
         
         # --- SMELTERY UI ---
         self.active_smeltery = None
@@ -179,6 +180,11 @@ class MuckfordCityMenu(BaseMenu):
         self.manager.city_spawn_point = None # Nollaa heti käytön jälkeen
         
         spawned = False
+
+        # 0. "keep": säilytä pelaajan nykyinen sijainti (esim. paluu
+        # options-valikosta pause-menun kautta)
+        if spawn_target == "keep":
+            spawned = True
 
         # 1. Blacksmith Spawn
         if spawn_target == "blacksmith" and self.blacksmith_house:
@@ -769,6 +775,13 @@ class MuckfordCityMenu(BaseMenu):
                 if self.manager.load_saved_game():
                     self.show_pause_menu = False
                     self.next_state = "hub"
+            elif self.btn_options.is_clicked(event):
+                # Palataan optioneista samaan kohtaan kaupunkia
+                # (on_enter kunnioittaa "keep"-spawnia)
+                self.manager.city_spawn_point = "keep"
+                self.show_pause_menu = False
+                self.next_state = "options"
+                sound_system.play_sound('click')
             elif self.btn_exit.is_clicked(event):
                 self.next_state = "exit"
                 sound_system.play_sound('click')

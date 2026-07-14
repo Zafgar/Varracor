@@ -392,9 +392,15 @@ class ChatMenu(BaseMenu):
             btn.check_hover(mp)
 
     def draw(self, screen):
-        # 1. Tumma tausta
+        # 1. Tausta: pelinäkymä himmennettynä (snapshot otetaan main-loopissa
+        # juuri ennen dialogiin siirtymistä). Musta vain jos kuvaa ei ole.
         from ui_kit import get_fullscreen_overlay
-        screen.blit(get_fullscreen_overlay((0, 0, 0, 180)), (0, 0))
+        snapshot = getattr(self.manager, "scene_snapshot", None)
+        if snapshot is not None:
+            screen.blit(snapshot, (0, 0))
+            screen.blit(get_fullscreen_overlay((0, 0, 0, 130)), (0, 0))
+        else:
+            screen.blit(get_fullscreen_overlay((0, 0, 0, 180)), (0, 0))
 
         # 2. ISO MUOTOKUVA (Oikea ala)
         if self.portrait_image:

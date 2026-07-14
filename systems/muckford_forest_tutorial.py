@@ -93,8 +93,8 @@ def _tutorial_stage_data(stage: int) -> dict:
             "gate_x": 4050,
         },
         4: {
-            "title": "VORTEX SKILL",
-            "instruction": "Press 1, aim through the pack, then LMB to cast Vortex Slash.",
+            "title": "VORTEX SKILLS",
+            "instruction": "Press 1 + LMB: Vortex Slash. Try 2 (Warp) and 3 (Rift Pulse) too.",
             "spawn_x": 4550,
             "gate_x": 5200,
         },
@@ -118,6 +118,8 @@ def _patch_forest_menu() -> None:
     from citys.mucford.forest_road_menu import ForestRoadMenu
     from menus.gameplay_screen import GameplayScreen
     from spells.commander.seam_cut import SeamCut
+    from spells.commander.vortex_warp import VortexWarp
+    from spells.commander.rift_pulse import RiftPulse
     from vfx import VortexPortal
 
     if getattr(ForestRoadMenu, "_muckford_opening_installed", False):
@@ -147,7 +149,12 @@ def _patch_forest_menu() -> None:
         self.boss_vortex_x = self.arena.width - 350
         self.combat_locked = False
         if not CHEAT_MODE and self.player.equipment.get("spell1") is None:
+            # Intron Vortex-kyvyt: hyökkäys, liike ja hätäpulssi.
+            # Viedään pois steal_sword-kohtauksessa - Commander oppii ne
+            # uudelleen Path of the Vortexin kautta.
             self.player.equipment["spell1"] = SeamCut()
+            self.player.equipment["spell2"] = VortexWarp()
+            self.player.equipment["spell3"] = RiftPulse()
             self._tutorial_spell_granted = True
 
     def on_enter(self):
@@ -168,7 +175,12 @@ def _patch_forest_menu() -> None:
         self._opening_tutorial_finished = False
         self._tutorial_last_dashes = self.player.current_dashes
         if not CHEAT_MODE and self.player.equipment.get("spell1") is None:
+            # Intron Vortex-kyvyt: hyökkäys, liike ja hätäpulssi.
+            # Viedään pois steal_sword-kohtauksessa - Commander oppii ne
+            # uudelleen Path of the Vortexin kautta.
             self.player.equipment["spell1"] = SeamCut()
+            self.player.equipment["spell2"] = VortexWarp()
+            self.player.equipment["spell3"] = RiftPulse()
             self._tutorial_spell_granted = True
         self._update_camera()
 
@@ -499,6 +511,8 @@ def _patch_forest_menu() -> None:
             previous_effect(self, effect)
             if self._tutorial_spell_granted and not CHEAT_MODE:
                 self.player.equipment["spell1"] = None
+                self.player.equipment["spell2"] = None
+                self.player.equipment["spell3"] = None
                 self.player.selected_spell_slot = None
             return
 
