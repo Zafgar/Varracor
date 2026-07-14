@@ -380,6 +380,13 @@ class ArenaHallMenu(_InteriorMenuBase):
     TITLE = "SHANTY YARD - ARENA HALL"
     OVERLAY_ALPHA = 55
 
+    def __init__(self, manager):
+        super().__init__(manager)
+        self.show_trophies = False
+
+    def consumes_escape(self):
+        return self.show_trophies
+
     def _build(self):
         self.hall_npcs = []
         a = _InteriorArena(2000, 1200, floor=(96, 82, 62), wall=(104, 86, 66),
@@ -393,7 +400,8 @@ class ArenaHallMenu(_InteriorMenuBase):
         self.odds_stand = OddsBoard(w - WALL - 300, h // 2 - 160)
         a.props.append(self.odds_stand)
         # Palkintovitriini vasemmalle + penkit loungeen
-        a.props.append(TrophyCase(WALL + 60, h // 2 - 220))
+        self.trophy_case = TrophyCase(WALL + 60, h // 2 - 220)
+        a.props.append(self.trophy_case)
         a.props.append(Bench(WALL + 90, h // 2 + 60))
         a.props.append(Bench(WALL + 90, h // 2 + 220))
         a.finalize()
@@ -425,7 +433,8 @@ class ArenaHallMenu(_InteriorMenuBase):
 
     def _prop_interactables(self):
         return [("league_desk", self.league_desk, 130),
-                ("betting", self.odds_stand, 130)]
+                ("betting", self.odds_stand, 130),
+                ("trophies", self.trophy_case, 130)]
 
     def _prompt_label(self, kind, obj):
         return {
@@ -433,6 +442,7 @@ class ArenaHallMenu(_InteriorMenuBase):
             "league_host": "E - League board (matches & standings)",
             "betting": "E - Place a wager",
             "bookie": "E - Place a wager",
+            "trophies": "E - Trophy case (deeds & titles)",
             "guard": "E - Talk",
             "rival": f"E - Talk with {getattr(obj, 'name', 'rival')}",
         }.get(kind)
@@ -446,6 +456,10 @@ class ArenaHallMenu(_InteriorMenuBase):
             return True
         if kind in ("betting", "bookie"):
             self._open_bet_dialogue()
+            return True
+        if kind == "trophies":
+            self.show_trophies = True
+            sound_system.play_sound("click")
             return True
         if kind == "guard":
             self.manager.start_dialogue(
@@ -462,6 +476,89 @@ class ArenaHallMenu(_InteriorMenuBase):
                 self.next_state = "dialogue_active"
             return True
         return False
+
+    def handle_event(self, event):
+        # Vitriinipaneeli nappaa syötteet
+        if self.show_trophies:
+            if event.type == pygame.KEYDOWN and \
+                    event.key in (pygame.K_ESCAPE, pygame.K_e):
+                self.show_trophies = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                self.show_trophies = False
+            return
+        super().handle_event(event)
+
+    def _draw_extra(self, screen):
+        bet = getattr(self.manager, "active_bet", None)
+        if bet:
+            chip = pygame.Rect(24, 90, 330, 44)
+            pygame.draw.rect(screen, (15, 17, 22), chip, border_radius=9)
+            pygame.draw.rect(screen, (196, 164, 90), chip, 2, border_radius=9)
+            draw_text(f"Active wager: {format_money(bet['amount'])} "
+                      f"(pays x{BET_PAYOUT:.0f})", font_small,
+                      (222, 200, 140), screen, chip.x + 14, chip.y + 12)
+        if self.show_trophies:
+            self._draw_trophy_panel(screen)
+
+    def _draw_trophy_panel(self, screen):
+        """Vitriini: tiimin nimi, tier, kausisaldo, mestaruudet ja urotyöt."""
+        m = self.manager
+        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 175))
+        screen.blit(shade, (0, 0))
+        panel = pygame.Rect(SCREEN_WIDTH // 2 - 420, SCREEN_HEIGHT // 2 - 320,
+                            840, 640)
+        pygame.draw.rect(screen, (24, 24, 30), panel, border_radius=14)
+        pygame.draw.rect(screen, GOLD_COLOR, panel, 3, border_radius=14)
+        draw_text("TROPHY CASE", font_main, GOLD_COLOR, screen,
+                  panel.x + 34, panel.y + 24)
+        draw_text("[ESC] close", font_small, GRAY, screen,
+                  panel.right - 120, panel.y + 30)
+
+        team = getattr(m, "team_name", "") or "Unregistered crew"
+        tier = int(getattr(getattr(m, "league_engine", None), "tier", 0))
+        draw_text(f"TEAM  {team}", font_main, WHITE, screen,
+                  panel.x + 34, panel.y + 70)
+        draw_text(f"Arena Tier {tier}   Season {m.season_wins}W-"
+                  f"{m.season_losses}L   Matches {m.matches_played}",
+                  font_small, (180, 200, 180), screen,
+                  panel.x + 34, panel.y + 104)
+
+        deeds = []
+        try:
+            deeds = m.get_deeds()
+        except Exception:
+            pass
+        champs = [d for d in deeds if str(d.get("id", "")).endswith("_champion")]
+        others = [d for d in deeds if d not in champs]
+
+        y = panel.y + 150
+        draw_text("CHAMPIONSHIPS", font_small, GOLD_COLOR, screen,
+                  panel.x + 34, y)
+        y += 28
+        if champs:
+            for d in champs[:3]:
+                draw_text(f"* {d.get('text', '')}"[:74], font_small,
+                          (255, 220, 130), screen, panel.x + 44, y)
+                y += 26
+        else:
+            draw_text("The top shelf waits for your first Grand Slam.",
+                      font_small, (150, 150, 160), screen, panel.x + 44, y)
+            y += 26
+
+        y += 16
+        draw_text("DEEDS THE YARD REMEMBERS", font_small, GOLD_COLOR,
+                  screen, panel.x + 34, y)
+        y += 28
+        if others:
+            for d in others[:12]:
+                draw_text(f"- {d.get('text', '')}"[:78], font_small,
+                          (214, 201, 145), screen, panel.x + 44, y)
+                y += 26
+        else:
+            draw_text("No deeds yet. Muckford forgets no favor - "
+                      "and no debt.", font_small, (150, 150, 160),
+                      screen, panel.x + 44, y)
 
     # -------------------- Vedonlyönti --------------------
     def _open_bet_dialogue(self):
@@ -518,17 +615,6 @@ class ArenaHallMenu(_InteriorMenuBase):
         if getattr(self.manager, "dialogue_action_handler", None) == \
                 self._on_bet_action:
             self.manager.dialogue_action_handler = None
-
-    def _draw_extra(self, screen):
-        bet = getattr(self.manager, "active_bet", None)
-        if bet:
-            chip = pygame.Rect(24, 90, 330, 44)
-            pygame.draw.rect(screen, (15, 17, 22), chip, border_radius=9)
-            pygame.draw.rect(screen, (196, 164, 90), chip, 2, border_radius=9)
-            draw_text(f"Active wager: {format_money(bet['amount'])} "
-                      f"(pays x{BET_PAYOUT:.0f})", font_small,
-                      (222, 200, 140), screen, chip.x + 14, chip.y + 12)
-
 
 # ======================================================================
 # TOWN HALL

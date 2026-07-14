@@ -181,6 +181,12 @@ class Arena:
         self._add_prop(MuckfordStall(market_x + 300, stage_y + 50, variant=2)) # Ruoka
         self._add_prop(MuckfordStall(market_x + 300, stage_y + 250, variant=1)) # Kristallit
 
+        # Tienviitat kadun päissä: Muckfordista lähtee reittejä maailmalle
+        # (E viitalla avaa maailmankartan)
+        from assets.tiles.muckford_objects import RoadSignpost
+        self._add_prop(RoadSignpost(140, street_y - 190))
+        self._add_prop(RoadSignpost(w - 240, street_y - 190))
+
         # 4. STREET PROPS
         # Katuvalot
         for x in range(200, w - 200, 500):

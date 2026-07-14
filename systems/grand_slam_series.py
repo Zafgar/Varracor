@@ -64,8 +64,18 @@ def handle_promotion_result(manager) -> str:
     if series["wins"] >= 2:
         # SARJA VOITETTU -> tier nousee, mestaruusjuhla areenalla,
         # sitten varsinainen seremonia (farewell-sivut)
-        if getattr(manager, "league_engine", None):
-            manager.league_engine.promote_player()
+        engine = getattr(manager, "league_engine", None)
+        won_tier = int(getattr(engine, "tier", 0)) if engine else 0
+        # Mestaruus kylän muistiin - näkyy mm. Arena Hallin vitriinissä
+        try:
+            manager.record_deed(
+                f"tier{won_tier}_champion",
+                f"won the Grand Slam and claimed the Tier {won_tier} "
+                f"championship")
+        except Exception:
+            pass
+        if engine:
+            engine.promote_player()
         series["mode"] = "champion"
         return "finale_show"
 

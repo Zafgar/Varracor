@@ -835,3 +835,44 @@ class NoticeBoard(Prop):
                 pygame.draw.line(surf, (120, 120, 110), (px + 3, py + 6), (px + 18, py + 6), 1)
                 pygame.draw.line(surf, (120, 120, 110), (px + 3, py + 12), (px + 15, py + 12), 1)
             self.image = surf
+
+
+class RoadSignpost(Prop):
+    """Tienviitta kadun päässä: E avaa maailmankartan reitit.
+    Muckfordista lähtee teitä moneen suuntaan - viitta tekee sen
+    näkyväksi pelikentällä (ei vain M-näppäimen takana)."""
+
+    def __init__(self, x, y):
+        w, h = 90, 140
+        coll_rect = pygame.Rect(x + 34, y + h - 34, 22, 26)
+        super().__init__(x, y, w, h,
+                         img_path="assets/tiles/muckford/road_signpost.png",
+                         color=(96, 74, 48), collision_rect=coll_rect)
+        self.interaction_range = 100
+        self.interaction_label = "World routes"
+        self._draw_procedural(w, h)
+
+    def _draw_procedural(self, w, h):
+        if not self.image or self.image.get_at((0, 0)) == (96, 74, 48, 255):
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            post = (98, 74, 46)
+            plank = (140, 110, 70)
+            # Pylväs
+            pygame.draw.rect(surf, post, (w // 2 - 6, 18, 12, h - 18))
+            pygame.draw.rect(surf, (60, 44, 28), (w // 2 - 6, 18, 12, h - 18), 2)
+            # Viittalaudat eri suuntiin
+            for py, flip, txt_w in ((22, False, 40), (52, True, 34), (82, False, 46)):
+                if flip:
+                    pts = [(w // 2 - 38, py), (w // 2 + 14, py),
+                           (w // 2 + 14, py + 20), (w // 2 - 38, py + 20),
+                           (w // 2 - 48, py + 10)]
+                else:
+                    pts = [(w // 2 - 14, py), (w // 2 + 38, py),
+                           (w // 2 + 48, py + 10), (w // 2 + 38, py + 20),
+                           (w // 2 - 14, py + 20)]
+                pygame.draw.polygon(surf, plank, pts)
+                pygame.draw.polygon(surf, (70, 52, 32), pts, 2)
+                lx = w // 2 - (34 if flip else -2)
+                pygame.draw.line(surf, (74, 58, 40), (lx, py + 10),
+                                 (lx + txt_w - 12, py + 10), 2)
+            self.image = surf

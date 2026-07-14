@@ -475,6 +475,12 @@ class MuckfordCityMenu(BaseMenu):
         elif kind == "forest":     # puu
             pygame.draw.polygon(screen, c, [(x - 6, y + 2), (x, y - 8), (x + 6, y + 2)])
             pygame.draw.rect(screen, c, (x - 1, y + 2, 3, 5))
+        elif kind == "roads":      # tienviitta
+            pygame.draw.line(screen, c, (x, y - 8), (x, y + 8), 2)
+            pygame.draw.polygon(screen, c, [(x - 1, y - 7), (x + 8, y - 7),
+                                            (x + 8, y - 3), (x - 1, y - 3)])
+            pygame.draw.polygon(screen, c, [(x + 1, y), (x - 8, y),
+                                            (x - 8, y + 4), (x + 1, y + 4)])
         else:
             pygame.draw.circle(screen, c, (x, y), 5)
 
@@ -563,6 +569,13 @@ class MuckfordCityMenu(BaseMenu):
                 if isinstance(prop, cls) and label not in seen:
                     seen.add(label)
                     markers.append((prop.rect, kind, col, label))
+
+        # Tienviitat (molemmat kadun päät) - reitit maailmalle
+        from assets.tiles.muckford_objects import RoadSignpost
+        for prop in self.arena.props:
+            if isinstance(prop, RoadSignpost):
+                markers.append((prop.rect, "roads", (222, 186, 92),
+                                "World Routes"))
 
         mine_owned = getattr(self.manager, "mine_key_owned", False)
         markers.append((self._mine_gate_rect(), "mine",
@@ -2903,6 +2916,13 @@ class MuckfordCityMenu(BaseMenu):
             
         if isinstance(prop, TownHall):
             self.next_state = "town_hall"
+            sound_system.play_sound('click')
+            return True
+
+        from assets.tiles.muckford_objects import RoadSignpost
+        if isinstance(prop, RoadSignpost):
+            # Tienviitta: reitit muihin kohteisiin (maailmankartta)
+            self.next_state = "world_map"
             sound_system.play_sound('click')
             return True
 
