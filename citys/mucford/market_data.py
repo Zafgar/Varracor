@@ -16,6 +16,10 @@ from collections import OrderedDict
 
 MARKET_SHOPS = OrderedDict({
     "greenmarket": {
+        "buys": ("Apple", "Egg", "Milk", "Carrot", "Potato",
+                 "Onion", "Cabbage", "Turnip", "Medicinal Herb",
+                 "Bitterleaf", "Bogwort", "Nightcap Fungus",
+                 "Quality Produce"),
         "name": "Fenna's Greenmarket",
         "keeper": "Old Fenna",
         "keeper_race": "Human",
@@ -33,6 +37,8 @@ MARKET_SHOPS = OrderedDict({
         ),
     },
     "scrap_arms": {
+        "buys": ("Scrap", "Scrap Iron", "Iron Ore", "Iron Bar",
+                 "Rat Tail", "Coal"),
         "name": "Grett's Scrap Arms",
         "keeper": "Grett Iron-Tooth",
         "keeper_race": "Orc",
@@ -51,6 +57,8 @@ MARKET_SHOPS = OrderedDict({
         ),
     },
     "mudguard_armory": {
+        "buys": ("Scrap Iron", "Iron Bar", "Spider Silk", "Direhide",
+                 "Leather Straps"),
         "name": "The Mudguard",
         "keeper": "Sella Twoplates",
         "keeper_race": "Dwarf",
@@ -69,6 +77,8 @@ MARKET_SHOPS = OrderedDict({
         ),
     },
     "bittersip": {
+        "buys": ("Bitterleaf", "Bogwort", "Nightcap Fungus",
+                 "Spirit Essence", "Venom Gland", "Mudfin", "Bog Perch"),
         "name": "The Bittersip",
         "keeper": "Mirelda Vex",
         "keeper_race": "Goblin",
@@ -84,6 +94,8 @@ MARKET_SHOPS = OrderedDict({
         ),
     },
     "oddments": {
+        "buys": ("Feather", "Manure", "Rat Tail", "Swamp Wood",
+                 "Stone", "Scrap", "Coal", "Rough Timber"),
         "name": "Krad's Oddments",
         "keeper": "Krad",
         "keeper_race": "Goblin",

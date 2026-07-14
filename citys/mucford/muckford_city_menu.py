@@ -3,7 +3,7 @@ import random
 import math
 from settings import *
 from menus.base_menu import BaseMenu
-from ui_kit import draw_text, font_main, font_small, font_title, UIButton, draw_panel, draw_item_slot_background, draw_item_tooltip, WHITE, GOLD_COLOR, GREEN, RED, GRAY
+from ui_kit import draw_text, font_main, font_small, font_title, font_header, UIButton, draw_panel, draw_item_slot_background, draw_item_tooltip, WHITE, GOLD_COLOR, GREEN, RED, GRAY
 from sound_manager import sound_system
 
 # Kartta ja objektit
@@ -1258,6 +1258,22 @@ class MuckfordCityMenu(BaseMenu):
                 self._update_lurker(npc)
                 npc.update(self.arena.obstacles, self.manager)
                 continue
+            # Bram pysyy lavalla kuulutuksen ajan
+            if npc is getattr(self, "bram", None) and \
+                    getattr(self, "_event_state", "") == "announce":
+                npc.animation_state = "idle"
+                npc.update(self.arena.obstacles, self.manager)
+                continue
+            # Yleisö kerääntyy lavan eteen (bardin show / Bramin kuulutus)
+            if getattr(npc, "sim_state", "") == "WATCHING":
+                self._update_watcher(npc)
+                npc.update(self.arena.obstacles, self.manager)
+                continue
+            # Tarjoilija kiertää yleisössä
+            if getattr(npc, "is_server", False):
+                self._update_server(npc)
+                npc.update(self.arena.obstacles, self.manager)
+                continue
             # Kutsutaan run_combat_ai, jotta VillagerAI toimii (maitotilat, lanta, jne.)
             npc.run_combat_ai(all_units, self.arena.obstacles, self.manager)
             npc.update(self.arena.obstacles, self.manager)
@@ -1438,64 +1454,279 @@ class MuckfordCityMenu(BaseMenu):
             talk_id = self.rng.randint(1, 8)
             sound_system.play_sound(f"talking_loop_{talk_id}")
 
+    # Torin tapahtumat: iltashow (bardi) kerran päivässä klo 17-19 alkaen ja
+    # Bramin kuulutus parin päivän välein klo 9-16. Yleisö kerääntyy lavalle,
+    # iltashowssa tarjoillaan olutta. (Pelaajapalaute: vanha versio laukesi
+    # jatkuvasti ja kesti vain hetken.)
+    MARKET_NEWS = (
+        ("The Rookie Circuit purse grows by twenty silver a bout!", "cheer"),
+        ("A caravan from Rattlebridge arrives within the week!", "cheer"),
+        ("Scrap tithe rises. The Consortium takes its cut at the gate.", "boo"),
+        ("Marda raises room prices. Blame the leaky roof.", "boo"),
+        ("Rat sign near the granary. The night watch is doubled.", "worry"),
+        ("The Yard sand gets fresh raking. The spikes stay.", "neutral"),
+    )
+
     def _update_ambient_event(self):
-        """Satunnainen ambient-tapahtuma: bardi soittaa lavalla, kyläläiset
-        kokoontuvat. Tekee kaupungista elävän tuntuisen."""
         if not hasattr(self, "_event_state"):
+            clock = self.manager.world_clock
             self._event_state = "idle"
-            self._event_timer = self.rng.randint(600, 1800)  # 10-30s ennen ekaa
+            self._event_timer = 0
             self._event_bard = None
             self._event_banner = 0
+            self._event_banner_text = ""
+            self._event_watchers = []
+            self._event_server = None
+            self._event_news = None
+            self._bard_channel = None
+            self._bram_return_pos = None
+            self._next_show_day = clock.day
+            self._show_hour = self.rng.randint(17, 19)
+            self._next_news_day = clock.day + self.rng.randint(1, 2)
+            self._news_hour = self.rng.randint(9, 16)
 
         stage = getattr(self, "stage", None)
         if stage is None:
             return
-
-        self._event_timer -= 1
+        clock = self.manager.world_clock
         if self._event_banner > 0:
             self._event_banner -= 1
 
         if self._event_state == "idle":
-            if self._event_timer <= 0:
+            if clock.day >= self._next_show_day and clock.hour >= self._show_hour \
+                    and clock.hour < 21:
                 self._start_bard_performance(stage)
-        elif self._event_state == "bard":
-            if self._event_timer % 18 == 0:
-                sx = stage.rect.centerx + self.rng.randint(-40, 40)
+            elif clock.day >= self._next_news_day and \
+                    self._news_hour <= clock.hour < 17:
+                self._start_announcement(stage)
+            return
+
+        self._event_timer -= 1
+        if self._event_state == "bard":
+            if self._event_timer % 24 == 0:
+                sx = stage.rect.centerx + self.rng.randint(-60, 60)
                 sy = stage.image_pos[1] + 40
                 self.manager.vfx.create_musical_note(sx, sy)
-            if self._event_timer <= 0:
+            if self._event_timer <= 0 or clock.hour >= 22:
                 self._end_bard_performance()
+        elif self._event_state == "announce":
+            bram = getattr(self, "bram", None)
+            if bram is not None and self._event_news:
+                text, mood = self._event_news
+                if self._event_timer % 420 == 300:
+                    self.manager.vfx.show_damage(
+                        bram.rect.centerx, bram.rect.top - 40,
+                        f'"{text}"', color=(235, 225, 200))
+                if self._event_timer % 420 == 120:
+                    self._crowd_reaction(mood)
+            if self._event_timer <= 0:
+                self._end_announcement()
 
-    def _start_bard_performance(self, stage):
+    # ------------------------------------------------------------------
+    def _gather_watchers(self, stage, count):
+        """Poimii kyläläisiä yleisöksi lavan eteen."""
         candidates = [n for n in self.npcs if hasattr(n, "sim_state")
                       and n is not getattr(self, "bram", None)
+                      and n is not self._event_bard
                       and not getattr(n, "rival_info", None)
+                      and not getattr(n, "is_stall_keeper", False)
+                      and not getattr(n, "is_lurker", False)
+                      and not getattr(n, "is_prospect", False)
                       and getattr(n, "sim_state", "") != "INSIDE"]
-        if not candidates:
-            self._event_timer = self.rng.randint(600, 1800)
+        # Lähimmät ensin - kauimmaiset eivät ehtisi paikalle
+        candidates.sort(key=lambda n: math.hypot(
+            n.rect.centerx - stage.rect.centerx,
+            n.rect.centery - stage.rect.centery))
+        self._event_watchers = []
+        front_y = stage.image_pos[1] + stage.image.get_height() + 60
+        for i, npc in enumerate(candidates[:count]):
+            npc.sim_state = "WATCHING"
+            col = i % 4
+            row = i // 4
+            npc._watch_spot = (stage.rect.centerx - 180 + col * 120
+                               + self.rng.randint(-24, 24),
+                               front_y + row * 70 + self.rng.randint(-14, 14))
+            self._event_watchers.append(npc)
+
+    def _release_watchers(self):
+        for npc in self._event_watchers:
+            if getattr(npc, "sim_state", None) == "WATCHING":
+                npc.sim_state = "IDLE"
+                npc.sim_timer = self.rng.randint(60, 240)
+        self._event_watchers = []
+
+    def _update_watcher(self, npc):
+        """Yleisö kävelee paikalleen, katsoo lavaa ja reagoi."""
+        spot = getattr(npc, "_watch_spot", None)
+        if spot is None:
             return
-        bard = self.rng.choice(candidates)
-        self._event_bard = bard
-        bard.sim_state = "PERFORMING"
+        dx = spot[0] - npc.rect.centerx
+        dy = spot[1] - npc.rect.centery
+        dist = math.hypot(dx, dy)
+        if dist > 14:
+            npc.animation_state = "run"
+            npc.facing_right = dx > 0
+            npc.rect.x += int(round(2.2 * dx / max(1, dist)))
+            npc.rect.y += int(round(2.2 * dy / max(1, dist)))
+            return
+        npc.animation_state = "idle"
+        stage = getattr(self, "stage", None)
+        if stage is not None:
+            npc.facing_right = stage.rect.centerx > npc.rect.centerx
+        # Satunnaiset reaktiot: hurraus tai kulaus (jos olutta tarjolla)
+        roll = self.rng.random()
+        if roll < 0.002:
+            self.manager.vfx.show_damage(npc.rect.centerx, npc.rect.top - 26,
+                                         self.rng.choice(("*cheers*", "Woo!",
+                                                          "*claps*")),
+                                         color=(220, 210, 170))
+        elif roll < 0.0035 and self._event_server is not None:
+            self.manager.vfx.show_damage(npc.rect.centerx, npc.rect.top - 26,
+                                         "*sips ale*", color=(214, 178, 110))
+
+    def _update_server(self, npc):
+        """Tarjoilija kiertää yleisön seassa oluttuoppien kanssa."""
+        target = getattr(npc, "_serve_target", None)
+        if target is None or target not in self._event_watchers or \
+                self.rng.random() < 0.002:
+            npc._serve_target = (self.rng.choice(self._event_watchers)
+                                 if self._event_watchers else None)
+            return
+        tx = target.rect.centerx + 40
+        ty = target.rect.centery
+        dx = tx - npc.rect.centerx
+        dy = ty - npc.rect.centery
+        dist = math.hypot(dx, dy)
+        if dist > 20:
+            npc.animation_state = "run"
+            npc.facing_right = dx > 0
+            npc.rect.x += int(round(1.6 * dx / max(1, dist)))
+            npc.rect.y += int(round(1.6 * dy / max(1, dist)))
+        else:
+            npc.animation_state = "idle"
+            if self.rng.random() < 0.01:
+                self.manager.vfx.show_damage(npc.rect.centerx,
+                                             npc.rect.top - 26, "+Ale!",
+                                             color=(214, 178, 110))
+                npc._serve_target = None
+
+    def _crowd_reaction(self, mood):
+        texts = {"cheer": (("Hurrah!", (140, 230, 150)),
+                           ("About time!", (140, 230, 150))),
+                 "boo": (("Boo!", (235, 120, 100)),
+                         ("Thieves!", (235, 120, 100))),
+                 "worry": (("*worried murmurs*", (200, 200, 210)),),
+                 "neutral": (("*murmurs*", (190, 190, 190)),)}[mood]
+        for npc in self._event_watchers:
+            if self.rng.random() < 0.6:
+                text, col = self.rng.choice(texts)
+                self.manager.vfx.show_damage(npc.rect.centerx,
+                                             npc.rect.top - 26, text,
+                                             color=col)
+        try:
+            sound_system.play_sound("win" if mood == "cheer" else "hover")
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    def _start_bard_performance(self, stage):
+        """Iltashow: oikea bardihahmo (sama sprite/musiikki kuin tavernassa,
+        oma nimi), yleisö kerääntyy ja Petra tarjoilee olutta."""
+        from units.bard import Bard
+        bard = Bard("Wren Reedpipe", "Human",
+                    stage.rect.centerx, stage.image_pos[1], team_color=GREEN)
         bard.rect.centerx = stage.rect.centerx
         bard.rect.bottom = stage.image_pos[1] + stage.image.get_height() - 20
+        bard.sim_state = "PERFORMING"
         bard.animation_state = "idle"
+
+        # Bard-luokka pakottaa laulun kun ai_controller.state == "performing"
+        class _StreetGig:
+            state = "performing"
+
+            def execute_ai(self, *a, **k):
+                pass
+        bard.ai_controller = _StreetGig()
+        self._event_bard = bard
+        self.npcs.append(bard)
+
         self._event_state = "bard"
-        self._event_timer = self.rng.randint(600, 1200)  # 10-20s esitys
+        # Esitys kestää n. 2 pelitunnin verran
+        self._event_timer = 4500
+        self._event_banner = 300
+        self._event_banner_text = "Wren Reedpipe takes the stage!"
+        self._gather_watchers(stage, 8)
+
+        # Tarjoilija Sunk Caskista
+        server = Villager("Petra of the Cask", "Human",
+                          stage.rect.centerx + 260,
+                          stage.rect.bottom + 200, team_color=GREEN)
+        server.name = "Petra of the Cask"
+        server.is_server = True
+        server.sim_state = "SERVING"
+        self._event_server = server
+        self.npcs.append(server)
+
+        # Sama musiikki kuin tavernan bardilla
+        try:
+            self._bard_channel = sound_system.play_sound(
+                f"bard_song_{self.rng.randint(1, 3)}", loops=-1)
+        except Exception:
+            self._bard_channel = None
+
+    def _end_bard_performance(self):
+        if self._bard_channel is not None:
+            try:
+                self._bard_channel.stop()
+            except Exception:
+                pass
+            self._bard_channel = None
+        if self._event_bard is not None and self._event_bard in self.npcs:
+            self.npcs.remove(self._event_bard)
+        self._event_bard = None
+        if self._event_server is not None and self._event_server in self.npcs:
+            self.npcs.remove(self._event_server)
+        self._event_server = None
+        self._release_watchers()
+        self._event_state = "idle"
         self._event_banner = 240
+        self._event_banner_text = "The crowd cheers for Wren!"
+        clock = self.manager.world_clock
+        self._next_show_day = clock.day + 1
+        self._show_hour = self.rng.randint(17, 19)
+
+    # ------------------------------------------------------------------
+    def _start_announcement(self, stage):
+        """Bram nousee lavalle kuuluttamaan uutisia; väki reagoi aiheeseen."""
+        bram = getattr(self, "bram", None)
+        if bram is None:
+            self._next_news_day = self.manager.world_clock.day + 1
+            return
+        self._bram_return_pos = bram.rect.center
+        bram.rect.centerx = stage.rect.centerx
+        bram.rect.bottom = stage.image_pos[1] + stage.image.get_height() - 20
+        self._event_news = self.rng.choice(self.MARKET_NEWS)
+        self._event_state = "announce"
+        self._event_timer = 1680  # ~puoli pelituntia
+        self._event_banner = 300
+        self._event_banner_text = "Bram Mudhand has an announcement!"
+        self._gather_watchers(stage, 6)
         try:
             sound_system.play_sound("talking_loop_1")
         except Exception:
             pass
 
-    def _end_bard_performance(self):
-        if self._event_bard is not None:
-            if getattr(self._event_bard, "sim_state", None) == "PERFORMING":
-                self._event_bard.sim_state = "IDLE"
-                self._event_bard.sim_timer = 60
-            self._event_bard = None
+    def _end_announcement(self):
+        bram = getattr(self, "bram", None)
+        if bram is not None and self._bram_return_pos:
+            bram.rect.center = self._bram_return_pos
+        self._bram_return_pos = None
+        self._event_news = None
+        self._release_watchers()
         self._event_state = "idle"
-        self._event_timer = self.rng.randint(1800, 3600)  # 30-60s taukoa
+        clock = self.manager.world_clock
+        self._next_news_day = clock.day + self.rng.randint(2, 3)
+        self._news_hour = self.rng.randint(9, 16)
 
     def _update_simulation(self):
         """Hoitaa kaupungin elämän: kävelyn, juttelun ja taloissa vierailun."""
@@ -1760,11 +1991,12 @@ class MuckfordCityMenu(BaseMenu):
         # --- POI ICONS (seurattavat merkit: quest, kauppa, areena) ---
         self._draw_poi_icons(screen, offset)
 
-        # Ambient-eventin banneri (bardiesitys)
+        # Ambient-eventin banneri (iltashow / Bramin kuulutus)
         if getattr(self, "_event_banner", 0) > 0:
-            msg = "The bard takes the stage!"
-            surf = font_title.render(msg, True, (255, 220, 120))
-            sh = font_title.render(msg, True, (0, 0, 0))
+            msg = getattr(self, "_event_banner_text", "") or \
+                "The bard takes the stage!"
+            surf = font_header.render(msg, True, (255, 220, 120))
+            sh = font_header.render(msg, True, (0, 0, 0))
             x = SCREEN_WIDTH // 2 - surf.get_width() // 2
             screen.blit(sh, (x + 2, 92))
             screen.blit(surf, (x, 90))
@@ -2981,6 +3213,13 @@ class MuckfordCityMenu(BaseMenu):
         """Hoitaa kaupungin elämän: kävelyn, juttelun ja taloissa vierailun."""
         for npc in self.npcs:
             if not hasattr(npc, "sim_state"): continue # Skip static NPCs like Gus
+
+            # Tapahtumien erikoistilat (esiintyjä, yleisö, tarjoilija,
+            # kojunpitäjä, hämärähahmo) eivät kuulu simulaatiolle - muuten
+            # "BUSY"-ylikirjoitus repii esim. bardin kesken keikan töihin
+            if npc.sim_state in ("PERFORMING", "WATCHING", "SERVING",
+                                 "KEEPING", "LURKING"):
+                continue
 
             # --- AI INTEGRATION ---
             # Tarkista tekeekö VillagerAI töitä (State ei ole 0/IDLE)

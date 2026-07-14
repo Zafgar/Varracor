@@ -13,6 +13,7 @@ import pygame
 
 from citys.mucford.market_data import MARKET_SHOPS
 from items.item_registry import create_item
+from lore.world_data import MARKET_PRICES
 from menus.base_menu import BaseMenu
 from settings import GOLD_COLOR, GRAY, GREEN, RED, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
@@ -36,6 +37,7 @@ class DistrictShopMenu(BaseMenu):
         self.feedback = ""
         self.feedback_timer = 0
         self.row_rects = []
+        self.sell_rects = []   # (rect, materiaalinimi)
         # Esikatselukappaleet hover-infokorttia varten (luodaan kerran)
         self._previews = {}
         for entry in self.shop["goods"]:
@@ -67,6 +69,47 @@ class DistrictShopMenu(BaseMenu):
 
     def _final_price(self, entry) -> int:
         return shop_price(entry["price"], self._effective_rep())
+
+    def _sell_price(self, name) -> int:
+        """Liikkeen maksama hinta: markkinoiden perushinta korjattuna
+        maineella (hyvä maine -> maksavat enemmän, huono -> vähemmän).
+        EI KOSKAAN yli 60 % liikkeen omasta myyntihinnasta - muuten
+        osta-halvalla-myy-takaisin -rahasilmukka olisi mahdollinen."""
+        base = int(MARKET_PRICES.get("sell", {}).get(name, 1))
+        pct = discount_percent(self._effective_rep())
+        price = max(1, round(base * (1.0 - pct / 100.0)))
+        for entry in self.shop["goods"]:
+            if entry["name"] == name:
+                price = min(price, max(1, int(entry["price"] * 0.6)))
+                break
+        return price
+
+    def _sellable_goods(self):
+        """(nimi, määrä, yksikköhinta) pelaajan repusta joita liike ostaa."""
+        inv = getattr(self.manager, "inventory", {})
+        out = []
+        for name in self.shop.get("buys", ()):
+            count = int(inv.get(name, 0))
+            if count > 0:
+                out.append((name, count, self._sell_price(name)))
+        return out
+
+    def _sell(self, name, sell_all=False):
+        inv = self.manager.inventory
+        count = int(inv.get(name, 0))
+        if count <= 0:
+            return
+        amount = count if sell_all else 1
+        unit_price = self._sell_price(name)
+        total = unit_price * amount
+        inv[name] = count - amount
+        if inv[name] <= 0:
+            del inv[name]
+        self.manager.gold += total
+        on_purchase(self.manager, self.shop["faction"])
+        self.feedback = (f"Sold {amount}x {name} for {format_money(total)}.")
+        self.feedback_timer = 200
+        sound_system.play_sound("coin")
 
     def _buy(self, entry):
         price = self._final_price(entry)
@@ -109,6 +152,12 @@ class DistrictShopMenu(BaseMenu):
             self._buy(self.selected_entry)
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # Myyntirivit: klikkaus myy 1, SHIFT+klikkaus myy kaikki
+            for rect, name in self.sell_rects:
+                if rect.collidepoint(event.pos):
+                    mods = pygame.key.get_mods()
+                    self._sell(name, sell_all=bool(mods & pygame.KMOD_SHIFT))
+                    return
             for rect, entry in self.row_rects:
                 if rect.collidepoint(event.pos):
                     if self.selected_entry is entry:
@@ -142,14 +191,13 @@ class DistrictShopMenu(BaseMenu):
             pygame.draw.rect(screen, tuple(max(0, c - 34) for c in awning),
                              (x, 96, 24, 20))
 
-        panel = pygame.Rect(240, 150, SCREEN_WIDTH - 480, 640)
-        self.draw_soft_panel(screen, panel, alpha=205, border_alpha=180, radius=12)
-
+        # Yläpalkki: pitäjä, maine ja varat
+        head = pygame.Rect(160, 150, SCREEN_WIDTH - 320, 104)
+        self.draw_soft_panel(screen, head, alpha=205, border_alpha=180, radius=12)
         draw_text(f"{self.shop['keeper']} ({self.shop['keeper_race']})",
-                  font_main, WHITE, screen, panel.x + 30, panel.y + 20)
+                  font_main, WHITE, screen, head.x + 30, head.y + 14)
         draw_text(self.shop["flavor"], font_small, (195, 190, 178),
-                  screen, panel.x + 30, panel.y + 54)
-
+                  screen, head.x + 30, head.y + 46)
         rep = self._rep()
         pct = discount_percent(self._effective_rep())
         rep_color = GREEN if pct < 0 else ((225, 165, 95) if pct > 0 else WHITE)
@@ -158,19 +206,52 @@ class DistrictShopMenu(BaseMenu):
         haggler_note = f"  [Haggler +{haggler}]" if haggler else ""
         draw_text(f"Your standing with {self.shop['faction_label']}: {rep}"
                   f"{haggler_note}  ({sign}{pct}% prices)", font_small, rep_color,
-                  screen, panel.x + 30, panel.y + 88)
+                  screen, head.x + 30, head.y + 74)
         draw_text(f"Funds: {format_money(getattr(self.manager, 'gold', 0))}",
-                  font_main, GOLD_COLOR, screen, panel.right - 280, panel.y + 20)
+                  font_main, GOLD_COLOR, screen, head.right - 280, head.y + 14)
+
+        mouse_pos = pygame.mouse.get_pos()
+
+        # --- VASEN: YOUR GOODS (myynti, kuten Muckford Marketissa) ---
+        left = pygame.Rect(160, 274, 620, 560)
+        self.draw_soft_panel(screen, left, alpha=205, border_alpha=180, radius=12)
+        draw_text("YOUR GOODS (click = sell 1, SHIFT = all)", font_main,
+                  (150, 200, 165), screen, left.x + 26, left.y + 18)
+        self.sell_rects = []
+        sy = left.y + 62
+        goods = self._sellable_goods()
+        if not goods:
+            draw_text(f"{self.shop['keeper']} buys: " +
+                      ", ".join(self.shop.get("buys", ())[:5]) + "...",
+                      font_small, (150, 150, 160), screen,
+                      left.x + 26, sy + 6)
+        for name, count, unit_price in goods[:8]:
+            row = pygame.Rect(left.x + 22, sy, left.w - 44, 48)
+            hover = row.collidepoint(mouse_pos)
+            pygame.draw.rect(screen, (44, 44, 52) if hover else (32, 33, 39),
+                             row, border_radius=8)
+            pygame.draw.rect(screen, awning, row, 1, border_radius=8)
+            draw_text(f"{name}  x{count}", font_main, WHITE, screen,
+                      row.x + 16, row.y + 12)
+            price_surf = font_main.render(format_money(unit_price), True,
+                                          GOLD_COLOR)
+            screen.blit(price_surf, (row.right - price_surf.get_width() - 16,
+                                     row.y + 12))
+            self.sell_rects.append((row, name))
+            sy += 58
+
+        # --- OIKEA: FOR SALE ---
+        panel = pygame.Rect(820, 274, SCREEN_WIDTH - 980, 560)
+        self.draw_soft_panel(screen, panel, alpha=205, border_alpha=180, radius=12)
 
         # Tuoterivit
         self.row_rects = []
-        y = panel.y + 140
-        draw_text("WARES (click to select, then BUY - hover for details)",
-                  font_main, (150, 200, 165), screen, panel.x + 30, y - 34)
-        mouse_pos = pygame.mouse.get_pos()
+        y = panel.y + 62
+        draw_text("FOR SALE (click to select, then BUY)",
+                  font_main, (150, 200, 165), screen, panel.x + 26, panel.y + 18)
         hovered_entry = None
         for entry in self.shop["goods"]:
-            row = pygame.Rect(panel.x + 26, y, panel.w - 52, 56)
+            row = pygame.Rect(panel.x + 22, y, panel.w - 44, 56)
             hover = row.collidepoint(mouse_pos)
             if hover:
                 hovered_entry = entry

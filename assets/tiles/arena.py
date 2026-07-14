@@ -167,9 +167,10 @@ class Arena:
         # Stage (Keskellä ylhäällä, Town Hallin portaiden edessä)
         self._add_prop(MuckfordStage(market_x - 250, stage_y)) # Keskitetty (500w / 2)
 
-        # Ilmoitustaulu torilla (kylätehtävät) - lavan oikealla puolella
+        # Ilmoitustaulu torilla (kylätehtävät) - siirretty kauemmas oikealle,
+        # ettei se jää kojun eteen (pelaajapalaute)
         from assets.tiles.muckford_objects import NoticeBoard
-        self._add_prop(NoticeBoard(market_x + 320, stage_y + 40))
+        self._add_prop(NoticeBoard(market_x + 620, stage_y - 20))
         
         # Kojut (Stalls) - Torin laidoilla
         # Vasen puoli (Lava on 500 leveä. Kojut kauemmas)

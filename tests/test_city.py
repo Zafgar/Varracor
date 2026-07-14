@@ -231,22 +231,19 @@ def test_village_tasks_persist(manager, tmp_path, monkeypatch):
 
 
 def test_ambient_bard_event(manager):
-    """Ambient-bardieventti käynnistyy ja päättyy siististi."""
+    """Iltashow käynnistyy aikataulun tunnilla ja päättyy siististi."""
     from citys.mucford.muckford_city_menu import MuckfordCityMenu
     city = MuckfordCityMenu(manager)
     assert getattr(city, "stage", None) is not None
+    city._update_ambient_event()  # alustaa aikataulun
+    # Show alkaa vasta illalla aikataulutunnilla (ei enää jatkuvasti)
+    manager.world_clock.minutes = (city._show_hour + 0.5) * 60.0
     city._update_ambient_event()
-    city._event_timer = 2
-    seen = False
-    for _ in range(400):
-        city.update()
-        if city._event_state == "bard":
-            seen = True
-            break
-    assert seen, "bardieventti ei kaynnistynyt"
-    for _ in range(1300):
-        city.update()
+    assert city._event_state == "bard", "iltashow ei kaynnistynyt"
+    assert city._event_timer > 3000, "esityksen pitää kestää pitkään"
+    city._end_bard_performance()
     assert city._event_state == "idle"
+    assert city._next_show_day == manager.world_clock.day + 1
 
 
 def test_deed_memory(manager):
