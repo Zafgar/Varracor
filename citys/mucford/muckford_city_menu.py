@@ -960,15 +960,15 @@ class MuckfordCityMenu(BaseMenu):
                         sound_system.play_sound('error')
                     return
 
-                # Shanty Yard -portti -> liigavalikko
+                # Shanty Yard -portti -> areenahallin sisätila (vartijat,
+                # vedonlyönti, liigatiski, kilpailijatiimien edustajat)
                 gate = getattr(self, "arena_gate", None)
                 if gate:
                     door_x = gate.rect.centerx
                     door_y = gate.rect.bottom
                     if math.hypot(self.player.rect.centerx - door_x,
                                   self.player.rect.bottom - door_y) < 110:
-                        self.manager.league_return_state = "muckford_city"
-                        self.next_state = "league"
+                        self.next_state = "arena_hall"
                         sound_system.play_sound('click')
                         return
 
@@ -1115,10 +1115,10 @@ class MuckfordCityMenu(BaseMenu):
                     if self._try_interact_prop(prop, check_collision=True):
                         return # Jos interaktio onnistui, lopetetaan tähän
 
-                # 5. Kaupungintalo (Sponsors)
+                # 5. Kaupungintalo -> aulan sisätila (kirjuri, sponsorit)
                 for prop in self.arena.props:
                     if isinstance(prop, TownHall) and self.player.rect.colliderect(prop.rect.inflate(40, 40)):
-                        self.next_state = "sponsors"
+                        self.next_state = "town_hall"
                         sound_system.play_sound('click')
                         return
                         
@@ -2321,7 +2321,12 @@ class MuckfordCityMenu(BaseMenu):
         for cow in self.animals:
             if cow.rect.inflate(40, 40).collidepoint(world_pos):
                 if self._check_range(self.player.rect, cow.rect):
-                    self._interact_cow(cow)
+                    # BUGIKORJAUS: klikkipolku lypsi myös kanoja ->
+                    # AttributeError 'Chicken' has no 'milk_ready'
+                    if isinstance(cow, Cow):
+                        self._interact_cow(cow)
+                    elif isinstance(cow, Chicken):
+                        self._pet_chicken(cow)
                 return True
 
         # Check Quest Givers
@@ -2665,7 +2670,7 @@ class MuckfordCityMenu(BaseMenu):
             return True
             
         if isinstance(prop, TownHall):
-            self.next_state = "sponsors"
+            self.next_state = "town_hall"
             sound_system.play_sound('click')
             return True
 

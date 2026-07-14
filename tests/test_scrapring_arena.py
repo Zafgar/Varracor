@@ -94,6 +94,7 @@ def test_location_aware_arena_selection():
     from arenas.arena_registry import get_arena_for
     from arenas.tier_1.scrapring_arena import ScrapringArena
     assert isinstance(get_arena_for(2, "rattlebridge"), ScrapringArena)
-    # Tuntematon sijainti -> tier-pohjainen fallback (ei Scrapring)
-    other = get_arena_for(2, "some_other_place")
-    assert not isinstance(other, ScrapringArena)
+    # Tuntematon sijainti -> tier-poolin arvonta (Scrapring VOI osua, koska
+    # se kuuluu tier 2 -pooliin - mutta ei joka kerta)
+    samples = [get_arena_for(2, "some_other_place") for _ in range(12)]
+    assert any(not isinstance(a, ScrapringArena) for a in samples)

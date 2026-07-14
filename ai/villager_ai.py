@@ -267,7 +267,10 @@ class VillagerAI(BaseAI):
             self.last_pos_check = self.unit.rect.center
             
             if self.stuck_counter > 3: # Stuck for over a second
-                # print(f"{self.unit.name} is stuck, attempting a new target.")
+                # BUGIKORJAUS: kohde on vapautettava, muuten esim. CropPlotin
+                # being_worked_on jää ikilukkoon ja pellot eivät koskaan
+                # tule kenenkään korjattaviksi
+                self._clear_work_target()
                 self.state = STATE_IDLE # Force re-evaluation of target
                 self.state_timer = 1
 

@@ -50,6 +50,10 @@ class BarracksInteriorMenu(GameplayScreen):
             # Paluu dialogista/valikosta: kaikki jäävät paikoilleen
             self._keep_positions = False
         else:
+            # Talteen pelaajan sijainti kaupungissa - rect jaetaan tilojen
+            # välillä, joten ilman palautusta ulos astuessa "keep" jättäisi
+            # pelaajan sisätilan koordinaatteihin (= warp väärään kohtaan)
+            self._city_return_pos = self.player.rect.center
             door = self.arena.door_rect
             self.player.rect.centerx = door.centerx
             self.player.rect.bottom = door.top - 10
@@ -196,6 +200,9 @@ class BarracksInteriorMenu(GameplayScreen):
                 self.upgrade_feedback = ""
                 sound_system.play_sound("click")
             elif kind == "leave":
+                # Palauta kaupunkisijainti ennen siirtymää ("keep" säilyttää)
+                if getattr(self, "_city_return_pos", None):
+                    self.player.rect.center = self._city_return_pos
                 self.next_state = "muckford_city"
                 sound_system.play_sound("click")
             return
@@ -344,7 +351,17 @@ class BarracksInteriorMenu(GameplayScreen):
             surf = font_main.render(self.banner, True, GOLD_COLOR)
             screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, 130))
         if self.player:
-            self.player.draw_hud(screen)
+            # HUD häivytetään kun hahmo on sen takana (kuten kaupungissa)
+            p_screen_y = self.player.rect.centery - self.camera_y
+            hud_surface = getattr(self.manager, "hud_surface", None)
+            if p_screen_y > SCREEN_HEIGHT - 200 and hud_surface is not None:
+                hud_surface.fill((0, 0, 0, 0))
+                self.player.draw_hud(hud_surface)
+                hud_surface.set_alpha(90)
+                screen.blit(hud_surface, (0, 0))
+                hud_surface.set_alpha(255)
+            else:
+                self.player.draw_hud(screen)
         self.draw_editor(screen)
 
     def _draw_ambience(self, screen, offset):

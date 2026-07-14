@@ -144,6 +144,8 @@ class GameManager:
         # Barracksin taso (1-3): määrää punkkien määrän ja tiimin koon
         self.barracks_level = 1
         self.hire_block_message = ""
+        # Arena Hallin aktiivinen veto: {"amount": SP} tai None
+        self.active_bet = None
         # Kaivoksen avain: Marda antaa kun velka on maksettu
         self.mine_key_owned = False
 
@@ -1278,6 +1280,21 @@ class GameManager:
             if hasattr(u, "adjust_morale"):
                 u.adjust_morale(4 if win else -6)
 
+        # Arena Hallin vedonlyönti ratkeaa liigamatsissa
+        bet = getattr(self, "active_bet", None)
+        if bet and self.mode == "League":
+            from citys.mucford.city_interiors import BET_PAYOUT
+            if win:
+                payout = int(bet["amount"] * BET_PAYOUT)
+                self.gold += payout
+                self.hire_block_message = (f"Vint pays out your wager: "
+                                           f"+{payout} SP!")
+            else:
+                self.hire_block_message = (f"Your {bet['amount']} SP wager "
+                                           f"is lost to the Yard.")
+            self._toast_timer = 300
+            self.active_bet = None
+
         # Path of the Arena: XP tapoista + voitosta jos sankari taisteli
         try:
             from systems import commander_progression as _prog
@@ -2385,6 +2402,19 @@ class GameManager:
             return True
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # Poistonapit (X) ennen rivivalintaa
+            for rect, slot in getattr(self, "pause_delete_rects", []):
+                if rect.collidepoint(event.pos):
+                    if getattr(self, "pause_delete_armed", None) == slot:
+                        save_manager.delete_slot(slot)
+                        self.pause_delete_armed = None
+                        self.save_feedback_msg = "Save deleted."
+                        self.save_feedback_timer = 120
+                        sound_system.play_sound('click')
+                    else:
+                        self.pause_delete_armed = slot
+                        sound_system.play_sound('hover')
+                    return True
             for rect, slot in self.pause_slot_rects:
                 if rect.collidepoint(event.pos):
                     if self.pause_panel_mode == "save":
@@ -2444,6 +2474,7 @@ class GameManager:
         if self.pause_panel_mode == "save":
             rows = [r for r in rows if r["slot"] != 0]
         self.pause_slot_rects = []
+        self.pause_delete_rects = []
         y = panel.y + 70
         mouse = pygame.mouse.get_pos()
         for row in rows:
@@ -2474,6 +2505,17 @@ class GameManager:
                 draw_text("- Empty -", font_main, (120, 120, 125), screen,
                           rect.x + 16, rect.y + 32)
             self.pause_slot_rects.append((rect, row["slot"]))
+            # Poistonappi olemassa oleville tallennuksille
+            if row["exists"] and self.pause_name_slot != row["slot"]:
+                del_rect = pygame.Rect(rect.right - 50, rect.y + 20, 36, 36)
+                armed = getattr(self, "pause_delete_armed", None) == row["slot"]
+                pygame.draw.rect(screen, (120, 40, 34) if armed else (52, 34, 32),
+                                 del_rect, border_radius=8)
+                pygame.draw.rect(screen, (230, 110, 90), del_rect, 2,
+                                 border_radius=8)
+                xs = font_small.render("X", True, (255, 200, 190))
+                screen.blit(xs, xs.get_rect(center=del_rect.center))
+                self.pause_delete_rects.append((del_rect, row["slot"]))
             y += 88
 
     def _update_pause_menu(self, current_state_key):
@@ -2529,6 +2571,15 @@ class GameManager:
             screen.blit(surf, (box.x + 18, box.y + 11))
             if self._toast_timer <= 0:
                 self.hire_block_message = ""
+
+        # 0.5 Kello näkyy myös sisätiloissa (pelaajapalaute: "mikä aika on?")
+        if current_state_key in ("tavern_sunk_cask", "blacksmith_interior",
+                                 "barracks_interior", "arena_hall",
+                                 "town_hall") and not self.paused:
+            try:
+                self.world_clock.draw_hud(screen, font_small)
+            except Exception:
+                pass
 
         # 1. COMMANDER HUD (Vain pelitiloissa)
         gameplay_states = ["muckford_city", "tavern_sunk_cask", "blacksmith_interior", "battle", "game"]

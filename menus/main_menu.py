@@ -153,8 +153,52 @@ class MainMenu(BaseMenu):
             
         self.sparks = []
 
+        # LOAD-paneeli: slottilista + poisto
+        self.show_load_panel = False
+        self.load_slot_rects = []    # (rect, slot)
+        self.delete_rects = []       # (rect, slot)
+        self.delete_armed = None     # slot jonka poisto odottaa vahvistusta
+        self.load_feedback = ""
+
+    def consumes_escape(self):
+        return self.show_load_panel
+
     def handle_event(self, event):
-        pass
+        if not self.show_load_panel:
+            return
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.show_load_panel = False
+            return
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            import save_manager
+            # Poistonapit ensin (rivin sisällä)
+            for rect, slot in self.delete_rects:
+                if rect.collidepoint(event.pos):
+                    if self.delete_armed == slot:
+                        save_manager.delete_slot(slot)
+                        self.delete_armed = None
+                        self.load_feedback = "Save deleted."
+                        sound_system.play_sound("click")
+                    else:
+                        self.delete_armed = slot
+                        self.load_feedback = "Click the X again to delete."
+                        sound_system.play_sound("hover")
+                    return
+            for rect, slot in self.load_slot_rects:
+                if rect.collidepoint(event.pos):
+                    if save_manager.load_from_slot(self.manager, slot):
+                        pygame.mixer.music.fadeout(1000)
+                        self.show_load_panel = False
+                        # Lataus vie suoraan pelimaailmaan
+                        self.next_state = "muckford_city"
+                        sound_system.play_sound("click")
+                    else:
+                        self.load_feedback = "Could not load that save."
+                        sound_system.play_sound("error")
+                    return
+            # Klikkaus paneelin ulkopuolelle sulkee
+            self.show_load_panel = False
+            self.delete_armed = None
 
     def update(self):
         # --- VIDEO UPDATE ---
@@ -194,14 +238,16 @@ class MainMenu(BaseMenu):
             # Siirrytään latausruutuun, joka hoitaa alustukset
             self.next_state = "intro"
 
+        if self.show_load_panel:
+            return  # paneeli nappaa syötteet handle_eventissä
+
         if self.btn_load.update():
-            import save_manager
-            if save_manager.load_game(self.manager):
-                pygame.mixer.music.fadeout(1000)
-                self.next_state = "hub"
-            else:
-                try: sound_system.play_sound("error")
-                except Exception: pass
+            # Avaa slottivalitsin (klikkaus lataa, X poistaa)
+            self.show_load_panel = True
+            self.delete_armed = None
+            self.load_feedback = ""
+            try: sound_system.play_sound("click")
+            except Exception: pass
 
         if self.btn_options.update():
             self.next_state = "options"
@@ -234,3 +280,68 @@ class MainMenu(BaseMenu):
 
         for btn in self.buttons:
             btn.draw(screen)
+
+        if self.show_load_panel:
+            self._draw_load_panel(screen)
+
+    def _draw_load_panel(self, screen):
+        """Slottilista: klikkaus lataa, X poistaa (kahdella klikillä)."""
+        import save_manager
+        from ui_kit import font_small, font_header
+
+        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 185))
+        screen.blit(shade, (0, 0))
+        panel = pygame.Rect(SCREEN_WIDTH // 2 - 380, SCREEN_HEIGHT // 2 - 330,
+                            760, 660)
+        pygame.draw.rect(screen, (24, 22, 20), panel, border_radius=14)
+        pygame.draw.rect(screen, GOLD_COLOR, panel, 3, border_radius=14)
+        draw_text("LOAD GAME - choose a save", font_header, GOLD_COLOR,
+                  screen, panel.x + 30, panel.y + 22)
+        draw_text("[ESC] back", font_small, (150, 150, 160), screen,
+                  panel.right - 120, panel.y + 32)
+
+        self.load_slot_rects = []
+        self.delete_rects = []
+        y = panel.y + 86
+        mouse = pygame.mouse.get_pos()
+        for row in save_manager.list_slots():
+            slot = row["slot"]
+            rect = pygame.Rect(panel.x + 26, y, panel.w - 52, 78)
+            hover = rect.collidepoint(mouse)
+            label = "QUICKSAVE" if slot == 0 else f"SLOT {slot}"
+            if row["exists"]:
+                pygame.draw.rect(screen, (44, 40, 34) if hover else (34, 32, 28),
+                                 rect, border_radius=9)
+                pygame.draw.rect(screen, GOLD_COLOR if hover else (120, 100, 70),
+                                 rect, 2, border_radius=9)
+                draw_text(label, font_small, (150, 150, 160), screen,
+                          rect.x + 16, rect.y + 8)
+                draw_text(row["name"][:30], font_main, (235, 228, 210), screen,
+                          rect.x + 16, rect.y + 32)
+                draw_text(row["game_date"], font_small, (150, 200, 165),
+                          screen, rect.x + 300, rect.y + 12)
+                draw_text(f"saved {row['saved_at']}", font_small,
+                          (140, 140, 150), screen, rect.x + 300, rect.y + 42)
+                self.load_slot_rects.append((rect, slot))
+                # Poistonappi rivin oikeassa reunassa
+                del_rect = pygame.Rect(rect.right - 54, rect.y + 20, 38, 38)
+                armed = self.delete_armed == slot
+                pygame.draw.rect(screen, (120, 40, 34) if armed else (56, 36, 34),
+                                 del_rect, border_radius=8)
+                pygame.draw.rect(screen, (230, 110, 90), del_rect, 2,
+                                 border_radius=8)
+                xs = font_main.render("X", True, (255, 200, 190))
+                screen.blit(xs, xs.get_rect(center=del_rect.center))
+                self.delete_rects.append((del_rect, slot))
+            else:
+                pygame.draw.rect(screen, (28, 27, 25), rect, border_radius=9)
+                pygame.draw.rect(screen, (70, 66, 60), rect, 1, border_radius=9)
+                draw_text(label, font_small, (110, 108, 100), screen,
+                          rect.x + 16, rect.y + 8)
+                draw_text("- Empty -", font_main, (110, 108, 100), screen,
+                          rect.x + 16, rect.y + 34)
+            y += 90
+        if self.load_feedback:
+            draw_text(self.load_feedback, font_small, (255, 190, 120),
+                      screen, panel.x + 30, panel.bottom - 34)

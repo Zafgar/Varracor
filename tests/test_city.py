@@ -132,7 +132,8 @@ def test_arena_gate_and_bram(manager):
 
     city.player.rect.center = (gate.rect.centerx, gate.rect.bottom + 40)
     city.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e))
-    assert city.next_state == "league"
+    # Portti vie nyt Arena Hallin sisätilaan (liigatiski on hallin sisällä)
+    assert city.next_state == "arena_hall"
 
 
 def test_poi_icons(manager):

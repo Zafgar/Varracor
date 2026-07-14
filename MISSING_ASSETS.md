@@ -3,9 +3,9 @@
 Generoitu komennolla `python tools/asset_scan.py` — aja uudelleen
 aina kun lisäät tiedostoja, niin lista pysyy ajan tasalla.
 
-- Koodissa viitattuja tiedostoja: **206**
+- Koodissa viitattuja tiedostoja: **210**
 - Löytyy levyltä: **0**
-- Puuttuu: **206**
+- Puuttuu: **210**
 
 Laita tiedosto täsmälleen alla olevaan polkuun (suhteessa pelin
 juurikansioon), niin peli löytää sen automaattisesti — koodia ei
@@ -184,7 +184,7 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/sounds/sword_swing.wav` | ääni | sound_manager.py |
 | `assets/sounds/win_fanfare.wav` | ääni | sound_manager.py |
 
-## assets/tiles/ (11 kpl)
+## assets/tiles/ (15 kpl)
 
 | Tiedosto | Tyyppi | Käytetään tiedostossa |
 |---|---|---|
@@ -198,6 +198,10 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/tiles/floors/muckford_forest.png` | kuva | citys/mucford/forest_road_arena.py |
 | `assets/tiles/floors/road_brick_horizontal.png` | kuva | citys/mucford/forest_road_arena.py |
 | `assets/tiles/houses/floor_wood_poor.png` | kuva | citys/mucford/tavern_menu.py |
+| `assets/tiles/interiors/bench.png` | kuva | citys/mucford/city_interiors.py |
+| `assets/tiles/interiors/counter.png` | kuva | citys/mucford/city_interiors.py |
+| `assets/tiles/interiors/odds_board.png` | kuva | citys/mucford/city_interiors.py |
+| `assets/tiles/interiors/trophy_case.png` | kuva | citys/mucford/city_interiors.py |
 | `assets/tiles/muckford/barrel.png` | kuva | units/villager.py |
 
 ## assets/ui/ (54 kpl)

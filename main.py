@@ -56,6 +56,7 @@ from citys.mucford.forest_road_menu import ForestRoadMenu
 from citys.mucford.mine_road_menu import MineRoadMenu
 from citys.mucford.mine_cave_menu import MineCaveMenu
 from citys.mucford.barracks_interior_menu import BarracksInteriorMenu
+from citys.mucford.city_interiors import ArenaHallMenu, TownHallMenu
 from citys.mucford.forest_excursion import ForestExcursionMenu
 from citys.rattlebridge.rattlebridge_city_menu import RattlebridgeCityMenu
 from citys.rattlebridge.the_span_menu import TheSpanMenu
@@ -139,6 +140,8 @@ def main():
         "options": OptionsMenu(manager),
         "barracks": BarracksMenu(manager),
         "barracks_interior": None,
+        "arena_hall": None,
+        "town_hall": None,
         "notice_board": NoticeBoardMenu(manager),
         "forest_excursion": None,
         "market": MarketMenu(manager),
@@ -175,6 +178,8 @@ def main():
         "options": OptionsMenu,
         "barracks": BarracksMenu,
         "barracks_interior": BarracksInteriorMenu,
+        "arena_hall": ArenaHallMenu,
+        "town_hall": TownHallMenu,
         "notice_board": NoticeBoardMenu,
         "forest_excursion": ForestExcursionMenu,
         "market": MarketMenu,
@@ -218,13 +223,13 @@ def main():
     CREATE_IF_MISSING = {
         "muckford_city", "blacksmith_interior", "forest_road", "mine_road",
         "mine_cave", "forest_excursion", "rattlebridge_city",
-        "barracks_interior",
+        "barracks_interior", "arena_hall", "town_hall",
     }
 
     CALL_ON_ENTER = {
         "muckford_city", "blacksmith_interior", "forest_road", "mine_road",
         "mine_cave", "test_arena", "crown_knives", "forest_excursion",
-        "barracks_interior",
+        "barracks_interior", "arena_hall", "town_hall",
         "world_map", "regional_staging", "rattlebridge_city",
         "rattlebridge_span", "rattlebridge_hospital",
         "rattlebridge_scrapring", "rattlebridge_contracts",

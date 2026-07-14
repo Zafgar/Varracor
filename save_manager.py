@@ -286,8 +286,23 @@ def save_to_slot(manager, slot: int, name: str = ""):
     return save_game(manager, filepath=slot_path(slot), save_name=name)
 
 
+def delete_slot(slot: int) -> bool:
+    """Poistaa tallennuksen. Slot 0 = pikatallennus (SAVE_FILE)."""
+    path = SAVE_FILE if int(slot) == 0 else slot_path(slot)
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+            print(f"[Save] Deleted {path}")
+            return True
+    except Exception as e:
+        print(f"[Save] ERROR: delete failed: {e}")
+    return False
+
+
 def load_from_slot(manager, slot: int):
-    return load_game(manager, filepath=slot_path(slot))
+    # Slot 0 = pikatallennus (F5 / savegame.json)
+    path = SAVE_FILE if int(slot) == 0 else slot_path(slot)
+    return load_game(manager, filepath=path)
 
 
 def save_game(manager, filepath=None, save_name=""):
@@ -340,6 +355,7 @@ def save_game(manager, filepath=None, save_name=""):
             "next_raid_day": int(getattr(manager, "next_raid_day", 0)),
             "mine_key_owned": bool(getattr(manager, "mine_key_owned", False)),
             "barracks_level": int(getattr(manager, "barracks_level", 1)),
+            "active_bet": getattr(manager, "active_bet", None),
         }
 
         target = filepath or SAVE_FILE
@@ -415,6 +431,7 @@ def load_game(manager, filepath=None):
         # --- Questit ---
         manager.has_smith = bool(data.get("has_smith", False))
         manager.barracks_level = int(data.get("barracks_level", 1))
+        manager.active_bet = data.get("active_bet") or None
         if getattr(manager, "village_tasks", None) and data.get("village_tasks"):
             manager.village_tasks.from_dict(data["village_tasks"])
 

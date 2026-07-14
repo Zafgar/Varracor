@@ -129,8 +129,16 @@ def test_shanty_yard_gate_sets_league_return():
     city.player.rect.bottom = gate.rect.bottom + 20
     city.next_state = None
     city.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e))
-    assert city.next_state == "league"
-    assert m.league_return_state == "muckford_city"
+    # Portti vie Arena Halliin; hallin liigatiski asettaa paluutilan
+    assert city.next_state == "arena_hall"
+    from citys.mucford.city_interiors import ArenaHallMenu
+    hall = ArenaHallMenu(m)
+    hall.on_enter()
+    hall.player.rect.center = (hall.league_desk.rect.centerx,
+                               hall.league_desk.rect.bottom + 40)
+    hall.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e))
+    assert hall.next_state == "league"
+    assert m.league_return_state == "arena_hall"
 
 
 def test_shop_hover_previews_built():

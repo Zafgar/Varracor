@@ -116,6 +116,20 @@ tiedostot kuuluu pudottaa.
   fullscreen + resoluutio (AUTO tunnistaa työpöydän); looginen renderöinti
   aina 1920x1080 SCALED. Options-valikon DISPLAY-osio; tallentuu
   saves/options.json "display"-avaimeen, sovelletaan käynnistyksessä.
+- **Arena Hall & Town Hall** (citys/mucford/city_interiors.py, tilat
+  "arena_hall"/"town_hall") — Shanty Yardin portti vie käveltävään halliin:
+  liigatiski (LEAGUE), Odds-Maker Vintin vedonlyönti (panos omaan seuraavaan
+  liigamatsiin, x2; manager.active_bet, ratkeaa end_matchissa, tallentuu),
+  vartijat ja RIVAL_GLADIATORS-edustajat loungessa (open_rival_dialogue).
+  Town Hall: kirjuri (sponsors) + mainetaulu (reputation). Sisätiloista
+  poistuttaessa pelaajan kaupunkisijainti palautetaan (_city_return_pos -
+  rect jaetaan tilojen välillä!). Kello piirretään sisätiloissa
+  draw_ui_overlayssa; HUD häivytetään kun hahmo jää sen taakse.
+- **Save-slotit**: päävalikon LOAD avaa slottipaneelin (lataus + X-poisto
+  kahdella klikillä, delete_slot); sama poisto pause-paneelissa.
+- **NPC-sadonkorjuu**: CropPlotin being_worked_on-varaus raukeaa TTL:llä
+  (~25 s) ja VillagerAI:n stuck-käsittely vapauttaa työkohteen - ilman
+  näitä pellot lukkiutuvat pysyvästi eikä kukaan korjaa satoa.
 
 - **Mudwater Pond + kalastus** — koodipiirretty vesi (assets/tiles/water.py:
   WaterBody = välimuistitettu pohja + animoidut aallot/kimallus/väreet/

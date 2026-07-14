@@ -245,6 +245,13 @@ class CropPlot(Prop):
         return min(1.0, self.growth_ticks / max(1, self.data["growth_frames"]))
 
     def update(self, obstacles=None, manager=None, *args, **kwargs):
+        # Varmistus: jos työhön varattu palsta jää roikkumaan (työntekijä
+        # jumittui/keskeytyi), varaus raukeaa ajastimella - muuten pellot
+        # lukittuvat pysyvästi eikä kukaan koskaan korjaa niitä
+        if self.being_worked_on:
+            self._work_ttl = int(getattr(self, "_work_ttl", 1500)) - 1
+            if self._work_ttl <= 0:
+                self.being_worked_on = False
         # Rain waters the fields automatically when the clock exposes weather.
         if manager and not self.watered and not self.ready:
             weather = str(getattr(getattr(manager, "world_clock", None), "weather", "")).lower()
@@ -696,6 +703,7 @@ def _patch_villager_ai(VillagerAI):
             if len(ripe) >= 2:
                 self.work_target = random.choice(ripe)
                 self.work_target.being_worked_on = True
+                self.work_target._work_ttl = 1500  # varaus raukeaa ~25 s
                 self.work_type = "harvest_crop"
                 self._equip_tool("harvest")
                 self.state_timer = random.randint(180, 300)
@@ -703,6 +711,7 @@ def _patch_villager_ai(VillagerAI):
             if dry:
                 self.work_target = random.choice(dry)
                 self.work_target.being_worked_on = True
+                self.work_target._work_ttl = 1500
                 self.work_type = "water_crop"
                 self._equip_tool("bucket")
                 self.state_timer = random.randint(120, 240)
