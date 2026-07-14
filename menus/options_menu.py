@@ -171,6 +171,16 @@ class OptionsMenu(BaseMenu):
                     self.bind_feedback = ""
                     sound_system.play_sound("hover")
                     return
+            # Instant cast -kytkimet (slotit 1-8)
+            for rect, slot in getattr(self, "instant_rects", []):
+                if rect.collidepoint(event.pos):
+                    from systems import hotbar_prefs
+                    on = hotbar_prefs.toggle_instant(slot)
+                    self.bind_feedback = (
+                        f"Slot {slot}: instant cast "
+                        f"{'ON' if on else 'OFF'}")
+                    sound_system.play_sound("click")
+                    return
 
         if self.btn_reset.is_clicked(event):
             keybinds.reset_defaults()
@@ -297,6 +307,33 @@ class OptionsMenu(BaseMenu):
             surf = font_small.render(key_txt, True, (150, 150, 160))
             screen.blit(surf, (right.right - surf.get_width() - 36, row_y + 4))
             row_y += 28
+
+        # --- INSTANT CAST (pelitesti 17) ---
+        # Slotit 1-8: päällä = näppäin castaa heti kursorin suuntaan,
+        # pois = näppäin valitsee ja klikkaus castaa (vanha tapa)
+        from systems import hotbar_prefs
+        row_y += 10
+        draw_text("INSTANT CAST (per slot: key casts toward cursor)",
+                  font_small, GOLD_COLOR, screen, right.x + 30, row_y)
+        row_y += 30
+        self.instant_rects = []
+        slot_list = ["spell1", "spell2", "spell3", "spell4", "spell5",
+                     "spell6", "usable", "usable2"]
+        chip_w = (right.w - 60) // 8
+        for i, slot in enumerate(slot_list):
+            rect = pygame.Rect(right.x + 30 + i * chip_w, row_y,
+                               chip_w - 6, 34)
+            on = hotbar_prefs.is_instant(slot)
+            pygame.draw.rect(screen, (48, 66, 48) if on else (38, 38, 46),
+                             rect, border_radius=7)
+            pygame.draw.rect(screen,
+                             (130, 210, 140) if on else (100, 100, 110),
+                             rect, 1, border_radius=7)
+            txt = f"{i + 1} {'ON' if on else 'off'}"
+            surf = font_small.render(txt, True,
+                                     (180, 235, 185) if on else GRAY)
+            screen.blit(surf, surf.get_rect(center=rect.center))
+            self.instant_rects.append((rect, slot))
 
         if self.bind_feedback:
             draw_text(self.bind_feedback, font_small, (170, 230, 170), screen,

@@ -5,9 +5,9 @@ from sound_manager import sound_system
 
 
 class RiftPulse(Spell):
-    """Vortex-pulssi: repeämä avautuu hetkeksi Commanderin ympärille ja
-    sinkoaa lähiviholliset kauemmas. Intron kolmas Vortex-kyky -
-    hätäpainike kun rotat pääsevät iholle."""
+    """Vortex-pulssi: "antakaa tilaa" -kyky (pelitesti 17). Repeämä
+    avautuu hetkeksi Commanderin ympärille: pieni vahinko, mutta KOVA
+    sinkaisu poispäin + lyhyt hidastus kaikille lähivihollisille."""
 
     def __init__(self):
         super().__init__()
@@ -15,13 +15,14 @@ class RiftPulse(Spell):
         self.tier = 1
         self.rarity = "Legendary"   # Commander-magia, ei myynnissä
         self.cost = 0
-        self.description = "The Vortex breathes out: damage and push back everything around you."
+        self.description = ("The Vortex breathes out: shove every enemy "
+                            "away from you and slow them briefly.")
 
         self.mana_cost = 12
         self.cooldown_max = 300     # 5 s
         self.range = 150            # vaikutussäde (piirtyy kantamarinkinä)
-        self.damage = 12
-        self.scaling = {"INT": 0.8}
+        self.damage = 4              # pieni piikki - tyonto on pointti
+        self.scaling = {"INT": 0.1}
         self.is_skillshot = False   # itsensä ympärille, ei tähtäystä
 
         self.icon_color = (50, 255, 200)  # Abyssal Teal
@@ -72,9 +73,14 @@ class RiftPulse(Spell):
             if dist > self.range:
                 continue
             u.take_damage(dmg, "Magic", attacker=caster, manager=manager)
+            # Lyhyt hidastus: "antakaa tilaa"
+            try:
+                u.apply_status("Slow", 120)  # ~2 s
+            except Exception:
+                pass
             # Sinkaisu poispäin (ei seinien läpi: check_wall_collision)
             if dist > 0:
-                push = 70
+                push = 160
                 px = (dx / dist) * push
                 py = (dy / dist) * push
                 try:

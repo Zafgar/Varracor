@@ -1492,6 +1492,13 @@ class MuckfordCityMenu(BaseMenu):
 
     def _use_player_ability(self, slot_name):
         """Käyttää kykyä hiiren osoittamaan kohtaan/kohteeseen."""
+        # Hotbarin sivulla 2 numeronäppäimet vaihtavat pikatyökalun
+        if getattr(self.player, "hotbar_page", 1) == 2:
+            idx = {"spell1": 0, "spell2": 1, "spell3": 2, "spell4": 3,
+                   "usable": 3, "spell5": 4, "spell6": 5,
+                   "usable2": 6}.get(slot_name, 0)
+            self.player.try_quick_equip(idx, self.manager)
+            return
         item = self.player.equipment.get(slot_name)
         if not item: return
 

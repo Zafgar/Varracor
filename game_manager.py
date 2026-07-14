@@ -208,6 +208,8 @@ class GameManager:
         # --- PLAYER CHARACTER ---
         self.camera_locked = True # Lock camera to player character by default
         self.player_character = Commander()
+        # Hotbarin sivu 2 (pikatyökalut) tarvitsee pääsyn reppuun
+        self.player_character.manager_ref = self
 
         # Give tools for testing
         if CHEAT_MODE:
@@ -2474,6 +2476,17 @@ class GameManager:
             handled = self._handle_pause_panel_event(event)
             if handled is not None:
                 return handled
+
+        # Hotbarin syöte (lukko, sivunuolet, pikatyökalut, raahaus)
+        if self.player_character and not self.paused \
+                and not self.active_dialogue and not self.show_inventory \
+                and current_state_key in (QUEST_JOURNAL_STATES
+                                          + ("battle", "game")):
+            try:
+                if self.player_character.handle_hotbar_event(event, self):
+                    return True
+            except Exception:
+                pass
 
         # Quest journal: J tai paneelin silmänappi näyttää/piilottaa
         if current_state_key in QUEST_JOURNAL_STATES:

@@ -83,6 +83,15 @@ class Commander(Gladiator):
         
         # Input & Spell Targeting
         self.selected_spell_slot = None # "spell1", "spell2", jne.
+
+        # --- HOTBAR (pelitesti 17) ---
+        # Sivu 1 = kyvyt/usablet, sivu 2 = pikatyökalut (aseet/työkalut
+        # repusta nopeaan vaihtoon). Lukko estää raahausjärjestelyn.
+        self.hotbar_page = 1
+        self._hotbar_rects = []   # [(rect, slot_name_tai_item)]
+        self._hotbar_ui = {}      # "lock"/"up"/"down" -> rect
+        self._drag_slot = None    # raahauksen lähtöslotti (sivu 1)
+        self.manager_ref = None   # GameManager asettaa (reppu sivulle 2)
         self._melee_hold_block = False  # estää meleen heti castin perään
         self.prev_keys = pygame.key.get_pressed() # Näppäinten tilan seurantaan (toggle)
         self.prev_mouse = (False, False, False) # Hiiren tilan seurantaan
@@ -744,8 +753,27 @@ class Commander(Gladiator):
         # Apufunktio tarkistamaan painettiinko nappia juuri nyt.
         # BUGIKORJAUS: tyhjää slottia ei voi enää valita - vanha koodi
         # jätti valinnan päälle ja LMB-melee lakkasi toimimasta kokonaan.
+        # Pelitesti 17: instant cast -asetus (options/CONTROLS) castaa
+        # HETI kursorin suuntaan ilman valinta+klikkaus -vaihetta.
+        # Hotbarin sivulla 2 numeronäppäimet vaihtavat pikatyökalun.
+        _PAGE2_IDX = {"spell1": 0, "spell2": 1, "spell3": 2, "usable": 3,
+                      "spell4": 3, "spell5": 4, "spell6": 5, "usable2": 6}
+
         def check_toggle(key_code, slot_name):
             if keys[key_code] and not self.prev_keys[key_code]:
+                if getattr(self, "hotbar_page", 1) == 2:
+                    self.try_quick_equip(_PAGE2_IDX.get(slot_name, 0),
+                                         manager)
+                    return
+                from systems import hotbar_prefs
+                if hotbar_prefs.is_instant(slot_name) and \
+                        self.equipment.get(slot_name) is not None:
+                    # Suora casti kursorin suuntaan
+                    if self._try_use_slot(slot_name, world_mx, world_my,
+                                          all_units, manager):
+                        self.selected_spell_slot = None
+                        self._melee_hold_block = True
+                    return
                 if self.selected_spell_slot == slot_name:
                     self.selected_spell_slot = None # Deactivate
                 elif self.equipment.get(slot_name) is not None:
@@ -1050,15 +1078,36 @@ class Commander(Gladiator):
         action_bar_y = start_y - ab_height - 35
         self._draw_action_bar(screen, start_x, action_bar_y, total_w)
 
-        # --- 3. QUICKBAR (CENTER) ---
-        for i, slot_name in enumerate(slots):
-            bx = start_x + i * (slot_w + gap)
-            item = self.equipment.get(slot_name)
-            is_selected = (self.selected_spell_slot == slot_name)
-            cd = self.spell_cooldowns.get(slot_name, 0)
-            
-            self._draw_slot_frame(screen, bx, start_y, slot_w, slot_h, item=item, label=str(i+1), 
-                                  cooldown=cd, is_selected=is_selected)
+        # --- 3. QUICKBAR (CENTER, sivullinen - pelitesti 17) ---
+        self._hotbar_rects = []
+        page = getattr(self, "hotbar_page", 1)
+        if page == 1:
+            for i, slot_name in enumerate(slots):
+                bx = start_x + i * (slot_w + gap)
+                item = self.equipment.get(slot_name)
+                is_selected = (self.selected_spell_slot == slot_name)
+                cd = self.spell_cooldowns.get(slot_name, 0)
+                self._draw_slot_frame(screen, bx, start_y, slot_w, slot_h,
+                                      item=item, label=str(i + 1),
+                                      cooldown=cd, is_selected=is_selected)
+                self._hotbar_rects.append(
+                    (pygame.Rect(bx, start_y, slot_w, slot_h), slot_name))
+        else:
+            # Sivu 2: pikatyökalut/aseet repusta (klikkaus/näppäin vaihtaa
+            # käteen - esim. kirves hakkuuseen, hakku louhintaan)
+            quick = self._quick_items()
+            for i in range(8):
+                bx = start_x + i * (slot_w + gap)
+                item = quick[i] if i < len(quick) else None
+                in_hand = (item is not None
+                           and item is self.equipment.get("main_hand"))
+                self._draw_slot_frame(screen, bx, start_y, slot_w, slot_h,
+                                      item=item, label=str(i + 1),
+                                      cooldown=0, is_selected=in_hand)
+                self._hotbar_rects.append(
+                    (pygame.Rect(bx, start_y, slot_w, slot_h), item))
+        self._draw_hotbar_extras(screen, start_x, start_y, total_w,
+                                 slot_w, slot_h, mana_x, orb_y, orb_radius)
 
         # --- 4. STAMINA BAR (BELOW ACTION BAR) ---
         
@@ -1388,6 +1437,262 @@ class Commander(Gladiator):
             # Piirretään numero ikonin yläpuolelle tai kehyksen yläosaan
             draw_text(label, font_small, (220, 220, 220), screen, icon_x - 5, icon_y - 15)
 
+    # ------------------------------------------------------------------
+    # HOTBAR-LISÄT (pelitesti 17): sivut, lukko, raahaus, tooltipit
+    # ------------------------------------------------------------------
+    def _quick_items(self):
+        """Sivun 2 pikatyökalut: repun aseet/työkalut, työkalut ensin."""
+        m = self.manager_ref
+        if m is None:
+            return []
+        bag = [it for it in getattr(m, "equipment_bag", [])
+               if getattr(it, "type", "") in
+               ("weapon", "tool", "melee", "ranged")]
+        tools = [it for it in bag
+                 if getattr(it, "tool_type", "none") not in ("", "none")]
+        others = [it for it in bag if it not in tools]
+        current = self.equipment.get("main_hand")
+        head = [current] if current is not None else []
+        return (head + tools + others)[:8]
+
+    def try_quick_equip(self, idx, manager=None):
+        """Vaihtaa pikatyökalun käteen (vanha ase takaisin reppuun)."""
+        quick = self._quick_items()
+        if idx >= len(quick) or quick[idx] is None:
+            sound_system.play_sound("error")
+            return False
+        item = quick[idx]
+        current = self.equipment.get("main_hand")
+        if item is current:
+            return True
+        if not self.can_equip_item_to_slot("main_hand", item):
+            sound_system.play_sound("error")
+            m = manager or self.manager_ref
+            if m is not None:
+                m.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
+                                  "Can't wield that yet!",
+                                  color=(255, 120, 120))
+            return False
+        m = self.manager_ref
+        bag = getattr(m, "equipment_bag", None) if m else None
+        if bag is not None and item in bag:
+            bag.remove(item)
+        if current is not None and getattr(current, "name", "") != "Fists" \
+                and bag is not None:
+            bag.append(current)
+        self.equipment["main_hand"] = item
+        self.calculate_final_stats()
+        sound_system.play_sound("click")
+        if m is not None:
+            m.vfx.show_damage(self.rect.centerx, self.rect.top - 30,
+                              f"{getattr(item, 'name', 'Item')} ready!",
+                              color=(180, 220, 255))
+        return True
+
+    def _draw_hotbar_extras(self, screen, start_x, start_y, total_w,
+                            slot_w, slot_h, mana_x, orb_y, orb_radius):
+        """Sivunuolet, lukko (mana-orbin vieressä), sivun nimi ja
+        hover-tooltipit hotbarin slotteihin."""
+        from systems import hotbar_prefs
+        ui = {}
+        # Sivunuolet hotbarin oikealla puolella
+        ax = start_x + total_w + 6
+        up = pygame.Rect(ax, start_y + 4, 30, max(24, slot_h // 2 - 8))
+        down = pygame.Rect(ax, start_y + slot_h // 2 + 4, 30,
+                           max(24, slot_h // 2 - 8))
+        page = getattr(self, "hotbar_page", 1)
+        for rect, glyph, active in ((up, "▲", page > 1),
+                                    (down, "▼", page < 2)):
+            pygame.draw.rect(screen, (30, 28, 24), rect, border_radius=6)
+            pygame.draw.rect(screen, (150, 130, 80), rect, 1,
+                             border_radius=6)
+            col = GOLD_COLOR if active else (100, 95, 85)
+            surf = font_small.render(glyph, True, col)
+            screen.blit(surf, surf.get_rect(center=rect.center))
+        ui["up"] = up
+        ui["down"] = down
+        label = "ABILITIES" if page == 1 else "TOOLS & WEAPONS"
+        draw_text(f"{label}  ({page}/2)", font_small, (190, 175, 140),
+                  screen, start_x + 4, start_y - 16)
+
+        # Lukko mana-orbin vieressä
+        lock = pygame.Rect(mana_x + orb_radius + 8, orb_y - 14, 30, 34)
+        locked = hotbar_prefs.is_locked()
+        pygame.draw.rect(screen, (30, 28, 24), lock, border_radius=7)
+        pygame.draw.rect(screen, (150, 130, 80), lock, 1, border_radius=7)
+        body = pygame.Rect(lock.x + 7, lock.y + 15, 16, 12)
+        col = (220, 190, 110) if locked else (140, 200, 150)
+        pygame.draw.rect(screen, col, body, border_radius=3)
+        # Sanka: kiinni = molemmat päät rungossa, auki = toinen pää irti
+        if locked:
+            pygame.draw.arc(screen, col, (lock.x + 8, lock.y + 5, 14, 16),
+                            0, math.pi, 2)
+        else:
+            pygame.draw.arc(screen, col, (lock.x + 12, lock.y + 3, 14, 16),
+                            0, math.pi * 0.9, 2)
+        ui["lock"] = lock
+        self._hotbar_ui = ui
+
+        # Raahauksen haamu (sivu 1, lukko auki)
+        if self._drag_slot is not None:
+            item = self.equipment.get(self._drag_slot)
+            if item is not None and hasattr(item, "draw_card_icon"):
+                mx, my = pygame.mouse.get_pos()
+                item.draw_card_icon(screen, mx - 22, my - 22, 44)
+
+        # Hover-tooltip slotin päällä (nimi, kuvaus, cooldown, damage)
+        mx, my = pygame.mouse.get_pos()
+        for rect, ref in self._hotbar_rects:
+            if not rect.collidepoint((mx, my)):
+                continue
+            item = self.equipment.get(ref) if isinstance(ref, str) else ref
+            if item is None:
+                break
+            draw_item_tooltip(screen, item, mx, my, player_unit=self)
+            if isinstance(ref, str):
+                cd = self.spell_cooldowns.get(ref, 0)
+                lines = []
+                cd_max = getattr(item, "cooldown_max", 0)
+                if cd_max:
+                    lines.append(f"Cooldown {cd_max / 60.0:.1f}s"
+                                 + (f"  (ready in {cd / 60.0:.1f}s)"
+                                    if cd > 0 else ""))
+                if hotbar_prefs.is_instant(ref):
+                    lines.append("Instant cast: ON")
+                yy = my - 20
+                for line in lines:
+                    surf = font_small.render(line, True, (170, 220, 200))
+                    bg = pygame.Surface((surf.get_width() + 10,
+                                         surf.get_height() + 4),
+                                        pygame.SRCALPHA)
+                    bg.fill((10, 12, 14, 210))
+                    screen.blit(bg, (mx + 18, yy))
+                    screen.blit(surf, (mx + 23, yy + 2))
+                    yy -= 24
+            break
+
+    def handle_hotbar_event(self, event, manager=None):
+        """Hotbarin syöte: lukko, sivunuolet, sivun 2 pikavaihto ja
+        sivun 1 raahausjärjestely (lukko auki). Palauttaa True jos
+        event kulutettiin (ei mene pelimaailmaan)."""
+        from systems import hotbar_prefs
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            ui = self._hotbar_ui or {}
+            if ui.get("lock") and ui["lock"].collidepoint(event.pos):
+                hotbar_prefs.toggle_locked()
+                sound_system.play_sound("click")
+                return True
+            if ui.get("up") and ui["up"].collidepoint(event.pos):
+                self.hotbar_page = max(1, getattr(self, "hotbar_page", 1) - 1)
+                sound_system.play_sound("click")
+                return True
+            if ui.get("down") and ui["down"].collidepoint(event.pos):
+                self.hotbar_page = min(2, getattr(self, "hotbar_page", 1) + 1)
+                sound_system.play_sound("click")
+                return True
+            for i, (rect, ref) in enumerate(self._hotbar_rects):
+                if not rect.collidepoint(event.pos):
+                    continue
+                if getattr(self, "hotbar_page", 1) == 2:
+                    self.try_quick_equip(i, manager)
+                    return True
+                if not hotbar_prefs.is_locked() and isinstance(ref, str) \
+                        and self.equipment.get(ref) is not None:
+                    self._drag_slot = ref
+                    return True
+                return False  # lukittu sivu 1: klikkaus toimii kuten ennen
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1 \
+                and self._drag_slot is not None:
+            src = self._drag_slot
+            self._drag_slot = None
+            for rect, ref in self._hotbar_rects:
+                if rect.collidepoint(event.pos) and isinstance(ref, str) \
+                        and ref != src:
+                    # Vaihda sisällöt (vain kykysivulla)
+                    self.equipment[src], self.equipment[ref] = \
+                        self.equipment.get(ref), self.equipment.get(src)
+                    self.selected_spell_slot = None
+                    sound_system.play_sound("click")
+                    return True
+            return True  # raahaus päättyi tyhjään - kuluta silti
+        return False
+
+    def _draw_boots_icon(self, screen, x, y, size):
+        """Dash-ruudun saappaat + vauhtiviivat (koodipiirretty)."""
+        s = size
+        col = (205, 170, 110)
+        dark = (120, 92, 56)
+        for ox in (int(s * 0.16), int(s * 0.52)):
+            # Varsi + jalkaterä
+            pygame.draw.rect(screen, col, (x + ox, y + int(s * 0.25),
+                                           int(s * 0.2), int(s * 0.4)),
+                             border_radius=3)
+            pygame.draw.rect(screen, col,
+                             (x + ox, y + int(s * 0.58), int(s * 0.32),
+                              int(s * 0.18)), border_radius=3)
+            pygame.draw.line(screen, dark, (x + ox, y + int(s * 0.74)),
+                             (x + ox + int(s * 0.32), y + int(s * 0.74)), 2)
+        for i in range(3):
+            ly = y + int(s * (0.3 + i * 0.18))
+            pygame.draw.line(screen, (160, 200, 220),
+                             (x - int(s * 0.08), ly),
+                             (x + int(s * 0.08), ly), 2)
+
+    def _draw_shield_icon(self, screen, x, y, size):
+        """Block-ruudun kilpi (koodipiirretty fallback)."""
+        s = size
+        cx = x + s // 2
+        pts = [(cx, y + 2), (x + s - 3, y + int(s * 0.22)),
+               (x + s - 5, y + int(s * 0.62)), (cx, y + s - 2),
+               (x + 5, y + int(s * 0.62)), (x + 3, y + int(s * 0.22))]
+        pygame.draw.polygon(screen, (110, 120, 140), pts)
+        pygame.draw.polygon(screen, (60, 66, 80), pts, 2)
+        pygame.draw.line(screen, (60, 66, 80), (cx, y + 4),
+                         (cx, y + s - 4), 2)
+
+    def _draw_action_tooltip(self, screen, key, mx, my):
+        """Toimintoruudun hover-info: mikä toiminto, millä välineellä."""
+        weapon = self.equipment.get("main_hand")
+        wname = getattr(weapon, "name", "Fists") if weapon else "Fists"
+        if key == "LMB":
+            title = "ATTACK (Left Mouse)"
+            lines = [f"Strike with {wname}.",
+                     f"Damage {int(getattr(weapon, 'damage', 0) or 0)}"
+                     if weapon else "Unarmed strikes."]
+        elif key == "HOLD":
+            title = "POWER (Hold LMB)"
+            if weapon and getattr(weapon, "charge_enabled", False):
+                lines = [f"Charge {wname} and release."]
+            else:
+                lines = [f"Heavy swings with {wname}."]
+        elif key == "SPACE":
+            title = "DASH (Space)"
+            lines = [f"Dash toward the mouse. "
+                     f"Charges {self.current_dashes}/{self.max_dashes}."]
+        else:
+            off = self.equipment.get("off_hand")
+            has_shield = off is not None and \
+                getattr(off, "armor_group", "") == "shield"
+            title = "BLOCK (Right Mouse)"
+            lines = [f"Block with {getattr(off, 'name', wname)}."
+                     if has_shield else f"Guard with {wname}.",
+                     "Blocking drains stamina."]
+        w = max(font_main.size(title)[0],
+                *(font_small.size(t)[0] for t in lines)) + 24
+        h = 34 + len(lines) * 22
+        bx = min(mx + 16, SCREEN_WIDTH - w - 10)
+        by = my - h - 12
+        pygame.draw.rect(screen, (16, 16, 22), (bx, by, w, h),
+                         border_radius=8)
+        pygame.draw.rect(screen, (150, 130, 80), (bx, by, w, h), 1,
+                         border_radius=8)
+        draw_text(title, font_main, GOLD_COLOR, screen, bx + 12, by + 6)
+        yy = by + 32
+        for line in lines:
+            draw_text(line, font_small, (200, 200, 205), screen,
+                      bx + 12, yy)
+            yy += 22
+
     def _draw_action_bar(self, screen, x, y, w):
         """Piirtää 4 toimintoruutua: Attack, Power, Block, Dash."""
         
@@ -1421,13 +1726,50 @@ class Commander(Gladiator):
                 ("RMB",   1017, 158, 1282-1017, 260)
             ]
             
+            hover_info = None
+            mxp, myp = pygame.mouse.get_pos()
             for key, ox, oy, ow, oh in slots_def:
                 # Skaalaa koordinaatit
                 sx = draw_x + int(ox * scale)
                 sy = draw_y + int(oy * scale)
                 sw = int(ow * scale)
                 sh = int(oh * scale)
-                
+
+                # --- SISÄLTÖIKONIT (pelitesti 17) ---
+                # LMB/POWER = kädessä oleva ase, DASH = saappaat,
+                # BLOCK = kilpi (tai ase jolla torjutaan)
+                pad = max(4, sw // 8)
+                icon_s = min(sw, sh) - pad * 2
+                weapon = self.equipment.get("main_hand")
+                if key in ("LMB", "HOLD"):
+                    if weapon is not None and hasattr(weapon,
+                                                      "draw_card_icon"):
+                        weapon.draw_card_icon(screen, sx + pad, sy + pad,
+                                              icon_s)
+                elif key == "SPACE":
+                    self._draw_boots_icon(screen, sx + pad, sy + pad, icon_s)
+                elif key == "RMB":
+                    shield = None
+                    off = self.equipment.get("off_hand")
+                    if off is not None and \
+                            getattr(off, "armor_group", "") == "shield":
+                        shield = off
+                    if shield is not None and hasattr(shield,
+                                                      "draw_card_icon"):
+                        shield.draw_card_icon(screen, sx + pad, sy + pad,
+                                              icon_s)
+                    elif weapon is not None and hasattr(weapon,
+                                                        "draw_card_icon"):
+                        weapon.draw_card_icon(screen, sx + pad, sy + pad,
+                                              icon_s)
+                    else:
+                        self._draw_shield_icon(screen, sx + pad, sy + pad,
+                                               icon_s)
+
+                # Hover-info kerätään; piirretään loopin jälkeen päällimmäiseksi
+                if pygame.Rect(sx, sy, sw, sh).collidepoint((mxp, myp)):
+                    hover_info = (key, mxp, myp)
+
                 # --- OVERLAYS ---
                 # 1. Cooldown Overlay (LMB & HOLD)
                 active_cd = 0
@@ -1480,6 +1822,9 @@ class Commander(Gladiator):
                 elif key == "RMB" and self.is_blocking:
                     pygame.draw.rect(screen, GOLD_COLOR, (sx, sy, sw, sh), 2, border_radius=5)
 
+            # Hover-tooltip toimintoruuduille
+            if hover_info is not None:
+                self._draw_action_tooltip(screen, *hover_info)
             return
 
         # Fallback: Vanha piirtotapa
