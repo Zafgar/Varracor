@@ -48,6 +48,7 @@ from menus.asset_studio_menu import AssetStudioMenu
 from menus.paths_menu import PathsMenu
 from menus.finale_show_menu import FinaleShowMenu
 from menus.betting_menu import BettingOfficeMenu
+from menus.rift_site_menu import RiftSiteMenu
 from menus.world_map_menu import WorldMapMenu
 from menus.regional_staging_menu import RegionalStagingMenu
 from citys.mucford.tavern_menu import TavernMenu
@@ -151,6 +152,7 @@ def main():
         "paths": None,
         "finale_show": None,
         "betting_office": None,
+        "rift_site": None,
         "world_map": WorldMapMenu(manager),
         "regional_staging": RegionalStagingMenu(manager),
         "rattlebridge_city": None,
@@ -190,6 +192,7 @@ def main():
         "paths": PathsMenu,
         "finale_show": FinaleShowMenu,
         "betting_office": BettingOfficeMenu,
+        "rift_site": RiftSiteMenu,
         "tavern_sunk_cask": TavernMenu,
         "muckford_city": MuckfordCityMenu,
         "blacksmith_interior": BlacksmithMenu,
@@ -213,7 +216,7 @@ def main():
         "magic_school", "necro_school", "shop_locations", "city_storage",
         "muckford_intro", "test_arena", "options", "market",
         "district_shop", "asset_studio", "paths", "finale_show", "barracks",
-        "betting_office",
+        "betting_office", "rift_site",
         "notice_board", "world_map", "regional_staging",
         "rattlebridge_span", "rattlebridge_hospital",
         "rattlebridge_scrapring", "rattlebridge_contracts",
@@ -231,6 +234,7 @@ def main():
     }
 
     CALL_ON_ENTER = {
+        "rift_site",
         "muckford_city", "blacksmith_interior", "forest_road", "mine_road",
         "mine_cave", "test_arena", "crown_knives", "forest_excursion",
         "barracks_interior", "arena_hall", "town_hall",

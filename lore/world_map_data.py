@@ -141,6 +141,42 @@ LOCATIONS = OrderedDict({
         threats=("Mire-Lurkers", "Bog Leeches", "giant frogs"),
         materials=("Bitterleaf", "Nightcap Fungus", "Resin"),
     ),
+    # --- RIFT-INVAASIOALUEET (pelitesti 20) ---
+    # Vortex-repeämiä aukeaa erämaihin: wave-taistelu + jättiboss,
+    # sinetöinnistä Vortex-kristalleja VORTEX-puuhun.
+    "rift_whisper_marsh": _location(
+        "Whisper Marsh Rift", "sundered_heartlands", (447, 412), (3, 8),
+        "vortex",
+        "A great Vortex rift has torn open among the drowned pools.",
+        "The marsh water boils around the breach. Leeches and frogs pour "
+        "out in waves - and something far larger waits behind them.",
+        target_state="rift_site", content_state="playable",
+        services=("rift invasion",),
+        threats=("Bog Leeches", "giant frogs", "Broodmother"),
+        materials=("Vortex Crystal",),
+    ),
+    "rift_drowned_graveyard": _location(
+        "Drowned Graveyard Rift", "sundered_heartlands", (395, 430), (4, 9),
+        "vortex",
+        "A rift yawns between the sunken headstones south of Muckford.",
+        "The dead answer the Vortex first. Skeletons and worse climb from "
+        "the breach in waves until the Grave Tyrant itself steps through.",
+        target_state="rift_site", content_state="playable",
+        services=("rift invasion",),
+        threats=("undead", "Grave Tyrant"),
+        materials=("Vortex Crystal",),
+    ),
+    "rift_bogwood": _location(
+        "Bogwood Rift", "sundered_heartlands", (470, 355), (3, 8),
+        "vortex",
+        "A rift crackles in the tangled bog-forest east of the city.",
+        "Rat packs and corrupted crows swarm from the tear, driven ahead "
+        "of a rider that no longer remembers being anything else.",
+        target_state="rift_site", content_state="playable",
+        services=("rift invasion",),
+        threats=("rat packs", "corrupted crows", "Rift-Rider Alpha"),
+        materials=("Vortex Crystal",),
+    ),
     "old_mine_road": _location(
         "Old Muckford Mine", "sundered_heartlands", (315, 300), (3, 7), "dungeon",
         "Abandoned mine road and a web-sealed cave system.",
@@ -515,6 +551,12 @@ ROUTES = [
     # Heartlands local routes
     _route("muckford", "shanty_yard", 1, 1, "Shanty road"),
     _route("muckford", "whisper_marsh", 4, 2, "Whisper track"),
+    # Rift-invaasioalueiden polut (pelitesti 20)
+    _route("muckford", "rift_whisper_marsh", 3, 3, "Rift trail (marsh)"),
+    _route("muckford", "rift_drowned_graveyard", 3, 3,
+           "Rift trail (graveyard)"),
+    _route("muckford", "rift_bogwood", 3, 3, "Rift trail (bogwood)"),
+    _route("whisper_marsh", "rift_whisper_marsh", 1, 2, "Breach path"),
     _route("muckford", "old_mine_road", 3, 2, "Old mine road"),
     _route("muckford", "sundered_ruins", 6, 4, "Broken Crown road"),
 
