@@ -321,12 +321,33 @@ def on_ore_mined(manager, attacker, dropped: int) -> None:
 
 
 def on_tree_chopped(manager, attacker, felled: bool) -> None:
-    """Forestry-XP puun hakkuusta; kaadosta bonus."""
+    """Forestry-XP puun hakkuusta; kaadosta bonus. Kaadot etenevät myös
+    Woodsman Alderin First Swing -questia."""
     hero = getattr(manager, "player_character", None) if manager else None
     if hero is None or attacker is not hero:
         return
     if grant_xp(manager, "forestry", 6 if felled else 2):
         _celebrate(manager, hero, "forestry")
+    if felled:
+        try:
+            from quest_system import quest_manager
+            q = quest_manager.get_quest("quest_first_swing") if quest_manager else None
+            if q and q.status == "active":
+                q.progress += 1
+                need = q.definition.required_amount
+                if q.progress >= need:
+                    q.status = "completed"
+                    manager.vfx.show_damage(hero.rect.centerx,
+                                            hero.rect.top - 40,
+                                            "Quest Done! See Alder!",
+                                            color=(255, 210, 90))
+                else:
+                    manager.vfx.show_damage(hero.rect.centerx,
+                                            hero.rect.top - 40,
+                                            f"Trees felled: {q.progress}/{need}",
+                                            color=(220, 220, 220))
+        except Exception:
+            pass
 
 
 def on_item_crafted(manager, recipe_cost: int) -> None:

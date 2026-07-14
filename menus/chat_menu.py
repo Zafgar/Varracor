@@ -179,6 +179,22 @@ class ChatMenu(BaseMenu):
                 quest_manager.accept_quest(value)
             except ImportError: pass
 
+        # "give_item:WeakLumberAxe" -> NPC antaa esineen reppuun
+        # (esim. Woodsman Alderin ensimmäinen kirves)
+        elif command == "give_item" and value:
+            try:
+                from items.item_registry import create_item
+                item = create_item(value)
+                if item is not None:
+                    self.manager.equipment_bag.append(item)
+                    print(f"[Quest] Received item: {getattr(item, 'name', value)}")
+                    try:
+                        sound_system.play_sound("recruit")
+                    except Exception:
+                        pass
+            except Exception as exc:
+                print(f"[Quest] give_item failed for '{value}': {exc}")
+
         # "finish_quest:hunt_01" -> Lunastaa palkinnot (Finished)
         elif command == "finish_quest" and value:
             try:

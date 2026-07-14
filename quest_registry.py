@@ -3,12 +3,15 @@
 # Importtaa questit tähän
 from quests.hunt_rat_king import RatKingQuest
 from quests.manure_quest import ManureQuest
-# from quests.hunt_skeleton import SkeletonQuest  <-- Esimerkki tulevasta
+from quests.timber_quest import TimberQuest
+from quests.crate_quest import CrateQuest
 
 # Rekisteröi ne tähän sanakirjaan (ID -> Luokka)
 QUEST_DB = {
     "hunt_01": RatKingQuest(),
-    "quest_manure_cleanup": ManureQuest()
+    "quest_manure_cleanup": ManureQuest(),
+    "quest_first_swing": TimberQuest(),
+    "quest_krads_crate": CrateQuest(),
 }
 
 def get_all_quest_definitions():

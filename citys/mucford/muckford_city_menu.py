@@ -481,6 +481,9 @@ class MuckfordCityMenu(BaseMenu):
                                             (x + 8, y - 3), (x - 1, y - 3)])
             pygame.draw.polygon(screen, c, [(x + 1, y), (x - 8, y),
                                             (x - 8, y + 4), (x + 1, y + 4)])
+        elif kind == "quest":      # huutomerkki
+            pygame.draw.rect(screen, c, (x - 2, y - 8, 4, 9), border_radius=2)
+            pygame.draw.circle(screen, c, (x, y + 6), 2)
         else:
             pygame.draw.circle(screen, c, (x, y), 5)
 
@@ -576,6 +579,31 @@ class MuckfordCityMenu(BaseMenu):
             if isinstance(prop, RoadSignpost):
                 markers.append((prop.rect, "roads", (222, 186, 92),
                                 "World Routes"))
+
+        # Questien huutomerkit kartalle (pelaajapalaute: tehtävät näkyviin)
+        if quest_manager:
+            def _qmark(quest_id):
+                return {"available": ("quest", (255, 210, 90), "Quest!"),
+                        "active": ("quest", (170, 170, 180), "Quest"),
+                        "completed": ("quest", (140, 230, 150), "Turn in!")
+                        }.get(quest_manager.get_quest_status(quest_id))
+
+            for npc, qid in (
+                    (getattr(self, "farmer_gus", None), "quest_manure_cleanup"),
+                    (getattr(self, "woodsman_alder", None), "quest_first_swing")):
+                mark = _qmark(qid) if npc is not None else None
+                if mark:
+                    markers.append((npc.rect, mark[0], mark[1], mark[2]))
+            mark = _qmark("quest_krads_crate")
+            stall = next((s for s in getattr(self, "market_stalls", [])
+                          if getattr(s, "shop_id", "") == "oddments"), None)
+            if mark and stall is not None:
+                markers.append((stall.rect, mark[0], mark[1],
+                                f"Krad: {mark[2]}"))
+            crate = getattr(self, "_quest_crate", None)
+            if crate is not None:
+                markers.append((crate.rect, "quest", (255, 210, 90),
+                                "Krad's Crate"))
 
         mine_owned = getattr(self.manager, "mine_key_owned", False)
         markers.append((self._mine_gate_rect(), "mine",
@@ -724,23 +752,48 @@ class MuckfordCityMenu(BaseMenu):
         self.manager.vfx.show_damage(x, y - 20, "Hatched!", color=GREEN)
 
     def _spawn_quest_givers(self):
-        # Sijoitetaan Farmer Gus maatilan portin lähelle
+        # Farmer Gus YLÄportin viereen (kaupungin puolelle) - portti siirtyi
+        # yläaidalle pelitestikierroksella 2, mutta Gus jäi farmin ALLE eikä
+        # kukaan löytänyt häntä (pelaajapalaute)
         if hasattr(self.arena, "farm_area"):
-            farm_gate_x = self.arena.farm_area.centerx
-            farm_gate_y = self.arena.farm_area.bottom + 50
-            
-            gus = Villager("Farmer Gus", "Dwarf", farm_gate_x, farm_gate_y, team_color=GREEN)
+            # HUOM: farming_expansion asettaa arena.farm_gate_pos vasta
+            # myöhemmin -> lasketaan yläaidan aukko suoraan samalla
+            # kaavalla (segmentti i==2, 256 px välein)
+            farm = self.arena.farm_area
+            gate = getattr(self.arena, "farm_gate_pos",
+                           (farm.x + 640, farm.y))
+            gus = Villager("Farmer Gus", "Dwarf", gate[0] + 110,
+                           gate[1] - 70, team_color=GREEN)
+            # BUGIKORJAUS: Villager liittää nimeen työroolin
+            # ("Farmer Gus (Lumberjack)") -> questihaku 'Farmer Gus' ei
+            # osunut eikä lantaquestia tarjottu koskaan
+            gus.name = "Farmer Gus"
             # Estetään häntä liikkumasta
-            gus.ai_controller = None 
+            gus.ai_controller = None
             gus.animation_state = "idle"
-            
+
             self.farmer_gus = gus
             self.npcs.append(gus) # Lisätään piirrettäviin ja päivitettäviin
+
+        # Woodsman Alder - hökkelimetsän laidalla; antaa ensimmäisen
+        # kirveen ja First Swing -hakkuuquestin (mainetta kylätyöstä)
+        alder = Villager("Woodsman Alder", "Human",
+                         self.arena.width // 2 + 460,
+                         self.arena.height // 2 + 360, team_color=GREEN)
+        alder.name = "Woodsman Alder"
+        alder.ai_controller = None
+        alder.animation_state = "idle"
+        self.woodsman_alder = alder
+        self.npcs.append(alder)
+
+        # Krads Missing Crate -questin laatikko (luodaan kun quest aktiivinen)
+        self._quest_crate = None
 
         # Hamo (goblin bounty broker) - kadun varrella, areenan liepeillä
         hamo_x = self.arena.width // 2 + 200
         hamo_y = self.arena.height // 2 + 120
         hamo = Villager("Hamo", "Goblin", hamo_x, hamo_y, team_color=GREEN)
+        hamo.name = "Hamo"  # Villager lisää job-liitteen; siivotaan
         hamo.ai_controller = None  # Pysyy paikallaan kuten Gus
         hamo.name = "Hamo"  # VillagerAI ehti lisätä job-liitteen; palautetaan
         hamo.animation_state = "idle"
@@ -758,6 +811,7 @@ class MuckfordCityMenu(BaseMenu):
             bx = self.arena_gate.rect.left - 60
             by = self.arena_gate.rect.bottom + 20
             bram = Villager("Bram", "Dwarf", bx, by, team_color=GREEN)
+            bram.name = "Bram"  # ei job-liitettä nimeen
             bram.ai_controller = None
             bram.name = "Bram 'Mudhand' Carrow"
             bram.animation_state = "idle"
@@ -1062,6 +1116,20 @@ class MuckfordCityMenu(BaseMenu):
                     sound_system.play_sound('click')
                     return
 
+                # Questinantaja-pitäjä (esim. Krad) ENNEN kojua: pelaajan
+                # pitää päästä juttelemaan questista vaikka koju on vieressä.
+                # Laukeaa vain kun pelaaja koskettaa pitäjää itseään.
+                if quest_manager:
+                    for npc in self.npcs:
+                        if getattr(npc, "is_stall_keeper", False) and \
+                                self.player.rect.colliderect(
+                                    npc.rect.inflate(50, 50)) and \
+                                quest_manager.get_npc_dialogue_override(npc.name):
+                            self.manager.open_patron_dialogue(
+                                npc, return_state="muckford_city")
+                            self.next_state = "dialogue_active"
+                            return
+
                 # Market-kojut ENNEN NPC-chattia: kyläläiset kerääntyvät
                 # kojujen eteen, eikä asiakas saa jäädä jutun panttivangiksi
                 for stall in getattr(self, "market_stalls", []):
@@ -1350,6 +1418,7 @@ class MuckfordCityMenu(BaseMenu):
             self.manager.world_clock.update()
             self._update_raids()
             self._update_market_life()
+            self._update_quest_crate()
 
         # Pelaajan kaatuminen kaupungissa (esim. raidissa): raahataan turvaan
         if self.player.is_dead:
@@ -2626,6 +2695,32 @@ class MuckfordCityMenu(BaseMenu):
             pass
         return False
 
+    def _update_quest_crate(self):
+        """Krads Missing Crate: laatikko ilmestyy hökkelin eteen kun quest
+        on aktiivinen ja poistuu kun se on poimittu/peruttu."""
+        if not quest_manager:
+            return
+        status = quest_manager.get_quest_status("quest_krads_crate")
+        q = quest_manager.get_quest("quest_krads_crate")
+        crate_needed = (status == "active" and q is not None
+                        and q.progress < q.definition.required_amount)
+        if crate_needed and self._quest_crate is None:
+            from assets.tiles.muckford_objects import QuestCrate, ShantyHouse
+            # Metsävyöhykkeen hökkeli (kadun eteläpuoli, itälaita)
+            house = next((p for p in self.arena.props
+                          if isinstance(p, ShantyHouse)
+                          and p.rect.centery > self.arena.height // 2
+                          and p.rect.centerx > self.arena.width // 2), None)
+            cx = house.rect.centerx if house else self.arena.width // 2 + 700
+            cy = (house.rect.bottom + 40 if house
+                  else self.arena.height // 2 + 500)
+            self._quest_crate = QuestCrate(cx - 32, cy)
+            self.arena.props.append(self._quest_crate)
+        elif not crate_needed and self._quest_crate is not None:
+            if self._quest_crate in self.arena.props:
+                self.arena.props.remove(self._quest_crate)
+            self._quest_crate = None
+
     def _stalls_open(self):
         """Kojut ja markkinat auki klo 8-20."""
         return 8 <= self.manager.world_clock.hour < 20
@@ -2653,6 +2748,7 @@ class MuckfordCityMenu(BaseMenu):
                                   shop.get("keeper_race", "Human"),
                                   stall.rect.centerx,
                                   stall.rect.top - 26, team_color=GREEN)
+                keeper.name = shop.get("keeper", "Stallkeeper")
                 keeper.is_stall_keeper = True
                 keeper.sim_state = "KEEPING"
                 self.stall_keepers.append(keeper)
@@ -2675,6 +2771,7 @@ class MuckfordCityMenu(BaseMenu):
                                   cx + _rng.randint(-300, 500),
                                   cy + _rng.randint(120, 320),
                                   team_color=GREEN)
+                lurker.name = name
                 lurker.is_lurker = True
                 lurker.sim_state = "LURKING"
                 lurker._lurk_target = None
@@ -2926,6 +3023,24 @@ class MuckfordCityMenu(BaseMenu):
             sound_system.play_sound('click')
             return True
 
+        from assets.tiles.muckford_objects import QuestCrate
+        if isinstance(prop, QuestCrate):
+            # Krads Missing Crate: poimi laatikko -> palautus Kradille
+            if quest_manager:
+                q = quest_manager.get_quest("quest_krads_crate")
+                if q and q.status == "active":
+                    q.progress = q.definition.required_amount
+                    q.status = "completed"
+                    self.manager.vfx.show_damage(
+                        prop.rect.centerx, prop.rect.top - 24,
+                        "Crate secured! Return to Krad's stall.",
+                        color=GOLD_COLOR)
+                    sound_system.play_sound('grass_pickup')
+            if prop in self.arena.props:
+                self.arena.props.remove(prop)
+            self._quest_crate = None
+            return True
+
         if isinstance(prop, MarketStall):
             # Market-alueen nimetty liike -> liikkeen oma kauppasivu
             if not self._stalls_open():
@@ -2995,16 +3110,33 @@ class MuckfordCityMenu(BaseMenu):
         Farmer Gusin merkkiin: ! = tarjolla, harmaa ! = kesken, ? = palautus."""
         pois = []
 
-        # Farmer Gus: quest-merkki tilan mukaan
-        gus = getattr(self, "farmer_gus", None)
-        if gus and quest_manager:
-            status = quest_manager.get_quest_status("quest_manure_cleanup")
-            if status == "available":
-                pois.append((gus.rect.centerx, gus.rect.top - 28, "quest_avail"))
-            elif status == "active":
-                pois.append((gus.rect.centerx, gus.rect.top - 28, "quest_active"))
-            elif status == "completed":
-                pois.append((gus.rect.centerx, gus.rect.top - 28, "quest_turnin"))
+        # Questinantajat: ! = tarjolla, harmaa ! = kesken, ? = palautus
+        def _quest_kind(quest_id):
+            status = quest_manager.get_quest_status(quest_id)
+            return {"available": "quest_avail", "active": "quest_active",
+                    "completed": "quest_turnin"}.get(status)
+
+        if quest_manager:
+            for npc, quest_id in (
+                    (getattr(self, "farmer_gus", None), "quest_manure_cleanup"),
+                    (getattr(self, "woodsman_alder", None), "quest_first_swing")):
+                if npc is None:
+                    continue
+                kind = _quest_kind(quest_id)
+                if kind:
+                    pois.append((npc.rect.centerx, npc.rect.top - 28, kind))
+            # Kradin koju (Oddments) - laatikkoquest
+            kind = _quest_kind("quest_krads_crate")
+            if kind:
+                stall = next((s for s in getattr(self, "market_stalls", [])
+                              if getattr(s, "shop_id", "") == "oddments"), None)
+                if stall is not None:
+                    pois.append((stall.rect.centerx, stall.rect.top - 30, kind))
+            # Itse laatikko kentällä
+            crate = getattr(self, "_quest_crate", None)
+            if crate is not None:
+                pois.append((crate.rect.centerx, crate.rect.top - 26,
+                             "quest_active"))
 
         # Hamo: kolikko (ostaa saaliit)
         hamo = getattr(self, "hamo", None)

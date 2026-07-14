@@ -281,6 +281,7 @@ class LeagueSeason:
             w = self._simulate_match_mc(a, b)
             l = b if w == a else a
             self._update_record(w, l)
+            self._record_sim_kills(w, l)
             n += 1
         if self._pending_advance and not self._pending_matches:
             self._advance_round()
@@ -324,6 +325,61 @@ class LeagueSeason:
     def get_recent_matches(self, count=10):
         return self.match_history[:count]
 
+    def _record_sim_kills(self, winner_id: str, loser_id: str):
+        """Simuloidun matsin tapot Hall of Fameen. Ilman tätä muiden
+        tiimien hahmot eivät koskaan nousseet listoille (pelaajapalaute)."""
+        wrec = self.records.get(winner_id)
+        lrec = self.records.get(loser_id)
+        w_roster = _safe_roster(wrec.team) if wrec and wrec.team else []
+        l_roster = _safe_roster(lrec.team) if lrec and lrec.team else []
+        if w_roster and l_roster:
+            # Jokainen häviäjän kaatunut kirjautuu jonkun voittajan tilille
+            for _ in range(len(l_roster)):
+                name = getattr(random.choice(w_roster), "name", None)
+                if name:
+                    self.hof_kills[name] = self.hof_kills.get(name, 0) + 1
+            # Häviäjätkin saavat osumia ennen kaatumistaan
+            for _ in range(random.randint(0, max(0, len(w_roster) - 1))):
+                name = getattr(random.choice(l_roster), "name", None)
+                if name:
+                    self.hof_kills[name] = self.hof_kills.get(name, 0) + 1
+
+    # ------------------------------------------------------------------
+    # PERSISTENSSI: sarjataulukko, ELO, HoF ja historia tallentuvat saveen
+    # (ennen: kausi generoitui aina uudelleen latauksessa -> liiga nollautui)
+    # ------------------------------------------------------------------
+    def to_dict(self) -> dict:
+        return {
+            "current_round": int(self.current_round),
+            "phase": str(self.phase),
+            "records": {tid: {"wins": r.wins, "losses": r.losses,
+                              "played": r.played, "elo": round(r.elo, 2)}
+                        for tid, r in self.records.items()},
+            "hof_kills": {str(k): int(v) for k, v in self.hof_kills.items()},
+            "match_history": list(self.match_history)[:20],
+            "played_matchups": [list(p) for p in self._played_matchups],
+        }
+
+    def from_dict(self, data: dict):
+        self.current_round = int(data.get("current_round", 0))
+        self.phase = str(data.get("phase", self.phase))
+        for tid, rec in (data.get("records") or {}).items():
+            r = self.records.get(tid)
+            if r is not None:
+                r.wins = int(rec.get("wins", 0))
+                r.losses = int(rec.get("losses", 0))
+                r.played = int(rec.get("played", 0))
+                r.elo = float(rec.get("elo", DEFAULT_ELO))
+        self.hof_kills = {str(k): int(v)
+                          for k, v in (data.get("hof_kills") or {}).items()}
+        self.match_history = list(data.get("match_history") or [])[:20]
+        self._played_matchups = {tuple(p) for p in
+                                 (data.get("played_matchups") or [])}
+        self._pending_matches = []
+        self._pending_advance = False
+        self._current_pairings = []
+        self._ensure_pairings()
+
 
 class LeagueEngine:
     def __init__(self):
@@ -357,6 +413,35 @@ class LeagueEngine:
         print("[LeagueEngine] Initializing seasons and generating teams...")
         for mode in ("1v1", "3v3", "5v5"):
             self.seasons[mode] = LeagueSeason(tier=self.tier)
+
+    # --- PERSISTENSSI ---
+    def to_dict(self) -> dict:
+        out = {"tier": self.tier, "season_number": self.season_number,
+               "seasons": {}}
+        if self._initialized:
+            for mode, season in self.seasons.items():
+                out["seasons"][mode] = season.to_dict()
+        return out
+
+    def from_dict(self, data: dict):
+        """Palauttaa liigan tilan savesta. Premade-tiimit ladataan levyltä
+        slotteihin (T{tier}_RIVAL_n), joten record-tiedot osuvat oikeille
+        tiimeille tierin sisällä."""
+        self.tier = int(data.get("tier", self.tier))
+        self.season_number = int(data.get("season_number", self.season_number))
+        seasons = data.get("seasons") or {}
+        if not seasons:
+            self._initialized = False
+            return
+        self._init_seasons()
+        self._initialized = True
+        for mode, sdata in seasons.items():
+            season = self.seasons.get(mode)
+            if season is not None:
+                try:
+                    season.from_dict(sdata)
+                except Exception as exc:
+                    print(f"[LeagueEngine] Season restore failed ({mode}): {exc}")
 
     # --- SEASON CYCLE LOGIC ---
     def get_season_info(self) -> dict:

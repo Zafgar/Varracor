@@ -876,3 +876,32 @@ class RoadSignpost(Prop):
                 pygame.draw.line(surf, (74, 58, 40), (lx, py + 10),
                                  (lx + txt_w - 12, py + 10), 2)
             self.image = surf
+
+
+class QuestCrate(Prop):
+    """Krads Missing Crate -questin laatikko hökkelin edustalla.
+    Ilmestyy kun tehtävä on aktiivinen; E poimii sen mukaan."""
+
+    def __init__(self, x, y):
+        w, h = 64, 56
+        super().__init__(x, y, w, h,
+                         img_path="assets/tiles/muckford/quest_crate.png",
+                         color=(96, 74, 48),
+                         collision_rect=pygame.Rect(x, y + 16, w, 40))
+        self.interaction_range = 90
+        self.interaction_label = "Pick up crate"
+        if not self.image or self.image.get_at((0, 0)) == (96, 74, 48, 255):
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            pygame.draw.rect(surf, (128, 98, 60), (2, 10, w - 4, h - 12),
+                             border_radius=4)
+            pygame.draw.rect(surf, (66, 48, 30), (2, 10, w - 4, h - 12), 3,
+                             border_radius=4)
+            pygame.draw.line(surf, (66, 48, 30), (4, h // 2 + 4),
+                             (w - 4, h // 2 + 4), 3)
+            pygame.draw.line(surf, (66, 48, 30), (w // 2, 12),
+                             (w // 2, h - 4), 3)
+            # "K"-polttomerkki
+            pygame.draw.line(surf, (170, 60, 50), (14, 20), (14, 40), 3)
+            pygame.draw.line(surf, (170, 60, 50), (14, 30), (26, 20), 3)
+            pygame.draw.line(surf, (170, 60, 50), (14, 30), (26, 40), 3)
+            self.image = surf

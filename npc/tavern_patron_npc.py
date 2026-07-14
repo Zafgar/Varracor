@@ -14,18 +14,16 @@ class TavernPatronNPC(BaseNPC):
 
     def get_nodes(self, context):
         nodes = {}
-        
-        # --- FARMER GUS LOGIC (Quest System Override) ---
-        if self.name == "Farmer Gus":
-            # Kysy QuestManagerilta, onko tällä NPC:llä sanottavaa
-            if quest_manager:
-                override = quest_manager.get_npc_dialogue_override(self.name)
-                if override:
-                    nodes.update(override)
-                    return nodes
-            
-            # Fallback jos quest manager ei toimi tai ei questia
-            # (Tässä voisi olla geneerinen "Hello" Gusille)
+
+        # --- QUEST SYSTEM OVERRIDE (kaikki nimetyt NPC:t) ---
+        # Aiemmin vain Farmer Gus kysyi questejä - nyt jokainen NPC voi
+        # olla questin antaja (Woodsman Alder, Krad...). Questin dialogi
+        # jyrää geneerisen rupattelun kun sellaista on tarjolla.
+        if quest_manager:
+            override = quest_manager.get_npc_dialogue_override(self.name)
+            if override:
+                nodes.update(override)
+                return nodes
         
         # Satunnaisia huhuja ja kommentteja
         gossip = [

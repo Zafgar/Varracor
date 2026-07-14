@@ -349,6 +349,7 @@ def save_game(manager, filepath=None, save_name=""):
             # --- Liiga (perustiedot) ---
             "league_tier": manager.league_engine.tier,
             "league_season_number": manager.league_engine.season_number,
+            "league_state": manager.league_engine.to_dict(),
             # --- Maailmankello & velka ---
             "world_clock": manager.world_clock.to_dict(),
             "innkeeper_debt": int(getattr(manager, "innkeeper_debt", 0)),
@@ -462,7 +463,11 @@ def load_game(manager, filepath=None):
         # --- Liiga ---
         manager.league_engine.tier = data.get("league_tier", 1)
         manager.league_engine.season_number = data.get("league_season_number", 1)
-        manager.league_engine._initialized = False  # Kausi generoituu uudelleen
+        if data.get("league_state"):
+            # Sarjataulukko, ELO, HoF-tapot ja historia palautuvat savesta
+            manager.league_engine.from_dict(data["league_state"])
+        else:
+            manager.league_engine._initialized = False  # vanha save: regeneroi
 
         manager.update_all_groups()
         manager.refresh_hub()
