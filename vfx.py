@@ -667,6 +667,44 @@ class ReverseShockwaveRing(VFXSprite):
 
         super().update(obstacles)
 
+class AcidGlob(VFXSprite):
+    """Vihreä limapallo joka lentää parabolisessa kaaressa kohteeseen ja
+    kutsuu osumassa on_impact-callbackin. Sovitettu käyttäjän
+    bosses/rat_king/rat_vfx.py -paketin AcidProjectilesta (pelitesti 22)."""
+
+    def __init__(self, start_pos, target_pos, on_impact=None):
+        start = pygame.math.Vector2(start_pos)
+        target = pygame.math.Vector2(target_pos)
+        dist = (target - start).length()
+        frames = max(30, int(dist / 8))
+        super().__init__(start.x, start.y, duration=frames + 2)
+        self.start = start
+        self.target = target
+        self.frames_total = frames
+        self.on_impact = on_impact
+        self.image = pygame.Surface((22, 22), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, (30, 120, 30), (11, 11), 10)
+        pygame.draw.circle(self.image, (60, 230, 60), (11, 11), 8)
+        pygame.draw.circle(self.image, (200, 255, 200), (8, 8), 3)
+        self.rect = self.image.get_rect(center=start)
+
+    def update(self, obstacles=None):
+        super().update(obstacles)
+        t = min(1.0, self.timer / max(1, self.frames_total))
+        pos = self.start.lerp(self.target, t)
+        # Parabolinen kaari: 4 * korkeus * t * (1 - t)
+        height = 150 * 4 * t * (1 - t)
+        self.rect.center = (int(pos.x), int(pos.y - height))
+        if t >= 1.0:
+            if self.on_impact:
+                cb, self.on_impact = self.on_impact, None
+                try:
+                    cb()
+                except Exception:
+                    pass
+            self.kill()
+
+
 class FireballProjectile(VFXSprite):
     """
     Pieni mutta hieno fireball:
@@ -1317,6 +1355,11 @@ class VFXManager:
 
     def create_acid_puddle(self, x, y, team=None):
         self.floor_particles.add(AcidPuddle(x, y, team=team))
+
+    def create_acid_glob(self, start, end, on_impact=None):
+        """Rat Kingin sylky: vihreä limapallo joka lentää kaaressa
+        (pelitesti 22 - käyttäjän bosses/-paketin AcidProjectile-idea)."""
+        self.particles.add(AcidGlob(start, end, on_impact=on_impact))
         
     def create_speech_bubble(self, unit, text, duration=120):
         self.texts.add(SpeechBubble(unit, text, duration))

@@ -21,9 +21,10 @@ class RatKing(Gladiator):
         self.base_attributes["mana"] = 100
         
         # Boss Stats (nämä ylikirjoittuvat calculate_final_statsissa jos ei koske base_attributesiin)
-        self.speed = 0.75 
+        self.speed = 0.75
         self.attack_range = 70
-        
+        self.is_boss = True   # bossipalkki ruudun yläreunaan (pelitesti 22)
+
         self.manager = None
         
         # Kykyjen cooldownit
@@ -282,4 +283,5 @@ class RatKing(Gladiator):
                     manager.vfx.create_acid_puddle(target.rect.centerx, target.rect.centery)
                     manager.vfx.show_damage(target.rect.centerx, target.rect.top, "POISONED", color=(50, 255, 50))
 
-            manager.vfx.create_fireball(start, end, on_impact=on_hit)
+            # Vihreä limapallo kaaressa (oli tulipallo - näytti oudolta)
+            manager.vfx.create_acid_glob(start, end, on_impact=on_hit)

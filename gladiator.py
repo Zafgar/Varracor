@@ -61,6 +61,12 @@ class Gladiator(pygame.sprite.Sprite):
         self.base_mana_regen = 0.02
         self.mana_regen = self.base_mana_regen
 
+        # Passiivinen HP-regen (pelitesti 22): perusnopeuden päälle
+        # laskettava lisä (HP/frame); delay estää regenin osuman jälkeen
+        self.hp_regen = 0.0
+        self.hp_regen_delay = 0
+        self._hp_regen_pool = 0.0
+
         # Global cooldown multiplier (lower = faster)
         self.cooldown_multiplier = 1.0
 
@@ -1249,6 +1255,9 @@ class Gladiator(pygame.sprite.Sprite):
                 manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20, "DODGE")
             return 0
 
+        # Osuma keskeyttää passiivisen HP-regenin 5 sekunniksi
+        self.hp_regen_delay = 300
+
         offhand = self.equipment.get("off_hand")
         mainhand = self.equipment.get("main_hand") # Haetaan pääase torjuntatehon laskemiseen
 
@@ -1574,6 +1583,23 @@ class Gladiator(pygame.sprite.Sprite):
             self.current_stamina += self.stamina_regen
         if self.current_mana < self.max_mana:
             self.current_mana += self.mana_regen
+
+        # --- PASSIIVINEN HP-REGEN (pelitesti 22) ---
+        # Haavat umpeutuvat itsestään kun ei ole otettu osumaa hetkeen
+        # (take_damage asettaa hp_regen_delayn). Nopeus skaalautuu
+        # max HP:hen: ~0.8 % / s -> täysi palautuminen n. 2 minuutissa.
+        if getattr(self, "hp_regen_delay", 0) > 0:
+            self.hp_regen_delay -= 1
+        elif self.current_hp < self.max_hp and \
+                not any(e.get("type") in ("Burn", "Poison")
+                        for e in self.status_effects):
+            # Palo/myrkky estää haavojen umpeutumisen (mm. trollitaktikka)
+            rate = self.max_hp * 0.008 / 60.0 + getattr(self, "hp_regen", 0.0)
+            self._hp_regen_pool = getattr(self, "_hp_regen_pool", 0.0) + rate
+            if self._hp_regen_pool >= 1.0:
+                whole = int(self._hp_regen_pool)
+                self._hp_regen_pool -= whole
+                self.current_hp = min(self.max_hp, self.current_hp + whole)
 
         # --- RACIAL TIMERS ---
         if self.racial_cooldown > 0: self.racial_cooldown -= 1

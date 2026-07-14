@@ -135,6 +135,12 @@ class BattleScreen(GameplayScreen):
         except Exception:
             pass
 
+        # 1.55 Bossipalkki (esim. Rat King -jahti, pelitesti 22)
+        try:
+            self._draw_boss_bar(screen, list(self.manager.enemy_team))
+        except Exception:
+            pass
+
         # 1.6 Loot Popup (jos auki)
         if self.show_loot:
             self.draw_loot_popup(screen)

@@ -169,6 +169,22 @@ tiedostot kuuluu pudottaa.
   (Marda perii 25 SP) tai barracksista jos tiimi pystyssä (toveri
   kertoo); pending_rescue-dialogi kohteen on_enterissä. Kokoonpano +
   käsky tallentuvat saveen.
+- **HP-regen** (gladiator.py): kaikki yksiköt palautuvat passiivisesti
+  (~0.8 %/s + unit.hp_regen); take_damage asettaa hp_regen_delay=300
+  (5 s tauko osumasta).
+- **Kaupungin vuorokausirytmi** (_city_phase muckford_city_menu.py):
+  toriaikaan 9-17 simulaatio ohjaa väen kojuille (market_spots,
+  _pick_spot hylkää ruuhkaiset paikat - EI rykelmiä), illalla oleskelua,
+  yöllä 22-07 koteihin (pysyvä sim_home) nukkumaan. VillagerAI ei ota
+  töitä yöllä. HUOM: _update_simulation oli luokassa KAHDESTI -
+  duplikaatti poistettu, muokkaa vain jäljellä olevaa.
+- **Rat King -jahti** (Griznakin hunt_01 → start_boss_hunt →
+  missions/boss_registry → maps/rat_sewer): boss valtaistuimella idässä,
+  pelaajat viemärin suulla; areenassa vesikanava/kuplat/limatipat/putket;
+  is_boss → bossipalkki; sylky = vfx create_acid_glob (vihreä kaari).
+  _position_units sietää nyt spawn_points-LISTAN (kaatoi jahdin ennen);
+  mission voi lavastaa itse (manager.mission_handles_positioning).
+  Käyttäjän vanha bosses/-paketti poistettu (rikkinäinen duplikaatti).
 - **Valuutta**: sisäinen yksikkö = SP (hopea). format_money muotoilee
   100x-portain (SP/GP/PL/HC). Kaupungin M-näppäin avaa kartan.
 - **Potionit**: Potion.cast() parantaa ja kuluttaa pullon (usable-slotit

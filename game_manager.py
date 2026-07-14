@@ -717,14 +717,19 @@ class GameManager:
             # -----------------------------------------------------
             
             # --- MISSION SETUP ---
-            mission_module.setup(self) 
-            
+            self.mission_handles_positioning = False
+            mission_module.setup(self)
+
             self.match_in_progress = True
             self.match_over = False
             self.match_result = ""
-            
-            self._position_units(list(self.active_player_units), side="left")
-            self._position_units(list(self.enemy_team), side="right")
+
+            # Mission voi lavastaa yksiköt itse (esim. Rat King valta-
+            # istuimelleen, pelaajat viemärin suulle) - ei ylikirjoiteta
+            if not getattr(self, "mission_handles_positioning", False):
+                self._position_units(list(self.active_player_units),
+                                     side="left")
+                self._position_units(list(self.enemy_team), side="right")
             self.update_all_groups()
             
             # Alusta pathfinder
@@ -1988,9 +1993,13 @@ class GameManager:
         arena = self.current_arena
         # Isot areenat (esim. Grand Slam -stadion) määrittelevät omat
         # spawn-pisteensä; muuten käytetään ruutukoon oletuksia.
+        # BUGIKORJAUS (pelitesti 22): osa areenoista (Rat Sewer) käyttää
+        # spawn_points-LISTAA - .get(side) listalle kaatoi bossijahdin
         spawn = None
         if arena is not None:
-            spawn = getattr(arena, "spawn_points", {}).get(side)
+            pts = getattr(arena, "spawn_points", None)
+            if isinstance(pts, dict):
+                spawn = pts.get(side)
         if spawn:
             start_x, start_y = int(spawn[0]), int(spawn[1])
         else:

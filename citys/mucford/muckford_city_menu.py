@@ -257,6 +257,17 @@ class MuckfordCityMenu(BaseMenu):
             self.gathering_spots.append((tip[0] - 70, tip[1] + 50))
             self.gathering_spots.append((tip[0] + 70, tip[1] + 70))
 
+        # Torin oleskelupaikat (pelitesti 22): kojujen edustat - toriaikaan
+        # (9-17) simulaatio ohjaa väen tänne hengailemaan ja tinkimään
+        self.market_spots = []
+        for p in self.arena.props:
+            if isinstance(p, (MuckfordStall, MarketStall)):
+                self.market_spots.append((p.rect.centerx, p.rect.bottom + 46))
+                self.market_spots.append((p.rect.centerx - 70,
+                                          p.rect.bottom + 74))
+                self.market_spots.append((p.rect.centerx + 70,
+                                          p.rect.bottom + 74))
+
         self._update_camera()
         self._spawn_prospects()
 
@@ -2128,143 +2139,9 @@ class MuckfordCityMenu(BaseMenu):
         self._next_news_day = clock.day + self.rng.randint(2, 3)
         self._news_hour = self.rng.randint(9, 16)
 
-    def _update_simulation(self):
-        """Hoitaa kaupungin elämän: kävelyn, juttelun ja taloissa vierailun."""
-        for npc in self.npcs:
-            # Skipataan NPC:t joilla ei ole simulaatiotilaa (esim. Farmer Gus)
-            if not hasattr(npc, "sim_state"):
-                continue
-
-            if npc.sim_state == "INSIDE":
-                npc.sim_timer -= 1
-                if npc.sim_timer <= 0:
-                    # Tule ulos
-                    npc.sim_state = "IDLE"
-                    npc.sim_timer = 60
-                continue
-
-            # Jos ollaan ulkona, piirretään normaalisti
-            if npc.sim_state == "IDLE":
-                npc.animation_state = "idle"
-                npc.sim_timer -= 1
-                if npc.sim_timer <= 0:
-                    # Valitse uusi toiminto
-                    action = self.rng.choice(["WALK", "WALK", "WALK", "ENTER", "TALK"])
-                    
-                    if action == "WALK":
-                        # Arvo satunnainen kohde
-                        if self.gathering_spots and self.rng.random() < 0.7:
-                            # Mene kokoontumispaikalle (70% todennäköisyys) - Suosii toria ja rakennuksia
-                            spot = self.rng.choice(self.gathering_spots)
-                            tx = spot[0] + self.rng.randint(-30, 30)
-                            ty = spot[1] + self.rng.randint(-30, 30)
-                        else:
-                            tx = self.rng.randint(100, self.arena.width - 100)
-                            ty = self.rng.randint(100, self.arena.height - 100)
-                        npc.sim_target = (tx, ty)
-                        npc.sim_state = "WALK"
-                    
-                    elif action == "ENTER" and self.buildings:
-                        # Mene lähimpään tai satunnaiseen taloon
-                        target_house = self.rng.choice(self.buildings)
-                        npc.sim_target = target_house
-                        npc.sim_state = "ENTERING"
-                        
-                    elif action == "TALK":
-                        # Etsi lähellä oleva kaveri
-                        partner = None
-                        for other in self.npcs:
-                            if other != npc and getattr(other, "sim_state", "") == "IDLE":
-                                dist = math.hypot(other.rect.centerx - npc.rect.centerx, other.rect.centery - npc.rect.centery)
-                                if dist < 150:
-                                    partner = other
-                                    break
-                        
-                        if partner:
-                            # Setup conversation
-                            total_lines = self.rng.randint(2, 5)
-                            duration = total_lines * 100 + 40
-                            topic = self.rng.choice(list(DIALOGUE_TOPICS.keys()))
-                            
-                            npc.sim_state = "TALK"
-                            npc.sim_partner = partner
-                            npc.sim_timer = duration
-                            npc.sim_role = "initiator"
-                            npc.sim_total_lines = total_lines
-                            npc.sim_lines_spoken = 1
-                            npc.sim_topic = topic
-                            
-                            partner.sim_state = "TALK"
-                            partner.sim_partner = npc
-                            partner.sim_timer = duration
-                            partner.sim_role = "listener"
-                            
-                            # Käänny toisiaan kohti
-                            npc.facing_right = partner.rect.centerx > npc.rect.centerx
-                            partner.facing_right = npc.rect.centerx > partner.rect.centerx
-                            
-                            # Aloita keskustelu heti
-                            self._npc_speak(npc, topic)
-                        else:
-                            npc.sim_timer = 30 # Ei löytynyt, odota hetki
-
-            elif npc.sim_state == "WALK" or npc.sim_state == "ENTERING":
-                npc.animation_state = "run"
-                tx, ty = npc.sim_target
-                dx = tx - npc.rect.centerx
-                dy = ty - npc.rect.centery
-                dist = math.hypot(dx, dy)
-                
-                if dist < 10:
-                    # Perillä
-                    if npc.sim_state == "ENTERING":
-                        npc.sim_state = "INSIDE"
-                        npc.sim_timer = self.rng.randint(300, 1200) # 5-20 sekuntia sisällä
-                    else:
-                        npc.sim_state = "IDLE"
-                        npc.sim_timer = self.rng.randint(60, 180)
-                else:
-                    # Liiku
-                    speed = 1.2 # Hidastettu kävelyvauhti
-                    move_x = (dx / dist) * speed
-                    move_y = (dy / dist) * speed
-                    npc.rect.x += move_x
-                    npc.rect.y += move_y
-                    npc.facing_right = move_x > 0
-                    
-                    # Yksinkertainen törmäys seiniin (liukuu)
-                    for obs in self.arena.obstacles:
-                        if npc.rect.colliderect(obs.rect):
-                            # Peruuta liike ja vaihda tilaa
-                            npc.rect.x -= move_x
-                            npc.rect.y -= move_y
-                            npc.sim_state = "IDLE"
-                            npc.sim_timer = 30
-                            break
-
-            elif npc.sim_state == "TALK":
-                npc.animation_state = "idle"
-                npc.sim_timer -= 1
-                
-                # Vain aloittaja ohjaa keskustelun kulkua
-                if getattr(npc, "sim_role", "") == "initiator":
-                    if not npc.sim_partner or npc.sim_partner not in self.npcs or npc.sim_partner.sim_state != "TALK":
-                        npc.sim_timer = 0 # Lopeta jos kaveri lähti
-                    else:
-                        # Puhu vuorotellen (joka 100. frame)
-                        # Ensimmäinen puhui jo alussa.
-                        # Lasketaan aika alusta: duration - sim_timer
-                        time_elapsed = (npc.sim_total_lines * 100 + 40) - npc.sim_timer
-                        
-                        if time_elapsed > 0 and time_elapsed % 100 == 0:
-                             if npc.sim_lines_spoken < npc.sim_total_lines:
-                                 speaker = npc.sim_partner if (npc.sim_lines_spoken % 2 != 0) else npc
-                                 self._npc_speak(speaker, npc.sim_topic)
-                                 npc.sim_lines_spoken += 1
-
-                if npc.sim_timer <= 0:
-                    npc.sim_state = "IDLE"
-                    npc.sim_timer = self.rng.randint(30, 90)
+    # HUOM (pelitesti 22): tässä oli kuollut _update_simulation-
+    # duplikaatti jonka luokan myohempi maarittely ylikirjoitti.
+    # Aktiivinen versio on alempana tiedostossa.
 
     def _equip_from_bag(self, item):
         if item in self.manager.equipment_bag:
@@ -3726,8 +3603,64 @@ class MuckfordCityMenu(BaseMenu):
             draw_text("Quest", font_small, GOLD_COLOR, screen, mouse_pos[0] + 15, mouse_pos[1])
             return
 
+    # --- KAUPUNGIN VUOROKAUSIRYTMI (pelitesti 22) ---
+    def _city_phase(self):
+        """Vuorokaudenjakso ohjaa väen liikkeitä: torilla päivisin,
+        illalla oleskelua, yöksi koteihin."""
+        h = self.manager.world_clock.hour
+        if 9 <= h < 17:
+            return "market"
+        if 17 <= h < 22:
+            return "evening"
+        if h >= 22 or h < 7:
+            return "night"
+        return "morning"
+
+    def _npc_home(self, npc):
+        """Jokaisella kyläläisellä on pysyvä koti (ovi buildings-listasta)."""
+        if getattr(npc, "sim_home", None) is None and self.buildings:
+            npc.sim_home = self.rng.choice(self.buildings)
+        return getattr(npc, "sim_home", None)
+
+    def _spot_crowd(self, spot, radius=90):
+        """Montako NPC:tä on paikalla tai matkalla sinne."""
+        n = 0
+        for other in self.npcs:
+            st = getattr(other, "sim_state", None)
+            if st in (None, "INSIDE"):
+                continue
+            tx, ty = other.rect.center
+            tgt = getattr(other, "sim_target", None)
+            if st == "WALK" and isinstance(tgt, tuple):
+                tx, ty = tgt
+            if math.hypot(tx - spot[0], ty - spot[1]) < radius:
+                n += 1
+        return n
+
+    def _pick_spot(self, spots):
+        """Vähiten ruuhkainen paikka + hajontaa - estää valtavat rykelmät
+        samassa pisteessä (pelaajapalaute)."""
+        if not spots:
+            return None
+        cands = self.rng.sample(spots, min(4, len(spots)))
+        best = min(cands, key=self._spot_crowd)
+        if self._spot_crowd(best) >= 4:
+            return None
+        return (best[0] + self.rng.randint(-60, 60),
+                best[1] + self.rng.randint(-30, 40))
+
+    _MARKET_LINES = ["How much for this?", "Fresh eggs, eh?",
+                     "That's robbery!", "Smells fresh.", "I'll take two.",
+                     "Any milk left?", "Prices keep climbing..."]
+    _CHAT_LINES = ["Nice weather.", "Busy day.", "Heard about the rats?",
+                   "Need ale.", "Work, work.", "Move it.", "Hello.", "Hmm."]
+
     def _update_simulation(self):
-        """Hoitaa kaupungin elämän: kävelyn, juttelun ja taloissa vierailun."""
+        """Hoitaa kaupungin elämän: kävelyn, juttelun ja taloissa vierailun.
+        Pelitesti 22: vuorokausirytmi - toriaikaan (9-17) väki kerääntyy
+        kojuille hengailemaan, juttelemaan ja tinkimään; illalla oleskelua;
+        yöllä (22-07) kaikki menevät koteihinsa nukkumaan."""
+        phase = self._city_phase()
         for npc in self.npcs:
             if not hasattr(npc, "sim_state"): continue # Skip static NPCs like Gus
 
@@ -3744,7 +3677,7 @@ class MuckfordCityMenu(BaseMenu):
             is_working = False
             if ai and ai.state != 0: # 0 = STATE_IDLE
                 is_working = True
-            
+
             if is_working:
                 npc.sim_state = "BUSY" # AI ohjaa
                 continue
@@ -3754,11 +3687,14 @@ class MuckfordCityMenu(BaseMenu):
             # ----------------------
 
             if npc.sim_state == "INSIDE":
+                # Yöllä nukutaan kotona aamuun asti
+                if phase == "night":
+                    continue
                 npc.sim_timer -= 1
                 if npc.sim_timer <= 0:
                     # Tule ulos
                     npc.sim_state = "IDLE"
-                    npc.sim_timer = 60
+                    npc.sim_timer = self.rng.randint(30, 120)
                 continue
 
             # Jos ollaan ulkona, piirretään normaalisti
@@ -3766,50 +3702,7 @@ class MuckfordCityMenu(BaseMenu):
                 npc.animation_state = "idle"
                 npc.sim_timer -= 1
                 if npc.sim_timer <= 0:
-                    # Valitse uusi toiminto
-                    action = self.rng.choice(["WALK", "WALK", "WALK", "ENTER", "TALK"])
-                    
-                    if action == "WALK":
-                        # Arvo satunnainen kohde
-                        tx = self.rng.randint(100, self.arena.width - 100)
-                        ty = self.rng.randint(100, self.arena.height - 100)
-                        npc.sim_target = (tx, ty)
-                        npc.sim_state = "WALK"
-                    
-                    elif action == "ENTER" and self.buildings:
-                        # Mene lähimpään tai satunnaiseen taloon
-                        target_house = self.rng.choice(self.buildings)
-                        npc.sim_target = target_house
-                        npc.sim_state = "ENTERING"
-                        
-                    elif action == "TALK":
-                        # Etsi lähellä oleva kaveri
-                        partner = None
-                        for other in self.npcs:
-                            if other != npc and getattr(other, "sim_state", "") == "IDLE":
-                                dist = math.hypot(other.rect.centerx - npc.rect.centerx, other.rect.centery - npc.rect.centery)
-                                if dist < 150:
-                                    partner = other
-                                    break
-                        
-                        if partner:
-                            npc.sim_state = "TALK"
-                            npc.sim_partner = partner
-                            npc.sim_timer = 180 # 3 sekuntia juttelua
-                            
-                            partner.sim_state = "TALK"
-                            partner.sim_partner = npc
-                            partner.sim_timer = 180
-                            
-                            # Käänny toisiaan kohti
-                            npc.facing_right = partner.rect.centerx > npc.rect.centerx
-                            partner.facing_right = npc.rect.centerx > partner.rect.centerx
-                            
-                            # Puhekuplat
-                            lines = ["Nice weather.", "Busy day.", "Heard about the rats?", "Need ale.", "Work, work.", "Move it.", "Hello.", "Hmm."]
-                            self.manager.vfx.create_speech_bubble(npc, self.rng.choice(lines), duration=120)
-                        else:
-                            npc.sim_timer = 30 # Ei löytynyt, odota hetki
+                    self._sim_choose_action(npc, phase)
 
             elif npc.sim_state == "WALK" or npc.sim_state == "ENTERING":
                 npc.animation_state = "run"
@@ -3817,12 +3710,21 @@ class MuckfordCityMenu(BaseMenu):
                 dx = tx - npc.rect.centerx
                 dy = ty - npc.rect.centery
                 dist = math.hypot(dx, dy)
-                
+
                 if dist < 10:
                     # Perillä
                     if npc.sim_state == "ENTERING":
                         npc.sim_state = "INSIDE"
                         npc.sim_timer = self.rng.randint(300, 1200) # 5-20 sekuntia sisällä
+                    elif getattr(npc, "sim_browse", False):
+                        # Torilla: jää katselemaan kojua, tinkaa ääneen
+                        npc.sim_browse = False
+                        npc.sim_state = "IDLE"
+                        npc.sim_timer = self.rng.randint(240, 600)
+                        if self.rng.random() < 0.5:
+                            self.manager.vfx.create_speech_bubble(
+                                npc, self.rng.choice(self._MARKET_LINES),
+                                duration=140)
                     else:
                         npc.sim_state = "IDLE"
                         npc.sim_timer = self.rng.randint(60, 180)
@@ -3832,7 +3734,7 @@ class MuckfordCityMenu(BaseMenu):
                     move_x = (dx / dist) * speed
                     move_y = (dy / dist) * speed
                     npc.facing_right = move_x > 0
-                    
+
                     # KORJAUS: Käytetään check_wall_collision sub-pixel liikkeelle
                     # Tämä estää "warppimisen" ja jumittamisen kun liike on alle 1px/frame
                     if hasattr(npc, "check_wall_collision"):
@@ -3847,6 +3749,89 @@ class MuckfordCityMenu(BaseMenu):
                 if npc.sim_timer <= 0:
                     npc.sim_state = "IDLE"
                     npc.sim_timer = self.rng.randint(30, 90)
+
+    def _sim_choose_action(self, npc, phase):
+        """Valitsee IDLE-NPC:lle seuraavan puuhan vuorokaudenjakson mukaan."""
+        # YÖ: suoraan kotiin nukkumaan
+        if phase == "night":
+            home = self._npc_home(npc)
+            if home:
+                npc.sim_target = home
+                npc.sim_state = "ENTERING"
+            else:
+                npc.sim_timer = 300
+            return
+
+        weights = {
+            "market":  ["MARKET"] * 4 + ["TALK"] * 3 + ["WALK"] * 2 + ["ENTER"],
+            "evening": ["WALK"] * 3 + ["TALK"] * 2 + ["HOME"] + ["ENTER"],
+            "morning": ["WALK"] * 3 + ["TALK"] + ["MARKET"],
+        }[phase]
+        action = self.rng.choice(weights)
+
+        if action == "MARKET" and getattr(self, "market_spots", None):
+            spot = self._pick_spot(self.market_spots)
+            if spot:
+                npc.sim_target = spot
+                npc.sim_state = "WALK"
+                npc.sim_browse = True
+                return
+            action = "WALK"  # tori täynnä -> kävele muualle
+
+        if action == "HOME":
+            home = self._npc_home(npc)
+            if home:
+                npc.sim_target = home
+                npc.sim_state = "ENTERING"
+                return
+            action = "WALK"
+
+        if action == "WALK":
+            # Arvo satunnainen kohde
+            tx = self.rng.randint(100, self.arena.width - 100)
+            ty = self.rng.randint(100, self.arena.height - 100)
+            npc.sim_target = (tx, ty)
+            npc.sim_state = "WALK"
+
+        elif action == "ENTER" and self.buildings:
+            # Mene lähimpään tai satunnaiseen taloon
+            target_house = self.rng.choice(self.buildings)
+            npc.sim_target = target_house
+            npc.sim_state = "ENTERING"
+
+        elif action == "TALK":
+            # Etsi lähellä oleva kaveri
+            partner = None
+            for other in self.npcs:
+                if other != npc and getattr(other, "sim_state", "") == "IDLE":
+                    dist = math.hypot(other.rect.centerx - npc.rect.centerx,
+                                      other.rect.centery - npc.rect.centery)
+                    if dist < 150:
+                        partner = other
+                        break
+
+            if partner:
+                npc.sim_state = "TALK"
+                npc.sim_partner = partner
+                npc.sim_timer = 180 # 3 sekuntia juttelua
+
+                partner.sim_state = "TALK"
+                partner.sim_partner = npc
+                partner.sim_timer = 180
+
+                # Käänny toisiaan kohti
+                npc.facing_right = partner.rect.centerx > npc.rect.centerx
+                partner.facing_right = npc.rect.centerx > partner.rect.centerx
+
+                # Puhekuplat: torilla puhutaan kaupankäynnistä
+                lines = (self._MARKET_LINES if phase == "market"
+                         else self._CHAT_LINES)
+                self.manager.vfx.create_speech_bubble(
+                    npc, self.rng.choice(lines), duration=120)
+            else:
+                npc.sim_timer = 30 # Ei löytynyt, odota hetki
+        else:
+            npc.sim_timer = 30
 
     def _equip_from_bag(self, item):
         if item in self.manager.equipment_bag:

@@ -21,22 +21,38 @@ class MissionLogic:
         if self.data.get('id') == "boss_rat_king":
             sound_system.play_music('assets/music/rat_boss_theme.wav')
 
+        arena = manager.current_arena
         if self.data.get('id') == "boss_rat_king":
-            # --- BOSS SETUP ---
-            boss_x = manager.current_arena.width // 2
-            boss_y = manager.current_arena.height // 2
-            
-            king = RatKing("Rat King", boss_x, boss_y)
+            # --- BOSS SETUP (pelitesti 22): oma lavastettu taistelu ---
+            # Rat King odottaa valtaistuimellaan areenan itälaidalla,
+            # henkivartijarotat putkien suilla. Pelaajat astuvat sisään
+            # viemärin länsisuulta - EI enää päällekkäin bossin kanssa.
+            manager.mission_handles_positioning = True
+
+            throne = getattr(arena, "throne_pos",
+                             (arena.width - 460, arena.height // 2))
+            king = RatKing("Rat King", throne[0], throne[1])
             king.assign_manager(manager)
+            king.facing_right = False
             manager.enemy_team.add(king)
             manager.all_units.add(king)
-            
-            # Lisätään pari alkurottaa
-            for _ in range(2):
-                sp = manager.current_arena.get_spawn_point()
-                minion = GiantRat("Minion", sp[0], sp[1], team_color=king.team_color)
+
+            # Henkivartijat putkien suilla
+            pipes = list(getattr(arena, "pipe_points", []) or
+                         arena.spawn_points)
+            for i in range(2):
+                px, py = pipes[i % len(pipes)]
+                minion = GiantRat(f"Sewer Guard {i + 1}", px, py + 60,
+                                  team_color=king.team_color)
                 manager.enemy_team.add(minion)
                 manager.all_units.add(minion)
+
+            # Pelaajat sisään länsisuulta rivissä
+            entry_x, entry_y = getattr(arena, "entry_pos",
+                                       (320, arena.height // 2))
+            for i, u in enumerate(manager.active_player_units):
+                u.rect.center = (entry_x, entry_y - 90 * (i - 1))
+                u.facing_right = True
         else:
             # --- NORMAL MONSTER HUNT ---
             enemy_list = self.data.get('enemies', [])
@@ -44,9 +60,10 @@ class MissionLogic:
                 for _ in range(qty):
                     self.pending_enemies.append(name)
             random.shuffle(self.pending_enemies)
-
-        # Pelaaja keskelle
-        manager._position_units_center(list(manager.active_player_units), manager.current_arena.width // 2, manager.current_arena.height // 2)
+            # Pelaaja keskelle vain monsterijahdissa
+            manager._position_units_center(
+                list(manager.active_player_units),
+                arena.width // 2, arena.height // 2)
 
     def update(self, manager):
         if self.pending_enemies:

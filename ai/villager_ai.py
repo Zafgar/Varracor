@@ -197,10 +197,22 @@ class VillagerAI(BaseAI):
             self.unit.animation_state = "idle"
             return
 
+        # Yörauha (pelitesti 22): klo 22-07 ei aloiteta uusia töitä -
+        # kaupungin simulaatio ohjaa väen koteihinsa nukkumaan
+        night = False
+        clock = getattr(manager, "world_clock", None) if manager else None
+        if clock is not None:
+            h = clock.hour
+            night = h >= 22 or h < 7
+
         # Tilakoneen vaihto
         if self.state_timer <= 0:
-            # Priorisoidaan työt
-            if self._find_farm_work(all_units, manager):
+            # Priorisoidaan työt (paitsi yöllä)
+            if night:
+                self._clear_work_target()
+                self.state = STATE_IDLE
+                self.state_timer = random.randint(120, 300)
+            elif self._find_farm_work(all_units, manager):
                 self.state = STATE_WORK
             else:
                 roll = random.random()
