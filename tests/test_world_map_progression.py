@@ -87,7 +87,7 @@ def test_world_graph_has_regions_locations_and_valid_route_endpoints():
         "wyrdwood",
         "aegis_peaks",
     }
-    assert len(LOCATIONS) == 38
+    assert len(LOCATIONS) == 41  # +3 rift-invaasioaluetta (pelitesti 20)
     assert len(ROUTES) >= 35
 
     for location_id, location in LOCATIONS.items():
@@ -317,7 +317,7 @@ def test_world_progress_summary_is_save_safe():
     manager = DummyManager(league_tier=3, level=13, reputation=44)
     summary = world_progress_summary(manager)
     assert summary["current_location"] == "muckford"
-    assert summary["total_locations"] == 38
+    assert summary["total_locations"] == 41
     assert summary["total_routes"] == len(ROUTES)
     assert summary["discovered_routes"] > 0
     assert summary["league_tier"] == 2
