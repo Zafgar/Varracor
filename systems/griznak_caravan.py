@@ -153,22 +153,37 @@ def world_events(manager):
         except Exception:
             return ""
 
-    # 1. Rat Kingin parvet (raidit jatkuvat kunnes hunt_01 on tehty)
+    # 1. Rat King & viemäriverkosto (pelitesti 24): Griznak aloittaa ja
+    # seuraa Warrens-kriisilinjan joka johtaa Rat Kingin luo
     rk = _status("hunt_01")
     if rk not in ("completed", "finished", "turn_in"):
-        clock = getattr(manager, "world_clock", None)
-        nrd = int(getattr(manager, "next_raid_day", 0) or 0)
-        if clock is not None and nrd:
-            days = nrd - int(clock.day)
-            if days <= 0:
-                events.append("Rat King's swarm is massing TODAY - "
-                              "watch the market carts!")
+        w = _warrens_status(manager)
+        if w is not None:
+            stage, objective = w
+            if stage <= 0:
+                events.append("The sewer hatch behind the market is open. "
+                              "The Rat King's Warrens run under all of "
+                              "Muckford - clear them or the raids never "
+                              "stop. Talk to Hamo at the cellar hatch.")
+            elif stage >= 6:
+                events.append("Word is the Rat King's crown is cracked. "
+                              "Report to Hamo and Rinna to close it out.")
             else:
-                events.append(f"Rat King's next swarm hits Muckford in "
-                              f"~{days} day(s). His sewers stink of it.")
+                events.append(f"Warrens crisis, stage {stage}/6: {objective}")
         else:
-            events.append("The Rat King still squats under Muckford, "
-                          "sending swarms for the grain.")
+            clock = getattr(manager, "world_clock", None)
+            nrd = int(getattr(manager, "next_raid_day", 0) or 0)
+            if clock is not None and nrd:
+                days = nrd - int(clock.day)
+                if days <= 0:
+                    events.append("Rat King's swarm is massing TODAY - "
+                                  "watch the market carts!")
+                else:
+                    events.append(f"Rat King's next swarm hits Muckford in "
+                                  f"~{days} day(s). His sewers stink of it.")
+            else:
+                events.append("The Rat King still squats under Muckford, "
+                              "sending swarms for the grain.")
 
     # 2. Vortex-repeämät (rift-invaasioalueet ovat pysyvä riesa)
     events.append("Rifts keep tearing open at Whisper Marsh, the Drowned "
@@ -184,3 +199,18 @@ def world_events(manager):
         pass
 
     return events
+
+
+def _warrens_status(manager):
+    """(stage, objective) Warrens-kriisilinjasta, tai None jos ei alkanut."""
+    try:
+        from citys.mucford.muckford_warrens import (
+            warrens_state, warrens_objective, sync_warrens_story)
+        sync_warrens_story(manager)
+        state = warrens_state(manager)
+        if state.get("boss_defeated") or state.get("completed"):
+            return None
+        stage = int(state.get("quest_stage", 0))
+        return stage, warrens_objective(manager)
+    except Exception:
+        return None

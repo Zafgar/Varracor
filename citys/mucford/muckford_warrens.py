@@ -17,6 +17,7 @@ from settings import ENEMY_TEAM, GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_
 from sound_manager import sound_system
 from ui_kit import draw_text, font_main, font_small
 from units.muckford_warrens_monsters import (
+    HulkRat,
     RatRider,
     SewerRatSwarm,
     VioletEyedRat,
@@ -41,7 +42,8 @@ WARRENS_OBJECTIVES = {
     2: "Recover the four stolen Muckford food caches.",
     3: "Destroy the four Vortex-waste nests.",
     4: "Find and rescue the three missing Muckford Ratcatchers.",
-    5: "Enter the Royal Cistern and defeat the Rat King.",
+    5: "Pull both sluice levers, forge a Cistern Gate Crank at the smithy, "
+       "and crank open the Royal Cistern gate.",
     6: "Report the Rat King's death to Hamo or Old Rinna Net.",
     7: "The Warrens are secured. Rat raids against Muckford have ended.",
 }
@@ -77,6 +79,11 @@ def warrens_state(manager) -> dict:
     state.setdefault("completed", False)
     state.setdefault("waste_exposure", 0)
     state.setdefault("deep_drain_open", False)
+    # Pelitesti 24: sulkuluku-vivut (avaavat sulut + antavat rattaita) ja
+    # sepän takoman kammen kytkentä Royal Cistern -portille
+    state.setdefault("pulled_levers", [])
+    state.setdefault("gate_cranked", False)
+    state.setdefault("boss_intro_seen", False)
     return state
 
 
@@ -94,7 +101,8 @@ def sync_warrens_story(manager) -> bool:
             state["deep_drain_open"] = True
         elif stage == 4 and len(set(state.get("rescued_ratcatchers", ()))) >= RATCATCHER_COUNT:
             state["quest_stage"] = 5
-            state["boss_unlocked"] = True
+            # Boss avautuu vasta kun Royal Cistern -portti on kammetty
+            # auki sepän takomalla Cistern Gate Crankilla (pelitesti 24)
         elif state.get("boss_defeated") and stage < 6:
             state["quest_stage"] = 6
             state["city_raids_ended"] = True
@@ -282,6 +290,41 @@ class WasteNest(Prop):
         self.pulse = (self.pulse + 1) % 120
 
 
+class SluiceLever(Prop):
+    """Iso käsikampivipu sulkujen ohjaamiseen (pelitesti 24). Vedosta
+    aukeaa sulku ja pelaaja saa ruostuneita sulkuluku-rattaita, joista
+    seppä takoo Cistern Gate Crankin. Kaksi vipua kaukana tunnelien
+    perillä - vartioituna hulk-rotilla."""
+
+    def __init__(self, lever_id: str, x: int, y: int, pulled=False):
+        super().__init__(x, y, 66, 96, color=(0, 0, 0))
+        self.lever_id = str(lever_id)
+        self.pulled = bool(pulled)
+        self.rect = pygame.Rect(x + 14, y + 60, 40, 30)
+        self.image_pos = (x, y)
+        self.has_shadow = True
+        self.blocks_projectiles = False
+        self.is_structure = False
+        self._redraw()
+
+    def _redraw(self):
+        image = pygame.Surface((66, 96), pygame.SRCALPHA)
+        # Jalusta
+        pygame.draw.rect(image, (58, 54, 50), (10, 58, 46, 34), border_radius=5)
+        pygame.draw.rect(image, (86, 80, 72), (10, 58, 46, 34), 3, border_radius=5)
+        pygame.draw.circle(image, (34, 31, 29), (33, 72), 6)
+        # Varsi: vasemmalle = pulled, pystyssä = auki
+        if self.pulled:
+            pygame.draw.line(image, (120, 110, 96), (33, 72), (10, 40), 8)
+            pygame.draw.circle(image, (150, 196, 120), (10, 40), 8)
+            pygame.draw.circle(image, (92, 150, 88), (10, 40), 8, 2)
+        else:
+            pygame.draw.line(image, (120, 110, 96), (33, 72), (48, 18), 8)
+            pygame.draw.circle(image, (176, 96, 72), (48, 18), 9)
+            pygame.draw.circle(image, (214, 130, 96), (45, 15), 3)
+        self.image = image
+
+
 class MuckfordWarrensArena:
     def __init__(self, manager):
         self.manager = manager
@@ -293,6 +336,7 @@ class MuckfordWarrensArena:
         self.trail_marks: List[TrailMark] = []
         self.food_caches: List[FoodCache] = []
         self.waste_nests: List[WasteNest] = []
+        self.sluice_levers: List[SluiceLever] = []
         self.bridges: List[pygame.Rect] = []
         self.tainted_channels: List[pygame.Rect] = []
         self.vfx = VFXManager()
@@ -413,7 +457,16 @@ class MuckfordWarrensArena:
             self.waste_nests.append(nest)
             self.props.append(nest)
 
-        self.set_boss_gate(int(state.get("quest_stage", 0)) < 5 and not state.get("boss_defeated"))
+        # Sulkuluku-vivut kaukana tunnelien perillä (pelitesti 24)
+        pulled = set(state.get("pulled_levers", ()))
+        for lever_id, x, y in (
+            ("lever_north", 2560, 300), ("lever_south", 2560, 2010),
+        ):
+            lever = SluiceLever(lever_id, x, y, lever_id in pulled)
+            self.sluice_levers.append(lever)
+            self.props.append(lever)
+
+        self.set_boss_gate(not state.get("boss_defeated"))
 
     def set_boss_gate(self, active: bool):
         if active and self.boss_gate is None:
@@ -440,7 +493,14 @@ class MuckfordWarrensArena:
         for nest in self.waste_nests:
             nest.destroyed = nest.nest_id in destroyed
             nest._redraw()
-        self.set_boss_gate(int(state.get("quest_stage", 0)) < 5 and not state.get("boss_defeated"))
+        pulled = set(state.get("pulled_levers", ()))
+        for lever in self.sluice_levers:
+            lever.pulled = lever.lever_id in pulled
+            lever._redraw()
+        # Portti pysyy suljettuna kunnes se on kammetty auki (tai boss
+        # kaadettu). Kampi vaatii sepän takoman Cistern Gate Crankin.
+        self.set_boss_gate(not state.get("gate_cranked")
+                           and not state.get("boss_defeated"))
 
     def player_is_wading(self, point: Tuple[int, int]) -> bool:
         if any(bridge.collidepoint(point) for bridge in self.bridges):
@@ -535,6 +595,11 @@ class MuckfordWarrensMenu(GameplayScreen):
             self.player.facing_right = True
         self.player.is_dead = False
         self.player.current_hp = max(1, self.player.current_hp)
+        # Retkikunta mukaan barracksista koottuna (pelitesti 24)
+        try:
+            self.enable_expedition()
+        except Exception:
+            pass
         state = warrens_state(self.manager)
         state["visits"] = int(state.get("visits", 0)) + 1
         sync_warrens_story(self.manager)
@@ -613,7 +678,10 @@ class MuckfordWarrensMenu(GameplayScreen):
             (VioletEyedRat, 1900, 720), (VioletEyedRat, 2260, 1450),
             (VioletEyedRat, 2690, 650), (VioletEyedRat, 2870, 1710),
             (RatRider, 1310, 1930), (RatRider, 2140, 420), (RatRider, 2750, 1420),
+            (RatRider, 1720, 1180), (RatRider, 2560, 1650),
             (WasteGnawer, 1600, 870), (WasteGnawer, 2410, 1870), (WasteGnawer, 2800, 430),
+            # Hulk-rotat vartioivat syviä tunneleita (pelitesti 24)
+            (HulkRat, 2360, 1120), (HulkRat, 2870, 980), (HulkRat, 1980, 1160),
         ]
         if cleared:
             placements = placements[::2]
@@ -629,6 +697,26 @@ class MuckfordWarrensMenu(GameplayScreen):
         self.arena.set_boss_gate(False)
         self.boss = WarrensRatKing("The Rat King of Muckford", 3280, 1200, ENEMY_TEAM)
         self.monsters.add(self.boss)
+        # Eeppinen intro ensimmäisellä kohtaamisella (pelitesti 24)
+        if not state.get("boss_intro_seen"):
+            state["boss_intro_seen"] = True
+            self._open_dialogue(
+                "The Rat King of Muckford",
+                (
+                    "SsSSo. The two-legs cranked my gate. You waded my "
+                    "tunnels, drowned my nests, stole back your rotting "
+                    "grain... and still you crawl DEEPER.",
+                    "I am no gutter vermin, Commander. I am the crown "
+                    "beneath Muckford. Every rat that ever gnawed your "
+                    "walls answered to ME.",
+                    "Come then. Bring your little soldiers. My Royal "
+                    "Cistern has room for all your bones!",
+                ),
+            )
+            try:
+                self.manager.trigger_screen_shake(16)
+            except Exception:
+                pass
         self._flash("The Rat King rises from the Royal Cistern.", 320)
 
     def _near(self, rect: pygame.Rect, inflate=76) -> bool:
@@ -859,6 +947,71 @@ class MuckfordWarrensMenu(GameplayScreen):
             return True
         return False
 
+    def _try_lever(self) -> bool:
+        """Sulkuluku-vivun veto: aukaisee sulun ja antaa 2 ruostunutta
+        sulkuluku-ratasta (Cistern Gate Crankin materiaali)."""
+        state = warrens_state(self.manager)
+        for lever in self.arena.sluice_levers:
+            if lever.pulled or not self._near(lever.rect, 74):
+                continue
+            pulled = state.setdefault("pulled_levers", [])
+            if lever.lever_id not in pulled:
+                pulled.append(lever.lever_id)
+            lever.pulled = True
+            lever._redraw()
+            self.manager.inventory["Rusted Sluice Cog"] = int(
+                self.manager.inventory.get("Rusted Sluice Cog", 0)) + 2
+            self._flash("Sluice opened. +2 Rusted Sluice Cog "
+                        f"(levers pulled: {len(set(pulled))}/2)", 260)
+            _safe_sound("mining_break")
+            # Vivun vartija: hulk-rotta ryntää esiin
+            self.monsters.add(HulkRat(f"Sluice Hulk {len(set(pulled))}",
+                                      lever.rect.centerx - 90,
+                                      lever.rect.centery, ENEMY_TEAM))
+            if len(set(pulled)) >= 2:
+                self._flash("Both sluices drained. Forge a Cistern Gate "
+                            "Crank at the Muckford smithy.", 320)
+            return True
+        return False
+
+    def _try_crank_gate(self) -> bool:
+        """Royal Cistern -portti: kammetään auki sepän takomalla Cistern
+        Gate Crankilla. Vaatii vaiheen 5 (ratcatcherit pelastettu)."""
+        gate = self.arena.boss_gate
+        state = warrens_state(self.manager)
+        if gate is None or state.get("gate_cranked"):
+            return False
+        if not self._near(gate.rect, 92):
+            return False
+        if int(state.get("quest_stage", 0)) < 5:
+            self._flash("The great gate holds. Clear the Warrens crisis "
+                        "first (rescue Rinna's Ratcatchers).", 240)
+            _safe_sound("error")
+            return True
+        if int(self.manager.inventory.get("Cistern Gate Crank", 0)) < 1:
+            missing = 2 - len(set(state.get("pulled_levers", ())))
+            if missing > 0:
+                self._flash("Locked. Pull both sluice levers, then forge a "
+                            "Cistern Gate Crank at the smithy.", 260)
+            else:
+                self._flash("Locked. Forge a Cistern Gate Crank at the "
+                            "Muckford smithy (needs Rusted Sluice Cogs).",
+                            260)
+            _safe_sound("error")
+            return True
+        # Kammetään auki: kuluta kampi, avaa portti, herätä boss
+        self.manager.inventory["Cistern Gate Crank"] -= 1
+        if self.manager.inventory["Cistern Gate Crank"] <= 0:
+            del self.manager.inventory["Cistern Gate Crank"]
+        state["gate_cranked"] = True
+        state["boss_unlocked"] = True
+        self.arena.set_boss_gate(False)
+        _safe_sound("mining_break")
+        self._flash("The Cistern Gate Crank bites home. The bar-gate "
+                    "grinds open — the Royal Cistern lies beyond.", 360)
+        self._spawn_boss_if_needed()
+        return True
+
     def handle_event(self, event):
         if self.dialogue_active:
             if event.type == pygame.KEYDOWN:
@@ -876,6 +1029,8 @@ class MuckfordWarrensMenu(GameplayScreen):
             if self._try_npc():
                 return
             if self._try_trace() or self._try_cache() or self._try_nest():
+                return
+            if self._try_lever() or self._try_crank_gate():
                 return
 
     def _transfer_loot(self):
@@ -983,7 +1138,7 @@ class MuckfordWarrensMenu(GameplayScreen):
                 self.feedback_timer -= 1
             return
         living = [monster for monster in self.monsters if not monster.is_dead]
-        all_units = [self.player] + living
+        all_units = [self.player] + self.expedition_units() + living
         self._update_gameplay(all_units)
         self._transfer_loot()
         self._apply_sewer_hazard()
@@ -1035,6 +1190,16 @@ class MuckfordWarrensMenu(GameplayScreen):
             for nest in self.arena.waste_nests:
                 if not nest.destroyed and self._near(nest.rect, 80):
                     return nest.rect, "Destroy Vortex-waste nest"
+        # Sulkuvivut ja Royal Cistern -portti (pelitesti 24)
+        for lever in self.arena.sluice_levers:
+            if not lever.pulled and self._near(lever.rect, 74):
+                return lever.rect, "Pull the sluice lever"
+        gate = self.arena.boss_gate
+        if gate is not None and not state.get("gate_cranked") and \
+                self._near(gate.rect, 92):
+            if int(self.manager.inventory.get("Cistern Gate Crank", 0)) >= 1:
+                return gate.rect, "Fit the Cistern Gate Crank"
+            return gate.rect, "Royal Cistern gate (needs a forged crank)"
         return None
 
     def _draw_darkness(self, screen):
@@ -1077,7 +1242,7 @@ class MuckfordWarrensMenu(GameplayScreen):
 
     def draw(self, screen):
         living = [monster for monster in self.monsters if not monster.is_dead]
-        all_units = [self.player] + living
+        all_units = [self.player] + self.expedition_units() + living
         self._draw_gameplay(screen, all_units)
         self._draw_darkness(screen)
         # HUD piirretään pimeyden PÄÄLLE - muuten HP/mana-pallot ja

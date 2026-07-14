@@ -253,6 +253,17 @@ BLUEPRINTS = {
         'desc': 'A simple shield reinforced with iron.',
         'cost': 50,
         'mats': {'Iron Bar': 2, 'Swamp Wood': 2}
+    },
+    # --- WARRENS: Royal Cistern -portin avain (pelitesti 24) ---
+    # Kootaan viemäristä louhituista sulkuluku-rattaista + rautaharkoista.
+    # Käytetään Royal Cistern -portilla (E) avaamaan tie Rat Kingin luo.
+    'Cistern Gate Crank': {
+        'type': 'key_item',
+        'desc': 'A heavy hand-crank geared to the Royal Cistern sluice. '
+                'Forge it from rusted sluice cogs, then fit it to the '
+                'great bar-gate to reach the Rat King.',
+        'cost': 30,
+        'mats': {'Rusted Sluice Cog': 3, 'Iron Bar': 2}
     }
 }
 

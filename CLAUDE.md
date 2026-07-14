@@ -178,15 +178,28 @@ tiedostot kuuluu pudottaa.
   yöllä 22-07 koteihin (pysyvä sim_home) nukkumaan. VillagerAI ei ota
   töitä yöllä. HUOM: _update_simulation oli luokassa KAHDESTI -
   duplikaatti poistettu, muokkaa vain jäljellä olevaa.
-- **Rat King -jahti** (Griznakin hunt_01 → start_boss_hunt →
-  missions/boss_registry → maps/rat_sewer): boss valtaistuimella idässä,
-  pelaajat viemärin suulla; areenassa vesikanava/kuplat/limatipat/putket;
-  is_boss → bossipalkki; sylky = vfx create_acid_glob (vihreä kaari).
-  _position_units sietää nyt spawn_points-LISTAN (kaatoi jahdin ennen);
-  mission voi lavastaa itse (manager.mission_handles_positioning).
-  Käyttäjän vanha bosses/-paketti poistettu (rikkinäinen duplikaatti).
-  Intro-dialogi ennen taistelua (MissionLogic._begin_boss_intro;
-  update_match on pausella dialogin ajan, handleri siivotaan updatessa).
+- **Muckford Warrens = reitti Rat Kingille** (citys/mucford/
+  muckford_warrens.py) — PÄÄreitti bossille: E torin takana olevalla
+  viemäriluukulla (CitySewerHatch) → 3600×2400 viemärikartta. Griznak
+  aloittaa/seuraa (world_events), Hamo/Rinna antavat vaiheet. Linja
+  (warrens_state.quest_stage 0-7): jäljitä 4 violettijälkeä → 4
+  ruokavarastoa → tuhoa 4 jäteluolaa → pelasta 3 ratcatcheria → **vedä
+  2 sulkuvipua (SluiceLever → +2 Rusted Sluice Cog/vipu) + tao Cistern
+  Gate Crank sepällä (loot_data BLUEPRINTS, type key_item → craft_item
+  reppuun) + kammea Royal Cistern -portti auki** → WarrensRatKing herää
+  eeppisellä introdialogilla → kaato → hunt_01 valmis + raidit loppuvat.
+  Kuhisee rottia: SewerRatSwarm/VioletEyedRat/RatRider/WasteGnawer +
+  uusi HulkRat (units/muckford_warrens_monsters.py, SHAPE "hulk_rat",
+  620 HP panssarimurskaaja). Retkikunta mukaan (enable_expedition/
+  expedition_units, pelitesti 21). Portin lippu: warrens_state
+  gate_cranked/boss_unlocked; set_boss_gate riippuu näistä.
+- **Rat King -areenajahti** (Griznakin urakkalista → start_boss_hunt →
+  missions/boss_registry → maps/rat_sewer): VAIHTOEHTOINEN areenaversio.
+  Boss valtaistuimella idässä, pelaajat viemärin suulla; is_boss →
+  bossipalkki; sylky = vfx create_acid_glob (vihreä kaari).
+  _position_units sietää spawn_points-LISTAN; mission lavastaa itse
+  (manager.mission_handles_positioning); intro-dialogi
+  (MissionLogic._begin_boss_intro).
 - **Griznakin vankkurit** (systems/griznak_caravan.py) — Griznak on AINA
   kaupungissa vankkureineen (Muckford: torin laita, Rattlebridge:
   länsiportti; lisää tier-kaupunkeja samalla spawn()-helperillä).

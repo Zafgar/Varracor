@@ -199,7 +199,9 @@ def test_warrens_story_progresses_through_every_city_crisis_stage():
     ]
     assert sync_warrens_story(manager) is True
     assert state["quest_stage"] == 5
-    assert state["boss_unlocked"] is True
+    # Pelitesti 24: boss ei enää avaudu automaattisesti vaiheessa 5 -
+    # Royal Cistern -portti kammetään auki sepän Cistern Gate Crankilla
+    assert state["boss_unlocked"] is False
 
     state["boss_defeated"] = True
     assert sync_warrens_story(manager) is True

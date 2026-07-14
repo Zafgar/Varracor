@@ -142,7 +142,8 @@ def test_world_events_announcements():
     m = _manager()
     m.next_raid_day = m.world_clock.day + 2
     events = griznak_caravan.world_events(m)
-    assert any("swarm" in e.lower() for e in events), "rottaparvet"
+    # Pelitesti 24: rat-uhka kuulutetaan Warrens-kriisilinjan kautta
+    assert any("rat" in e.lower() for e in events), "rottauhka (Warrens)"
     assert any("rift" in e.lower() for e in events), "repeämät"
     assert any("troll" in e.lower() for e in events), "bossikontrahti"
 
@@ -158,7 +159,7 @@ def test_griznak_dialogue_has_events_and_contracts():
     assert any("stirring" in t for t in texts), "kuulutukset kysyttävissä"
     assert any("contracts" in t.lower() for t in texts)
     assert "events" in nodes
-    assert "swarm" in nodes["events"].text.lower()
+    assert "rat" in nodes["events"].text.lower()
     # Contracts-valinta hyppää urakkalistaan
     contracts = next(c for c in root.choices if "contracts" in c.text.lower())
     assert "goto:quests" in contracts.effects

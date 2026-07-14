@@ -74,6 +74,36 @@ class WarrensMonster(CodeMonster):
         pygame.draw.circle(surface, self.EYE if state != "dead" else (46, 34, 49), (82 + stretch, cy - 14), 4)
         pygame.draw.line(surface, (207, 198, 120), (83 + stretch, cy - 4), (91 + stretch, cy - 2), 3)
 
+    def _draw_hulk_rat(self, surface, body, accent, bob, stretch, state, frame):
+        """Valtava lihaskimppurotta: leveä kroppa, kyhmyinen selkä ja
+        raskas etukäpälä. Isompi ja uhkaavampi kuin Waste Gnawer."""
+        cy = 58 + bob
+        # Häntä
+        pygame.draw.arc(surface, accent, (0, cy - 4, 44, 40), 0.1, 2.8, 6)
+        # Kroppa (leveä pisara)
+        pygame.draw.ellipse(surface, body, (16 - stretch, cy - 30, 88 + stretch * 2, 60))
+        # Selän kyhmyt (lihakset)
+        for hx in (34, 52, 70):
+            pygame.draw.circle(surface, _shade(body, 14), (hx, cy - 22), 11)
+        # Pää
+        pygame.draw.circle(surface, _shade(body, 18), (104 + stretch, cy - 16), 22)
+        # Raskaat etukäpälät
+        pygame.draw.ellipse(surface, _shade(body, -10), (86 + stretch, cy + 12, 26, 20))
+        pygame.draw.ellipse(surface, _shade(body, -10), (58, cy + 16, 24, 18))
+        # Takajalat
+        pygame.draw.line(surface, body, (34, cy + 16), (24, cy + 42), 11)
+        pygame.draw.line(surface, body, (62, cy + 18), (72, cy + 44), 11)
+        # Korvat + kuono
+        pygame.draw.polygon(surface, accent, [(96, cy - 34), (102, cy - 50), (112, cy - 33)])
+        pygame.draw.polygon(surface, accent, [(112, cy - 33), (122, cy - 48), (128, cy - 30)])
+        pygame.draw.polygon(surface, _shade(body, 22), [(118 + stretch, cy - 20), (140 + stretch, cy - 14), (118 + stretch, cy - 6)])
+        # Torahampaat
+        pygame.draw.polygon(surface, (222, 214, 190), [(120 + stretch, cy - 8), (124 + stretch, cy + 4), (128 + stretch, cy - 7)])
+        # Silmä
+        eye = self.EYE if state != "dead" else (46, 34, 49)
+        pygame.draw.circle(surface, eye, (110 + stretch, cy - 20), 5)
+        pygame.draw.circle(surface, _shade(eye, 60), (110 + stretch, cy - 20), 2)
+
     def _draw_rat_king(self, surface, body, accent, bob, stretch, state, frame):
         cy = 75 + bob
         pygame.draw.arc(surface, accent, (0, cy - 7, 63, 46), 0.1, 2.9, 7)
@@ -179,6 +209,24 @@ class WasteGnawer(WarrensMonster):
             except Exception:
                 continue
         _vfx_text(manager, self, "WASTE FUME", (180, 85, 205))
+
+
+class HulkRat(WarrensMonster):
+    """Valtava lihasrotta: hidas mutta tuhoisa panssarimurskaaja. Kuhisevien
+    tunnelien raskas isku - kannattaa maalittaa yhdessä (pelitesti 24)."""
+    SPECIES = "Hulk Rat"
+    THREAT_LEVEL = 6
+    SHAPE = "hulk_rat"
+    BODY = (96, 82, 70)
+    ACCENT = (54, 42, 36)
+    EYE = (216, 92, 236)
+    VISUAL_SIZE = (148, 108)
+    HITBOX_SIZE = (84, 52)
+    HP, STR, DEX, DEFENSE = 620, 30, 8, 14
+    MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 0.72, 78, 88
+    STATUS_EFFECT = ("Bleed", 150, 4)
+    AI_CLASS = HeavyChargeAI
+    XP_REWARD, BOUNTY_VALUE = 120, 20
 
 
 class WarrensRatKing(WarrensMonster):
@@ -311,6 +359,11 @@ WARRENS_LOOT = {
     "Waste Gnawer": [
         {"item": "Rotten Flesh", "chance": 0.72, "min": 1, "max": 3},
         {"item": "Vortex Residue", "chance": 0.52, "min": 1, "max": 2},
+    ],
+    "Hulk Rat": [
+        {"item": "Rotten Flesh", "chance": 0.9, "min": 2, "max": 4},
+        {"item": "Scrap Iron", "chance": 0.7, "min": 1, "max": 3},
+        {"item": "Rusted Sluice Cog", "chance": 0.35, "min": 1, "max": 1},
     ],
     "Rat King": [
         {"item": "Gnawed Crown", "chance": 1.0, "min": 1, "max": 1},

@@ -1952,12 +1952,19 @@ class GameManager:
             except Exception:
                 pass
 
-        try:
-            new_item = self._create_loot_item(recipe_name)
-            if new_item:
-                self.equipment_bag.append(new_item)
-        except Exception:
-            self.add_material(recipe_name, 1)
+        # Avainesineet/materiaalit (esim. Cistern Gate Crank) menevät suoraan
+        # reppuun, ei equipment_bagiin - niitä ei voi varustaa (pelitesti 24)
+        if recipe.get('type') in ('key_item', 'material'):
+            self.inventory[recipe_name] = self.inventory.get(recipe_name, 0) + 1
+        else:
+            try:
+                new_item = self._create_loot_item(recipe_name)
+                if new_item:
+                    self.equipment_bag.append(new_item)
+                else:
+                    self.add_material(recipe_name, 1)
+            except Exception:
+                self.add_material(recipe_name, 1)
 
         # Path of the Anvil: XP jokaisesta taonnasta
         try:
