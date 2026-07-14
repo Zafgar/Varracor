@@ -577,6 +577,12 @@ class Gladiator(pygame.sprite.Sprite):
         # 3. Main hand Weapon (HARD LOCK)
         if slot_name == "main_hand":
             w_group = self._weapon_group_from_item(item)
+            # Elämäntaitotyökalut (hakku, kirves, vapa): käyttöoikeus tulee
+            # Commander Paths -poluista (tools-listat), EI asekoulutuksesta.
+            # Liian korkean tierin työkalun käyttö estetään käyttöhetkellä
+            # (commander_progression.tool_allowed).
+            if w_group in ("pickaxe", "lumber_axe", "fishing_rod"):
+                return True, ""
             # Fists/None always allowed
             if w_group and w_group != "fists":
                 if w_group not in self.weapon_masteries:

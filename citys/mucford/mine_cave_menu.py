@@ -195,6 +195,10 @@ class MineCaveMenu(GameplayScreen):
         all_units = self._all_units()
         self._draw_gameplay(screen, all_units)
         self._draw_darkness(screen)
+        # HUD piirretään pimeyden PÄÄLLE - muuten HP/mana-pallot ja
+        # palkit himmenevät lukukelvottomiksi (pelaajapalaute)
+        if getattr(self, "player", None):
+            self.player.draw_hud(screen)
 
         draw_text("< Mine Road", font_main, WHITE, screen, 20, SCREEN_HEIGHT // 2)
         alive = sum(1 for u in self.undead if not u.is_dead)

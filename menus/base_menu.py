@@ -35,6 +35,11 @@ class BaseMenu:
     def handle_event(self, event):
         pass
 
+    def consumes_escape(self):
+        """Palauttaa True kun menulla on auki oma paneeli joka haluaa
+        ESC:n itselleen (main.py ohittaa silloin globaalin pause-togglen)."""
+        return False
+
     def update(self):
         # Monet menut ei kutsu updatea -> piirrossa myös liikkuu,
         # mutta pidetään tämä varalta.

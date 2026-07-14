@@ -6,14 +6,17 @@
 
 COMMANDER_SKILL_TREE = {
     # --- PICKAXE BRANCH (Left) ---
+    # HUOM: Hakkujen/kirveiden KÄYTTÖOIKEUS tulee Commander Paths -poluista
+    # (Path of the Vein / Timber, systems/commander_progression.py).
+    # Nämä pistepuun noodit antavat BONUKSIA polkujen päälle.
     "mining_1": {
         "name": "Pickaxe Training I",
-        "desc": "Allows the use of Basic Pickaxes.",
+        "desc": "Miner's grip and stance. +1 STR, +5% mining speed.",
         "pos": (-160, 0),
         "cost": 1,
         "min_level": 1,
         "requires": [],
-        "effects": {"weapon_prof": "pickaxe", "str": 1}
+        "effects": {"str": 1, "mining_speed": 0.05}
     },
     "mining_2": {
         "name": "Pickaxe Training II",
@@ -143,12 +146,12 @@ COMMANDER_SKILL_TREE = {
     # --- LUMBER AXE BRANCH (Right) ---
     "lumber_1": {
         "name": "Lumberjack I",
-        "desc": "Allows the use of Woodcutting Axes.",
+        "desc": "Woodsman's swing. +1 STR, +5% chopping speed.",
         "pos": (160, 0),
         "cost": 1,
         "min_level": 1,
         "requires": [],
-        "effects": {"weapon_prof": "lumber_axe", "str": 1}
+        "effects": {"str": 1, "chop_speed": 0.05}
     },
     "lumber_2": {
         "name": "Lumberjack II",

@@ -115,6 +115,11 @@ class CommanderSkillMenu(BaseMenu):
         _t = font_title.render("COMMANDER SKILLS", True, GOLD_COLOR)
         self.draw_header_bar(screen, _t, y=10)
         draw_text(f"Skill Points: {self.unit.skill_points}", font_main, WHITE, screen, SCREEN_WIDTH//2 - 80, 80)
+        # Työnjako: Paths avaa työkalut/loitsupaikat tekemällä, tämä puu
+        # ostaa pysyviä bonuksia pistein
+        draw_text("Tool tiers & spell slots unlock via Commander PATHS (by doing). "
+                  "These skills buy permanent bonuses on top.",
+                  font_small, GRAY, screen, SCREEN_WIDTH//2 - 330, 108)
 
         # Draw Connections
         for s_id, data in COMMANDER_SKILL_TREE.items():

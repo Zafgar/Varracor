@@ -935,6 +935,10 @@ class LowFieldsMenu(GameplayScreen):
         return lines
 
     def _draw_dialogue(self, screen):
+        # Yhtenäinen Muckford-tyylinen dialogi (puhuja esiin + nimikilpi)
+        from systems.area_dialogue import draw_area_dialogue
+        if draw_area_dialogue(self, screen):
+            return
         if not self.dialogue_active or not self.dialogue_pages:
             return
         panel = pygame.Rect(190, SCREEN_HEIGHT - 245, SCREEN_WIDTH - 380, 190)

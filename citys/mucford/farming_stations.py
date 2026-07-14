@@ -30,7 +30,7 @@ from settings import (
     WHITE,
 )
 from sound_manager import sound_system
-from ui_kit import UIButton, draw_text, font_main, font_small, font_title
+from ui_kit import UIButton, draw_text, font_main, font_small, font_header
 
 
 # One Varracor game day is approximately fifteen real minutes.
@@ -694,10 +694,15 @@ def _patch_barracks(BarracksMenu):
             _draw_station_hub(self, screen)
         return result
 
+    def consumes_escape(self):
+        # Crafting-hub auki -> ESC sulkee paneelin (ei pausea)
+        return bool(getattr(self, "show_station_hub", False))
+
     BarracksMenu.__init__ = __init__
     BarracksMenu.handle_event = handle_event
     BarracksMenu.update = update
     BarracksMenu.draw = draw
+    BarracksMenu.consumes_escape = consumes_escape
     BarracksMenu._tiered_stations_installed = True
 
 
@@ -707,7 +712,9 @@ def _draw_overlay_panel(screen, rect: pygame.Rect, title: str):
     screen.blit(overlay, (0, 0))
     pygame.draw.rect(screen, (36, 34, 31), rect, border_radius=14)
     pygame.draw.rect(screen, (128, 108, 75), rect, 3, border_radius=14)
-    draw_text(title, font_title, GOLD_COLOR, screen, rect.x + 35, rect.y + 24)
+    # font_header (30px) mahtuu paneelin yläpalkkiin - font_title (60px)
+    # valui alaotsikoiden päälle
+    draw_text(title, font_header, GOLD_COLOR, screen, rect.x + 35, rect.y + 24)
 
 
 def _draw_job_bar(screen, rect: pygame.Rect, node: dict):
@@ -746,7 +753,7 @@ def _draw_station_hub(menu, screen):
         pygame.draw.rect(screen, bg, rect, border_radius=10)
         pygame.draw.rect(screen, GOLD_COLOR if hover else (98, 88, 70),
                          rect, 2, border_radius=10)
-        draw_text(definition["title"], font_title, WHITE,
+        draw_text(definition["title"], font_header, WHITE,
                   screen, rect.x + 20, rect.y + 18)
         if level > 0:
             tier_name = definition["tiers"][level]["name"]

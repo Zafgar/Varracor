@@ -313,7 +313,10 @@ class ManagerMenu(BaseMenu):
         # --- EQUIPMENT SLOTS (Center) ---
         slots = self.get_slot_rects(cx, cy)
         mouse_pos = pygame.mouse.get_pos()
-        
+        # Tooltip kerätään talteen ja piirretään VIIMEISENÄ - kesken luupin
+        # piirretty kortti jäisi myöhempien kuvakkeiden/paneelien alle
+        hover_tooltip = None  # (item, x, y)
+
         for name, rect in slots.items():
             # Draw slot bg
             col = (60, 60, 70)
@@ -337,10 +340,9 @@ class ManagerMenu(BaseMenu):
                     if hasattr(item, 'draw_card_icon'):
                         item.draw_card_icon(screen, rect.x + 5, rect.y + 5, 70)
                     
-                    # Tooltip on hover
+                    # Tooltip on hover (piirto lykätään loppuun)
                     if rect.collidepoint(mouse_pos) and not self.drag_item:
-                        from ui_kit import draw_item_tooltip
-                        draw_item_tooltip(screen, item, mouse_pos[0] + 20, mouse_pos[1] + 20)
+                        hover_tooltip = (item, mouse_pos[0] + 20, mouse_pos[1] + 20)
 
         # --- INVENTORY BAG (Right) ---
         draw_text("INVENTORY", font_main, WHITE, screen, self.bag_x, self.bag_y - 30)
@@ -371,8 +373,13 @@ class ManagerMenu(BaseMenu):
                     item.draw_card_icon(screen, bx + 4, by + 4, 60)
                 
                 if rect.collidepoint(mouse_pos) and not self.drag_item:
-                    from ui_kit import draw_item_tooltip
-                    draw_item_tooltip(screen, item, mouse_pos[0] - 250, mouse_pos[1])
+                    hover_tooltip = (item, mouse_pos[0] - 250, mouse_pos[1])
+
+        # --- HOVER TOOLTIP (kaiken päälle) ---
+        if hover_tooltip:
+            from ui_kit import draw_item_tooltip
+            draw_item_tooltip(screen, hover_tooltip[0], hover_tooltip[1],
+                              hover_tooltip[2])
 
         # --- DRAGGED ITEM ---
         if self.drag_item:

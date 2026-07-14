@@ -109,6 +109,9 @@ class MuckfordCityMenu(BaseMenu):
             self.arena.width // 2 - 50, 1150, spacing=270)
         for stall in self.market_stalls:
             self.arena.props.append(stall)
+        # Kojujen pitäjät (päivisin) ja yön hämärähahmot
+        self.stall_keepers = []
+        self.night_lurkers = []
 
         # --- KALASTUS (Mudwater Pond + editorilla lisätyt vedet) ---
         self.fishing_session = None
@@ -1050,6 +1053,9 @@ class MuckfordCityMenu(BaseMenu):
                 # kojujen eteen, eikä asiakas saa jäädä jutun panttivangiksi
                 for stall in getattr(self, "market_stalls", []):
                     if self.player.rect.colliderect(stall.rect.inflate(30, 40)):
+                        if not self._stalls_open():
+                            self._closed_stall_notice(stall)
+                            return
                         self.manager.pending_shop_id = stall.shop_id
                         self.next_state = "district_shop"
                         sound_system.play_sound('click')
@@ -1242,6 +1248,16 @@ class MuckfordCityMenu(BaseMenu):
                 npc.animation_state = "idle"
                 npc.update(self.arena.obstacles, self.manager)
                 continue
+            # Kojun pitäjä seisoo kojullaan (työ-AI veisi hänet pelloille)
+            if getattr(npc, "is_stall_keeper", False):
+                npc.animation_state = "idle"
+                npc.update(self.arena.obstacles, self.manager)
+                continue
+            # Yön hämärähahmot hiippailevat omalla logiikallaan
+            if getattr(npc, "is_lurker", False):
+                self._update_lurker(npc)
+                npc.update(self.arena.obstacles, self.manager)
+                continue
             # Kutsutaan run_combat_ai, jotta VillagerAI toimii (maitotilat, lanta, jne.)
             npc.run_combat_ai(all_units, self.arena.obstacles, self.manager)
             npc.update(self.arena.obstacles, self.manager)
@@ -1304,6 +1320,7 @@ class MuckfordCityMenu(BaseMenu):
         if not self.manager.world_paused:
             self.manager.world_clock.update()
             self._update_raids()
+            self._update_market_life()
 
         # Pelaajan kaatuminen kaupungissa (esim. raidissa): raahataan turvaan
         if self.player.is_dead:
@@ -2359,6 +2376,92 @@ class MuckfordCityMenu(BaseMenu):
             pass
         return False
 
+    def _stalls_open(self):
+        """Kojut ja markkinat auki klo 8-20."""
+        return 8 <= self.manager.world_clock.hour < 20
+
+    def _closed_stall_notice(self, prop):
+        self.manager.vfx.show_damage(
+            prop.rect.centerx, prop.rect.top - 30,
+            "Closed - the keeper returns at 8:00", color=(210, 190, 150))
+        sound_system.play_sound('error')
+
+    def _update_market_life(self):
+        """Markkinoiden vuorokausirytmi: pitäjät kojuilla päivisin, yöllä
+        kojut kiinni ja aukiolla liikkuu hämärähahmoja."""
+        from units.villager import Villager
+        from citys.mucford.market_data import MARKET_SHOPS
+        open_now = self._stalls_open()
+        night = (self.manager.world_clock.hour >= 22
+                 or self.manager.world_clock.hour < 5)
+
+        if open_now and not self.stall_keepers:
+            # Pitäjät saapuvat kojuilleen
+            for stall in self.market_stalls:
+                shop = MARKET_SHOPS.get(stall.shop_id, {})
+                keeper = Villager(shop.get("keeper", "Stallkeeper"),
+                                  shop.get("keeper_race", "Human"),
+                                  stall.rect.centerx,
+                                  stall.rect.top - 26, team_color=GREEN)
+                keeper.is_stall_keeper = True
+                keeper.sim_state = "KEEPING"
+                self.stall_keepers.append(keeper)
+                self.npcs.append(keeper)
+        elif not open_now and self.stall_keepers:
+            # Pitäjät lähtevät kotiin yöksi
+            for keeper in self.stall_keepers:
+                if keeper in self.npcs:
+                    self.npcs.remove(keeper)
+            self.stall_keepers = []
+
+        if night and not self.night_lurkers and self.market_stalls:
+            # Pari hämärää hahmoa hiippailee aukiolla
+            import random as _rng
+            cx = self.market_stalls[0].rect.centerx
+            cy = self.market_stalls[0].rect.centery
+            for name, race in (("Shady Figure", "Goblin"),
+                               ("Hooded Stranger", "Human")):
+                lurker = Villager(name, race,
+                                  cx + _rng.randint(-300, 500),
+                                  cy + _rng.randint(120, 320),
+                                  team_color=GREEN)
+                lurker.is_lurker = True
+                lurker.sim_state = "LURKING"
+                lurker._lurk_target = None
+                lurker._lurk_wait = _rng.randint(60, 240)
+                self.night_lurkers.append(lurker)
+                self.npcs.append(lurker)
+        elif not night and self.night_lurkers:
+            for lurker in self.night_lurkers:
+                if lurker in self.npcs:
+                    self.npcs.remove(lurker)
+            self.night_lurkers = []
+
+    def _update_lurker(self, npc):
+        """Hidas hiippailu markkina-aukiolla (ei työ-AI:ta)."""
+        import random as _rng
+        if npc._lurk_wait > 0:
+            npc._lurk_wait -= 1
+            npc.animation_state = "idle"
+            return
+        if npc._lurk_target is None:
+            stall = _rng.choice(self.market_stalls)
+            npc._lurk_target = (stall.rect.centerx + _rng.randint(-160, 160),
+                                stall.rect.bottom + _rng.randint(60, 320))
+        tx, ty = npc._lurk_target
+        dx = tx - npc.rect.centerx
+        dy = ty - npc.rect.centery
+        dist = math.hypot(dx, dy)
+        if dist < 14:
+            npc._lurk_target = None
+            npc._lurk_wait = _rng.randint(180, 600)
+            npc.animation_state = "idle"
+            return
+        npc.facing_right = dx > 0
+        npc.animation_state = "run"
+        npc.rect.x += int(round(0.9 * dx / dist))
+        npc.rect.y += int(round(0.9 * dy / dist))
+
     def _update_raids(self):
         m = self.manager
         clock = m.world_clock
@@ -2568,12 +2671,18 @@ class MuckfordCityMenu(BaseMenu):
 
         if isinstance(prop, MarketStall):
             # Market-alueen nimetty liike -> liikkeen oma kauppasivu
+            if not self._stalls_open():
+                self._closed_stall_notice(prop)
+                return True
             self.manager.pending_shop_id = prop.shop_id
             self.next_state = "district_shop"
             sound_system.play_sound('click')
             return True
 
         if isinstance(prop, MuckfordStall):
+            if not self._stalls_open():
+                self._closed_stall_notice(prop)
+                return True
             self.next_state = "market"
             sound_system.play_sound('click')
             return True

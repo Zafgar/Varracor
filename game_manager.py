@@ -2298,6 +2298,11 @@ class GameManager:
             return True
 
         if self.show_inventory:
+            # ESC sulkee inventoryn (kuten I)
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.show_inventory = False
+                sound_system.play_sound('click')
+                return True
             if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP) and event.button == 1:
                 # Delegate to Commander
                 self.player_character.handle_inventory_event(event, self)

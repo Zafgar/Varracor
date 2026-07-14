@@ -321,7 +321,17 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-            if current_state_key not in [
+            # Menun oma paneeli (esim. crafting-hub, kehityspaneeli) saa
+            # ESC:n itselleen - muuten globaali käsittelijä avaisi pausen
+            menu_wants_esc = (
+                event.type == pygame.KEYDOWN
+                and event.key == pygame.K_ESCAPE
+                and current_menu is not None
+                and getattr(current_menu, "consumes_escape", None) is not None
+                and current_menu.consumes_escape()
+            )
+
+            if not menu_wants_esc and current_state_key not in [
                 "menu", "loading", "match_loading", "options"
             ]:
                 ui_response = manager.handle_ui_event(event, current_state_key)

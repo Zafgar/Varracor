@@ -1056,6 +1056,10 @@ class MuckfordWarrensMenu(GameplayScreen):
         screen.blit(self.dark_overlay, (0, 0))
 
     def _draw_dialogue(self, screen):
+        # Yhtenäinen Muckford-tyylinen dialogi (puhuja esiin + nimikilpi)
+        from systems.area_dialogue import draw_area_dialogue
+        if draw_area_dialogue(self, screen):
+            return
         if not self.dialogue_active or not self.dialogue_pages:
             return
         panel = pygame.Rect(165, SCREEN_HEIGHT - 260, SCREEN_WIDTH - 330, 205)
@@ -1076,6 +1080,10 @@ class MuckfordWarrensMenu(GameplayScreen):
         all_units = [self.player] + living
         self._draw_gameplay(screen, all_units)
         self._draw_darkness(screen)
+        # HUD piirretään pimeyden PÄÄLLE - muuten HP/mana-pallot ja
+        # palkit himmenevät lukukelvottomiksi (pelaajapalaute)
+        if getattr(self, "player", None):
+            self.player.draw_hud(screen)
         prompt = None if self.dialogue_active else self._nearest_prompt()
         if prompt:
             rect, label = prompt

@@ -47,6 +47,11 @@ class DistrictShopMenu(BaseMenu):
                     self._previews[entry["name"]] = None
         self.btn_leave = UIButton(SCREEN_WIDTH - 260, SCREEN_HEIGHT - 96,
                                   210, 58, "LEAVE", None, GRAY)
+        # Ostovahvistus: klikkaus VALITSEE rivin, BUY-nappi ostaa.
+        # Estää vahinko-ostot pelkällä klikillä.
+        self.selected_entry = None
+        self.btn_buy = UIButton(SCREEN_WIDTH - 490, SCREEN_HEIGHT - 96,
+                                210, 58, "BUY", None, (65, 135, 80))
 
     # ------------------------------------------------------------------
     def _rep(self) -> int:
@@ -100,11 +105,21 @@ class DistrictShopMenu(BaseMenu):
             self.next_state = "muckford_city"
             sound_system.play_sound("click")
             return
+        if self.selected_entry is not None and self.btn_buy.is_clicked(event):
+            self._buy(self.selected_entry)
+            return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             for rect, entry in self.row_rects:
                 if rect.collidepoint(event.pos):
-                    self._buy(entry)
+                    if self.selected_entry is entry:
+                        # Toinen klikkaus samaan riviin = osta
+                        self._buy(entry)
+                    else:
+                        self.selected_entry = entry
+                        sound_system.play_sound("hover")
                     return
+            # Klikkaus muualle poistaa valinnan
+            self.selected_entry = None
 
     def update(self):
         super().update()
@@ -150,8 +165,8 @@ class DistrictShopMenu(BaseMenu):
         # Tuoterivit
         self.row_rects = []
         y = panel.y + 140
-        draw_text("WARES (click to buy, hover for details)", font_main,
-                  (150, 200, 165), screen, panel.x + 30, y - 34)
+        draw_text("WARES (click to select, then BUY - hover for details)",
+                  font_main, (150, 200, 165), screen, panel.x + 30, y - 34)
         mouse_pos = pygame.mouse.get_pos()
         hovered_entry = None
         for entry in self.shop["goods"]:
@@ -159,9 +174,14 @@ class DistrictShopMenu(BaseMenu):
             hover = row.collidepoint(mouse_pos)
             if hover:
                 hovered_entry = entry
-            pygame.draw.rect(screen, (44, 44, 52) if hover else (32, 33, 39),
-                             row, border_radius=9)
-            pygame.draw.rect(screen, awning, row, 2, border_radius=9)
+            selected = self.selected_entry is entry
+            if selected:
+                pygame.draw.rect(screen, (58, 54, 38), row, border_radius=9)
+                pygame.draw.rect(screen, GOLD_COLOR, row, 2, border_radius=9)
+            else:
+                pygame.draw.rect(screen, (44, 44, 52) if hover else (32, 33, 39),
+                                 row, border_radius=9)
+                pygame.draw.rect(screen, awning, row, 2, border_radius=9)
             draw_text(entry["name"], font_main, WHITE, screen,
                       row.x + 20, row.y + 14)
             kind_label = "material" if entry["kind"] == "material" else "equipment"
@@ -189,6 +209,10 @@ class DistrictShopMenu(BaseMenu):
             draw_text(self.feedback, font_main, WHITE, screen,
                       box.x + 18, box.y + 12)
 
+        if self.selected_entry is not None:
+            self.btn_buy.text = (
+                f"BUY  {format_money(self._final_price(self.selected_entry))}")
+            self.btn_buy.draw(screen)
         self.btn_leave.draw(screen)
 
         # Hover-infokortti PÄÄLLIMMÄISENÄ: varusteista täysi item-kortti

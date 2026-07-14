@@ -1704,7 +1704,7 @@ class Commander(Gladiator):
         # VANHA NÄKYMÄ (Fallback tai SPELLS tab)
         self._draw_legacy_character_panel(screen, x, y, w, h, manager)
 
-    def _draw_legacy_character_panel(self, screen, x, y, w, h):
+    def _draw_legacy_character_panel(self, screen, x, y, w, h, manager=None):
         # Vanha koodi siirretty tänne
         
         # Tausta paneelille

@@ -122,10 +122,14 @@ class ForestRoadMenu(GameplayScreen):
             sound_system.play_sound('magic_fail') # Placeholder ääni
             
         elif effect == "steal_sword":
-            # Poista pääase
-            if not CHEAT_MODE:
-                self.player.equipment["main_hand"] = None
-                self.player.calculate_final_stats()
+            # Olento vie miekan AINA - tarina pysyy samana molemmissa
+            # tiloissa. Cheat-tilassa kopio jää kuitenkin reppuun.
+            stolen = self.player.equipment.get("main_hand")
+            self.player.equipment["main_hand"] = None
+            self.player.calculate_final_stats()
+            if CHEAT_MODE and stolen is not None and \
+                    getattr(stolen, "name", "") != "Fists":
+                self.manager.equipment_bag.append(stolen)
             
         elif effect == "teleport_city":
             self.transition_active = True

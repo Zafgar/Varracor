@@ -154,6 +154,10 @@ class BarracksInteriorMenu(GameplayScreen):
         consider("leave", door, door.centerx, door.top, 110)
         return best
 
+    def consumes_escape(self):
+        # Kehityspaneeli auki -> ESC sulkee paneelin (ei pausea)
+        return bool(self.show_upgrade)
+
     def handle_event(self, event):
         # Kehityspaneeli nappaa syötteet
         if self.show_upgrade:
