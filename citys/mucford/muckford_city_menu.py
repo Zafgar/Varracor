@@ -1328,7 +1328,9 @@ class MuckfordCityMenu(BaseMenu):
             
             # Rajoita kartalle
             self.player.rect.clamp_ip(pygame.Rect(0, 0, self.arena.width, self.arena.height))
-        else:
+        elif self.player.animation_timer <= 0:
+            # Käynnissä oleva lyönti-/keräysanimaatio saa pyöriä loppuun
+            # (pelitesti 16: idle ylikirjoitti hakkuun heilautuksen)
             self.player.animation_state = "idle"
 
         # Päivitä pelaajan tilat (cooldowns, mana regen) ilman AI:ta
@@ -2782,6 +2784,27 @@ class MuckfordCityMenu(BaseMenu):
             if prop.rect.inflate(20, 20).collidepoint(world_pos):
                 if self._check_range(self.player.rect, prop.rect):
                     return self._try_interact_prop(prop, check_collision=False)
+
+        # Kerättävät: hyväksy klikkaus koko NÄKYVÄÄN kuvaan (pelitesti 16:
+        # puun rungon collision-rect on pieni - klikkaus latvukseen meni
+        # combat-klikiksi ja pelaaja huitoi ilmaa aloittamatta hakkuuta)
+        from assets.tiles.prop import HarvestableProp as _HP
+        for prop in self.arena.props:
+            if not isinstance(prop, _HP) or getattr(prop, "is_empty", False):
+                continue
+            iw = prop.image.get_width() if prop.image else prop.rect.w
+            ih = prop.image.get_height() if prop.image else prop.rect.h
+            img_rect = pygame.Rect(prop.image_pos[0], prop.image_pos[1],
+                                   iw, ih)
+            if img_rect.collidepoint(world_pos):
+                if prop.try_begin_channel(self.player, self.manager,
+                                          max_range_bonus=60):
+                    return True
+                self.manager.vfx.show_damage(
+                    self.player.rect.centerx, self.player.rect.top - 20,
+                    "Too far!", color=(200, 50, 50))
+                return True  # ei turhaa ilmalyöntiä
+
         return False
 
     def _check_range(self, r1, r2, max_dist=150):
@@ -3233,11 +3256,14 @@ class MuckfordCityMenu(BaseMenu):
             self.manager.grant_hero_xp(2, prop.rect.centerx, prop.rect.top)
             return True
             
-        if isinstance(prop, (ScrapPile, ScrapPileBig)) and not getattr(prop, "is_empty", False):
-            # Klikkaus logiikka romukasoille (puut hoidetaan combatilla)
-            prop.harvest(self.manager, harvester=self.player)
-            return True
-            
+        # YHTENÄINEN KERÄYS (pelitesti 16): E ja klikkaus käynnistävät
+        # SAMAN keräyskanavan (latauspalkki + iskut + efektit) puille,
+        # romukasoille ja muille HarvestablePropeille.
+        from assets.tiles.prop import HarvestableProp as _HP
+        if isinstance(prop, _HP) and not getattr(prop, "is_empty", False):
+            if prop.try_begin_channel(self.player, self.manager):
+                return True
+
         return False
 
     # =========================================================

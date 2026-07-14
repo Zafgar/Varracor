@@ -10,9 +10,10 @@ class ScrapPile(HarvestableProp):
         super().__init__(x, y, 70, 50, color=(100, 80, 60))
         
         self.resource_name = "Scrap Iron"
-        self.interact_timer = 0
-        self.interact_max = 30 # 0.5s (Faster)
         self.glimmer_timer = random.randint(0, 100)
+        # Yhtenäinen keräyskanava (pelitesti 16): 2 tonkaisua ~0.5 s välein
+        self.swing_interval = 24
+        self.channel_swings_needed = 2
         
         # HarvestableProp asetukset
         self.min_drop = 1
@@ -42,9 +43,11 @@ class ScrapPile(HarvestableProp):
     def take_damage(self, amount, damage_type="Physical", attacker=None, manager=None):
         return 0
 
-    # Ylikirjoitetaan harvest, koska tässä on erikoislogiikkaa (interact timer)
-    # Mutta jos AI kutsuu harvest(), se käyttää HarvestableProp:n logiikkaa (instant)
-    # Pelaaja käyttää update-loopin interactia.
+    def harvest(self, manager=None, harvester=None):
+        # Sama saalislogiikka kuin ennen, mutta kanavan lopusta kutsuttuna
+        super().harvest(manager, harvester)
+        if self.is_empty:
+            self.image = self.sprites.get("empty", self.image)
 
     def update(self, obstacles=None, manager=None):
         if self.is_empty: return
@@ -56,30 +59,5 @@ class ScrapPile(HarvestableProp):
             if manager and hasattr(manager, "vfx"):
                 manager.vfx.create_ore_glimmer(self.rect.centerx, self.rect.centery)
 
-        if manager and manager.player_character:
-            player = manager.player_character
-            dist = math.hypot(player.rect.centerx - self.rect.centerx, player.rect.centery - self.rect.centery)
-            
-            keys = pygame.key.get_pressed()
-            if dist < self.interaction_range and keys[pygame.K_e]:
-                self.interact_timer += 1
-                
-                if self.interact_timer >= self.interact_max:
-                    self.is_empty = True
-                    self.image = self.sprites.get("empty", self.image)
-                    
-                    count = random.randint(self.min_drop, self.max_drop)
-                    manager.add_material(self.resource_name, count)
-                    manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20, f"+{count} {self.resource_name}", color=(200, 200, 200))
-                    sound_system.play_sound("recruit")
-                    
-                    # Pölypilvi
-                    if hasattr(manager, "vfx"):
-                        manager.vfx.create_dust_cloud(self.rect.centerx, self.rect.centery)
-            else:
-                self.interact_timer = 0
-
-    def draw_on_screen(self, screen, offset):
-        super().draw_on_screen(screen, offset)
-        if not self.is_empty and self.interact_timer > 0:
-            self.draw_interaction_bar(screen, offset, self.interact_timer / self.interact_max)
+        # Yhtenäinen keräyskanava (E tai klikkaus; ks. HarvestableProp)
+        self.update_channel(manager)

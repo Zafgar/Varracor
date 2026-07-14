@@ -132,11 +132,45 @@ class MuckfordTree(HarvestableProp):
         self.max_hits = 5
         self.current_hits = self.max_hits
         self.interaction_label = "Chop"
+        # Yhtenäinen keräyskanava (pelitesti 16): E tai klikkaus aloittaa
+        # hakkuun - isku 45 framen välein kunnes puu kaatuu
+        self.required_tool = "axe"
+        self.interaction_range = 90
+        self.swing_interval = 45
 
         # Wind sway
         self.sway_timer = random.uniform(0, 100)
         self.base_image = self.image # Keep original for transformation
         self.origin_pos = (x, y) # Store original top-left for pivoting
+
+    def try_begin_channel(self, player, manager=None, max_range_bonus=40):
+        consumed = super().try_begin_channel(player, manager,
+                                             max_range_bonus)
+        if consumed and self.channel_active:
+            # Path of the Timber -portti heti alussa (chop näyttäisi
+            # viestin vasta ensimmäisellä iskulla)
+            try:
+                from systems import commander_progression as _prog
+                tool = player.equipment.get("main_hand")
+                ok, req = _prog.tool_allowed(manager, player, tool,
+                                             "forestry",
+                                             "forestry_level_required")
+                if not ok:
+                    if manager:
+                        manager.vfx.show_damage(
+                            self.rect.centerx, self.rect.top - 40,
+                            f"Requires Timber level {req}!",
+                            color=(200, 50, 50))
+                    self.cancel_channel()
+                    return True
+            except Exception:
+                pass
+            # Palkki kattaa jäljellä olevat iskut
+            self.channel_swings_needed = max(1, self.current_hits)
+        return consumed
+
+    def on_channel_swing(self, player, manager):
+        self.chop(player, player.equipment.get("main_hand"), manager)
 
     def take_damage(self, amount, damage_type="Physical", attacker=None, manager=None):
         tool = getattr(attacker, "current_weapon", None)
@@ -220,7 +254,11 @@ class MuckfordTree(HarvestableProp):
 
     def update(self, obstacles=None, manager=None, **kwargs):
         if self.is_empty: return
-        
+
+        # Keräyskanava (E/klikkaus -> hakkuu iskuineen)
+        self.update_channel(manager)
+        if self.is_empty: return
+
         # Wind sway animation
         self.sway_timer += 0.02
         sway_amount = math.sin(self.sway_timer) * 2.0 # +/- 2 pixels
@@ -333,14 +371,17 @@ class ScrapPileBig(HarvestableProp):
         super().__init__(x, y, w, h, img_path="assets/tiles/muckford/scrap_big.png", color=(80, 70, 60), collision_rect=coll_rect)
         self.is_structure = True
         
-        self.interaction_label = "Scavenge (Hold)"
+        self.interaction_label = "Scavenge"
         self.interaction_range = 100
-        
-        # Scavenge logic
+
+        # Scavenge logic: iso kasa kestää useita tonkaisuja. Yhtenäinen
+        # keräyskanava (pelitesti 16) - 2 iskua per haku, jatkuu
+        # automaattisesti kunnes kasa tyhjenee tai pelaaja liikkuu.
         self.max_searches = random.randint(4, 7)
         self.current_searches = self.max_searches
-        self.interact_timer = 0
-        self.interact_max = 60 # 1 sekunti per haku
+        self.swing_interval = 30
+        self.channel_swings_needed = 2
+        self._restart_pending = False
         
         self.loot_table = [
             "Scrap Iron", "Scrap Iron", "Scrap Iron", # Yleisin
@@ -361,42 +402,38 @@ class ScrapPileBig(HarvestableProp):
         # Yksinkertaisin tapa: Prop lataa kuvan initissä. Voimme pakottaa sen uudestaan jos tarve, 
         # mutta tässä riittää että emme piirrä "Empty" tekstiä update/draw:ssa jos !is_empty.
 
+    def harvest(self, manager=None, harvester=None):
+        """Yksi tonkaisu: arvo saalis, vähennä hakuja. Kanava jatkuu
+        automaattisesti kunnes kasa on tyhjä."""
+        if self.is_empty or manager is None:
+            return
+        item = random.choice(self.loot_table)
+        qty = random.randint(1, 2) if item == "Scrap Iron" else 1
+        manager.add_material(item, qty)
+        manager.vfx.show_damage(self.rect.centerx, self.rect.top - 40,
+                                f"+{qty} {item}", color=(200, 200, 200))
+        if harvester is getattr(manager, "player_character", None):
+            manager.grant_hero_xp(3, self.rect.centerx, self.rect.top)
+        sound_system.play_sound("recruit")  # "Chime" sound
+
+        self.current_searches -= 1
+        if self.current_searches <= 0:
+            self.is_empty = True
+            self.image.set_alpha(100)  # Himmennä tyhjä kasa
+            sound_system.play_sound("mining_break")
+        else:
+            self._restart_pending = True
+
     def update(self, obstacles=None, manager=None):
         if self.is_empty: return
-
-        if manager and manager.player_character:
-            player = manager.player_character
-            dist = math.hypot(player.rect.centerx - self.rect.centerx, player.rect.centery - self.rect.centery)
-            
-            keys = pygame.key.get_pressed()
-            if dist < self.interaction_range and keys[pygame.K_e]:
-                self.interact_timer += 1
-                
-                if self.interact_timer >= self.interact_max:
-                    self.interact_timer = 0
-                    self.current_searches -= 1
-                    
-                    # Loot
-                    item = random.choice(self.loot_table)
-                    qty = 1
-                    if item == "Scrap Iron": qty = random.randint(1, 2)
-                    
-                    manager.add_material(item, qty)
-                    manager.vfx.show_damage(self.rect.centerx, self.rect.top - 40, f"+{qty} {item}", color=(200, 200, 200))
-                    manager.grant_hero_xp(3, self.rect.centerx, self.rect.top)
-                    sound_system.play_sound("recruit") # "Chime" sound
-                    
-                    if self.current_searches <= 0:
-                        self.is_empty = True
-                        self.image.set_alpha(100) # Himmennä tyhjä kasa
-                        sound_system.play_sound("mining_break")
-            else:
-                self.interact_timer = 0
-
-    def draw_on_screen(self, screen, offset):
-        super().draw_on_screen(screen, offset)
-        if not self.is_empty and self.interact_timer > 0:
-            self.draw_interaction_bar(screen, offset, self.interact_timer / self.interact_max)
+        self.update_channel(manager)
+        # Jatka tonkimista automaattisesti kunnes kasa tyhjenee
+        if self._restart_pending and not self.channel_active and \
+                not self.is_empty and manager is not None:
+            self._restart_pending = False
+            player = getattr(manager, "player_character", None)
+            if player is not None:
+                self.try_begin_channel(player, manager)
 
 class MuckfordStall(Prop):
     """

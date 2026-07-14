@@ -1,6 +1,7 @@
 import pygame
 import os
 import json
+import math
 import random
 from sound_manager import sound_system
 
@@ -177,28 +178,147 @@ class HarvestableProp(Prop):
         self.interaction_range = 60
         self.interaction_label = "Harvest"
 
+        # --- YHTENÄINEN KERÄYSKANAVA (pelitesti 16) ---
+        # E TAI klikkaus käynnistää saman kanavan: latauspalkki etenee,
+        # pelaaja heilauttaa iskun swing_interval-välein (animaatio,
+        # efektit, äänet) ja liike keskeyttää. Toimii joka kartalla,
+        # koska propin update() ajaa kanavaa itse.
+        self.channel_active = False
+        self.channel_progress = 0
+        self.swing_interval = 45          # framea / isku
+        self.channel_swings_needed = 3    # iskuja valmistumiseen
+        self._channel_anchor = None       # pelaajan paikka aloitushetkellä
+
+    def _tool_ok(self, harvester, manager=None, show_message=True):
+        """Tarkistaa vaaditun työkalun. Näyttää viestin jos puuttuu."""
+        if not self.required_tool or not harvester or \
+                not hasattr(harvester, "equipment"):
+            return True
+        weapon = harvester.equipment.get("main_hand")
+        tool_type = getattr(weapon, "tool_type", "none")
+        tool_tier = getattr(weapon, "tool_tier", 0)
+        # Tarkistetaan myös weapon_group fallbackina (esim. kirveet)
+        if tool_type == "none" and self.required_tool == "axe":
+            grp = getattr(weapon, "weapon_group", "")
+            if "axe" in grp or "axe" in getattr(weapon, "name", "").lower():
+                tool_type = "axe"
+                tool_tier = 1  # Oletetaan tier 1 jos ei määritelty
+        if tool_type != self.required_tool or tool_tier < self.required_tier:
+            if manager and show_message:
+                msg = f"Need {self.required_tool.capitalize()}!"
+                if self.required_tier > 1:
+                    msg += f" (Tier {self.required_tier})"
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20,
+                                        msg, color=(200, 50, 50))
+            return False
+        return True
+
+    # ------------------------------------------------------------------
+    # YHTENÄINEN KERÄYSKANAVA: sama toiminta E:llä ja klikkauksella
+    # ------------------------------------------------------------------
+    def try_begin_channel(self, player, manager=None, max_range_bonus=40):
+        """Aloittaa keräyskanavan jos pelaaja on tarpeeksi lähellä.
+        Palauttaa True jos kutsu 'kulutettiin' (kanava alkoi/jatkuu tai
+        työkaluviesti näytettiin) - kutsuja lopettaa käsittelyn siihen."""
+        if self.is_empty or player is None:
+            return False
+        dist = math.hypot(player.rect.centerx - self.rect.centerx,
+                          player.rect.centery - self.rect.centery)
+        if dist > self.interaction_range + max_range_bonus:
+            return False
+        if not self._tool_ok(player, manager):
+            return True  # viesti näytetty - älä lyö ilmaan
+        if not self.channel_active:
+            self.channel_active = True
+            self.channel_progress = 0
+            self._channel_anchor = player.rect.center
+        return True
+
+    def cancel_channel(self):
+        self.channel_active = False
+        self.channel_progress = 0
+        self._channel_anchor = None
+
+    def on_channel_swing(self, player, manager):
+        """Yksi isku: efektit + ääni. Alaluokat (puu) ylikirjoittavat."""
+        if manager:
+            from sound_manager import sound_system
+            sound_system.play_sound_at(self.harvest_sound,
+                                       self.rect.centerx, self.rect.centery,
+                                       manager)
+            manager.vfx.create_dust_cloud(self.rect.centerx,
+                                          self.rect.centery)
+
+    def update_channel(self, manager=None):
+        """Ajaa keräyskanavaa. Kutsutaan propin update():sta - toimii
+        siksi samalla tavalla joka kartalla. E pohjassa lähellä proppia
+        käynnistää kanavan myös kartoilla joilla ei ole omaa E-logiikkaa."""
+        if self.is_empty or manager is None:
+            return
+        player = getattr(manager, "player_character", None)
+        if player is None:
+            return
+
+        # Automaattinen käynnistys: E pohjassa kantaman sisällä
+        if not self.channel_active and not getattr(manager, "active_dialogue",
+                                                   None):
+            try:
+                from systems import keybinds
+                keys = pygame.key.get_pressed()
+                if keybinds.pressed(keys, "interact"):
+                    self.try_begin_channel(player, manager, max_range_bonus=0)
+            except Exception:
+                pass
+        if not self.channel_active:
+            return
+
+        # Liike tai etääntyminen keskeyttää
+        ax, ay = self._channel_anchor or player.rect.center
+        moved = math.hypot(player.rect.centerx - ax,
+                           player.rect.centery - ay)
+        dist = math.hypot(player.rect.centerx - self.rect.centerx,
+                          player.rect.centery - self.rect.centery)
+        if moved > 10 or dist > self.interaction_range + 70 or \
+                getattr(player, "is_dead", False):
+            self.cancel_channel()
+            return
+
+        self.channel_progress += 1
+        total = max(1, self.swing_interval * self.channel_swings_needed)
+
+        # Isku swing_interval-välein: käänny + hyökkäysanimaatio
+        if self.channel_progress % self.swing_interval == 0:
+            player.facing_right = (self.rect.centerx >=
+                                   player.rect.centerx)
+            player.animation_state = "attack"
+            player.animation_timer = 15
+            player.attack_vector = (self.rect.centerx - player.rect.centerx,
+                                    self.rect.centery - player.rect.centery)
+            self.on_channel_swing(player, manager)
+            if self.is_empty:
+                self.cancel_channel()
+                return
+
+        if self.channel_progress >= total and not self.is_empty:
+            self.harvest(manager, harvester=player)
+            self.cancel_channel()
+
+    def update(self, obstacles=None, manager=None, **kwargs):
+        self.update_channel(manager)
+
+    def draw_on_screen(self, screen, offset):
+        super().draw_on_screen(screen, offset)
+        if self.channel_active and not self.is_empty:
+            total = max(1, self.swing_interval * self.channel_swings_needed)
+            self.draw_interaction_bar(screen, offset,
+                                      self.channel_progress / total)
+
     def harvest(self, manager=None, harvester=None):
         if self.is_empty: return
 
         # Työkalutarkistus
-        if self.required_tool and harvester and hasattr(harvester, "equipment"):
-            weapon = harvester.equipment.get("main_hand")
-            tool_type = getattr(weapon, "tool_type", "none")
-            tool_tier = getattr(weapon, "tool_tier", 0)
-            
-            # Tarkistetaan myös weapon_group fallbackina (esim. kirveet)
-            if tool_type == "none" and self.required_tool == "axe":
-                grp = getattr(weapon, "weapon_group", "")
-                if "axe" in grp or "axe" in getattr(weapon, "name", "").lower():
-                    tool_type = "axe"
-                    tool_tier = 1 # Oletetaan tier 1 jos ei määritelty
-            
-            if tool_type != self.required_tool or tool_tier < self.required_tier:
-                if manager: 
-                    msg = f"Need {self.required_tool.capitalize()}!"
-                    if self.required_tier > 1: msg += f" (Tier {self.required_tier})"
-                    manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20, msg, color=(200, 50, 50))
-                return
+        if not self._tool_ok(harvester, manager):
+            return
 
         self.is_empty = True
         self.image.set_alpha(100) # Himmennä
@@ -207,7 +327,14 @@ class HarvestableProp(Prop):
             count = random.randint(self.min_drop, self.max_drop)
             manager.add_material(self.resource_name, count)
             sound_system.play_sound(self.break_sound)
-            
+
             # VFX
             manager.vfx.create_dust_cloud(self.rect.centerx, self.rect.centery)
             manager.vfx.show_damage(self.rect.centerx, self.rect.top - 20, f"+{count} {self.resource_name}", color=(200, 200, 200))
+            # Sankarille pieni XP keräyksestä
+            if harvester is getattr(manager, "player_character", None) and \
+                    hasattr(manager, "grant_hero_xp"):
+                try:
+                    manager.grant_hero_xp(2, self.rect.centerx, self.rect.top)
+                except Exception:
+                    pass
