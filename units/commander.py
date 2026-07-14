@@ -328,11 +328,18 @@ class Commander(Gladiator):
         self.drillmaster = 0        # voitoista tuplamoraali tiimille
         self.iron_presence = 0      # tappioista puolet moraalisakosta
 
+        # Vortex-puun kertymät (VORTEX-välilehti, pelitesti 19)
+        self.vortex_power = 0.0     # +% Vortex-loitsujen tehoon
+        self.vortex_cdr = 0.0       # -% Vortex-loitsujen cooldowniin
+        self.pulse_force = 0        # Rift Pulsen lisätyöntö
+
         _LIFE_INT_EFFECTS = ("mining_yield", "wood_yield", "harvest_yield",
                              "husbandry", "haggler", "fishing", "insight")
         _LIFE_FLOAT_EFFECTS = ("mining_speed", "chop_speed", "harvest_quality")
 
-        _ALL_TREES = {**COMMANDER_SKILL_TREE, **COMMANDER_COMMAND_TREE}
+        from skills.vortex_tree_data import VORTEX_TREE
+        _ALL_TREES = {**COMMANDER_SKILL_TREE, **COMMANDER_COMMAND_TREE,
+                      **VORTEX_TREE}
         for s_id in self.unlocked_skills:
             if s_id in _ALL_TREES:
                 data = _ALL_TREES[s_id]
@@ -347,6 +354,18 @@ class Commander(Gladiator):
                     self.drillmaster = 1
                 if "iron_presence" in effects:
                     self.iron_presence = 1
+
+                # Vortex-passiivit
+                if "max_mana" in effects:
+                    self.max_mana += int(effects["max_mana"])
+                if "mana_regen" in effects:
+                    self.mana_regen += float(effects["mana_regen"])
+                if "vortex_power" in effects:
+                    self.vortex_power += float(effects["vortex_power"])
+                if "vortex_cdr" in effects:
+                    self.vortex_cdr += float(effects["vortex_cdr"])
+                if "pulse_force" in effects:
+                    self.pulse_force += int(effects["pulse_force"])
 
                 if "str" in effects: self.strength += effects["str"]
                 if "dex" in effects: self.dexterity += effects["dex"]
@@ -931,8 +950,13 @@ class Commander(Gladiator):
                 # Vähennetään manaa vain, jos loitsu ei tehnyt sitä itse (kuten Vortex Warp tekee)
                 if self.current_mana == mana_before:
                     self.current_mana -= cost
-                
-                self.spell_cooldowns[slot_name] = int(getattr(item, "cooldown_max", 60))
+
+                cd = int(getattr(item, "cooldown_max", 60))
+                # VORTEX-puun Slipstream: -% Vortex-loitsujen cooldowniin
+                if getattr(item, "is_vortex_spell", False):
+                    cd = int(cd * max(0.2, 1.0
+                                      - getattr(self, "vortex_cdr", 0.0)))
+                self.spell_cooldowns[slot_name] = cd
                 
                 # Animation
                 self.animation_state = "cast"

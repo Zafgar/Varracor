@@ -874,6 +874,78 @@ class NoticeBoard(Prop):
             self.image = surf
 
 
+class RiftFissure(HarvestableProp):
+    """Vortex-repeämä (pelitesti 19): aukeaa kartalle aika ajoin.
+    Sinetöinti (E/klikkaus, yhtenäinen keräyskanava) antaa Vortex-
+    kristalleja Commanderin VORTEX-puuta varten. Sinetöimätön repeämä
+    sulkeutuu itsestään muutamassa pelitunnissa - kristallit menetetään."""
+
+    def __init__(self, x, y):
+        w, h = 120, 90
+        super().__init__(x, y, w, h,
+                         img_path="assets/tiles/muckford/rift_fissure.png",
+                         color=(30, 20, 45))
+        # Ei estä liikkumista (repeämä maassa)
+        self.rect = pygame.Rect(x + 20, y + 30, 80, 40)
+        self.blocks_projectiles = False
+        self.resource_name = "Vortex Crystal"
+        self.min_drop = 1
+        self.max_drop = 2
+        self.interaction_range = 100
+        self.interaction_label = "Seal the rift"
+        self.harvest_sound = "cmd_vortex_slash"
+        self.break_sound = "mining_break"
+        self.swing_interval = 40
+        self.channel_swings_needed = 3
+        # Sulkeutuu itsestään (~4 pelituntia; city poistaa expiren jälkeen)
+        self.expire_frames = 60 * 60 * 4
+        self._pulse = random.uniform(0, 6.28)
+        self._draw_procedural(w, h)
+
+    def _draw_procedural(self, w, h):
+        if not self.image or self.image.get_at((0, 0)) == (30, 20, 45, 255):
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            # Repeämän "haava": tummat renkaat + hehkuva railo
+            pygame.draw.ellipse(surf, (18, 10, 30, 220),
+                                (6, 18, w - 12, h - 30))
+            pygame.draw.ellipse(surf, (60, 30, 100),
+                                (14, 26, w - 28, h - 46), 3)
+            pygame.draw.ellipse(surf, (120, 70, 200),
+                                (26, 34, w - 52, h - 62), 2)
+            # Railo keskellä
+            pygame.draw.line(surf, (80, 255, 210), (24, h // 2),
+                             (w - 24, h // 2 - 6), 3)
+            pygame.draw.line(surf, (200, 255, 240), (36, h // 2 - 1),
+                             (w - 36, h // 2 - 5), 1)
+            # Kristallisirpaleita reunoilla
+            for cx_, cy_ in ((20, h - 26), (w - 26, h - 32), (w // 2, 16)):
+                pts = [(cx_, cy_ - 9), (cx_ + 6, cy_), (cx_, cy_ + 6),
+                       (cx_ - 6, cy_)]
+                pygame.draw.polygon(surf, (140, 90, 220), pts)
+                pygame.draw.polygon(surf, (220, 190, 255), pts, 1)
+            self.image = surf
+
+    def update(self, obstacles=None, manager=None, **kwargs):
+        if self.is_empty:
+            return
+        self.expire_frames -= 1
+        # Abyssin hiukkasia sykkien
+        self._pulse += 0.05
+        if manager is not None and hasattr(manager, "vfx") and \
+                random.random() < 0.08:
+            try:
+                manager.vfx.create_void_particles(
+                    self.rect.centerx + random.randint(-30, 30),
+                    self.rect.centery + random.randint(-14, 10))
+            except Exception:
+                pass
+        self.update_channel(manager)
+
+    @property
+    def expired(self):
+        return self.expire_frames <= 0 and not self.is_empty
+
+
 class HerbalistTent(Prop):
     """Saggan rohtoteltta (pelitesti 18): Muckfordin ainoa parantaja.
     Teltan luona Sagga hoitaa sotureiden sairaudet ja vammat maksusta

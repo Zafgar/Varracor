@@ -617,6 +617,12 @@ class MuckfordCityMenu(BaseMenu):
                 markers.append((crate.rect, "quest", (255, 210, 90),
                                 "Krad's Crate"))
 
+        # Vortex-repeämä kartalle (pelitesti 19)
+        rift = getattr(self, "_rift", None)
+        if rift is not None and not rift.is_empty:
+            markers.append((rift.rect, "quest", (170, 110, 240),
+                            "Vortex Rift!"))
+
         mine_owned = getattr(self.manager, "mine_key_owned", False)
         markers.append((self._mine_gate_rect(), "mine",
                         (215, 215, 225) if mine_owned else (140, 140, 150),
@@ -1512,6 +1518,7 @@ class MuckfordCityMenu(BaseMenu):
             self._update_simulation()
             self._update_ambient_event()
             self._update_ground_birds()
+            self._update_rift_event()
 
         # 3. VFX
         self.vfx.update(self.manager)
@@ -1870,6 +1877,75 @@ class MuckfordCityMenu(BaseMenu):
                 pygame.draw.line(screen, col, (sx + 6, sy - wing),
                                  (sx, sy), 2)
                 pygame.draw.circle(screen, col, (sx, sy), 2)
+
+    # ------------------------------------------------------------------
+    # Vortex-repeämät (pelitesti 19): rift-eventti antaa kristalleja
+    # ------------------------------------------------------------------
+    def _update_rift_event(self):
+        """Aika ajoin Vortex-repeämä aukeaa kartalle. Sinetöinti
+        (keräyskanava) antaa Vortex-kristalleja VORTEX-puuhun;
+        sinetöimätön repeämä sulkeutuu itsestään."""
+        clock = self.manager.world_clock
+        if not hasattr(self, "_rift"):
+            self._rift = None
+            self._rift_linger = 90
+            self._next_rift_day = clock.day + self.rng.randint(0, 1)
+            self._next_rift_hour = self.rng.randint(8, 19)
+
+        if self._rift is None:
+            if clock.day >= self._next_rift_day and \
+                    clock.hour >= self._next_rift_hour:
+                self._spawn_rift()
+            return
+
+        rift = self._rift
+        if rift.is_empty:
+            # Sinetöity! Poistetaan pienen viiveen jälkeen
+            self._rift_linger -= 1
+            if self._rift_linger <= 0:
+                self._remove_rift()
+        elif rift.expired:
+            self.manager.vfx.show_damage(
+                rift.rect.centerx, rift.rect.top - 30,
+                "The rift snaps shut... its crystals lost.",
+                color=(180, 150, 220))
+            self._remove_rift()
+
+    def _rift_spawn_spots(self):
+        a = self.arena
+        street_y = a.height // 2
+        return [
+            (a.width // 2 - 60, street_y + 320),          # torin eteläpuoli
+            (620, street_y - 60),                         # katu, länsi
+            (a.width - 760, street_y + 40),               # katu, itä
+            (a.width // 2 + 700, a.height // 2 + 500),    # hökkelimetsä
+            (a.farm_area.right - 300, a.farm_area.y - 160),  # farmin liepeet
+        ]
+
+    def _spawn_rift(self):
+        from assets.tiles.muckford_objects import RiftFissure
+        x, y = self.rng.choice(self._rift_spawn_spots())
+        rift = RiftFissure(x, y)
+        self.arena.props.append(rift)
+        self._rift = rift
+        self._rift_linger = 90
+        # Banneri + jyrähdys: kylä huomaa repeämän
+        self._event_banner = 300
+        self._event_banner_text = "A Vortex rift tears open near Muckford!"
+        try:
+            self.manager.trigger_screen_shake(6)
+            sound_system.play_sound("cmd_vortex_slash")
+        except Exception:
+            pass
+
+    def _remove_rift(self):
+        rift = self._rift
+        if rift is not None and rift in self.arena.props:
+            self.arena.props.remove(rift)
+        self._rift = None
+        clock = self.manager.world_clock
+        self._next_rift_day = clock.day + self.rng.randint(1, 2)
+        self._next_rift_hour = self.rng.randint(8, 19)
 
     # ------------------------------------------------------------------
     # Sagga the Herbwife (pelitesti 18): hoidot ja rohdot
@@ -3412,6 +3488,12 @@ class MuckfordCityMenu(BaseMenu):
             if crate is not None:
                 pois.append((crate.rect.centerx, crate.rect.top - 26,
                              "quest_active"))
+
+        # Vortex-repeämä (pelitesti 19): huutomerkki kunnes sinetöity
+        rift = getattr(self, "_rift", None)
+        if rift is not None and not rift.is_empty:
+            pois.append((rift.rect.centerx, rift.rect.top - 26,
+                         "quest_avail"))
 
         # Hamo: kolikko (ostaa saaliit)
         hamo = getattr(self, "hamo", None)

@@ -6,6 +6,7 @@ from menus.base_menu import BaseMenu
 from sound_manager import sound_system
 from skills.commander_skills_data import (COMMANDER_SKILL_TREE,
                                           COMMANDER_COMMAND_TREE)
+from skills.vortex_tree_data import VORTEX_TREE, CRYSTAL_ITEM
 
 class CommanderSkillMenu(BaseMenu):
     def __init__(self, manager):
@@ -25,11 +26,13 @@ class CommanderSkillMenu(BaseMenu):
 
         self.NODE_R = 30
 
-        # Välilehdet: COMMAND = johtaminen (tiimikoko, huudot, läsnäolo),
-        # TRADECRAFT = elämäntaitobonukset. Pelaajapalaute: johtamis-
-        # valinnat eivät saa hukkua crafting-noodien sekaan.
+        # Välilehdet (pelitesti 19: täysi rework): COMMAND = johtaminen
+        # (tiimikoko, huudot, läsnäolo), VORTEX = Abyss-magian reitit
+        # (maksaa SP + Vortex-kristalleja rift-eventeistä). Työkalu-/
+        # elämäntaitohommat elävät Commander PATHS -poluissa (XP siitä
+        # mitä TEKEE) - matalan tierin työkalut käyvät käteen suoraan.
         self.tabs = [("COMMAND", COMMANDER_COMMAND_TREE),
-                     ("TRADECRAFT", COMMANDER_SKILL_TREE)]
+                     ("VORTEX", VORTEX_TREE)]
         self.active_tab = "COMMAND"
         self.tab_rects = []
 
@@ -81,9 +84,12 @@ class CommanderSkillMenu(BaseMenu):
         if node_id:
             self._try_unlock(node_id)
 
+    def _crystals(self) -> int:
+        return int(self.manager.inventory.get(CRYSTAL_ITEM, 0))
+
     def _try_unlock(self, s_id):
         data = self._tree()[s_id]
-        
+
         # 1. Onko jo auki?
         if s_id in self.unit.unlocked_skills:
             return
@@ -93,6 +99,13 @@ class CommanderSkillMenu(BaseMenu):
         if self.unit.skill_points < cost:
             sound_system.play_sound("error")
             print("Not enough skill points!")
+            return
+
+        # 2.5 Vortex-noodit maksavat myös kristalleja (rift-eventeistä)
+        crystals = int(data.get("crystals", 0))
+        if crystals > 0 and self._crystals() < crystals:
+            sound_system.play_sound("error")
+            print(f"Requires {crystals}x {CRYSTAL_ITEM}")
             return
 
         # 3. Onko vaatimukset täytetty?
@@ -112,9 +125,39 @@ class CommanderSkillMenu(BaseMenu):
 
         # UNLOCK!
         self.unit.skill_points -= cost
+        if crystals > 0:
+            inv = self.manager.inventory
+            inv[CRYSTAL_ITEM] = int(inv.get(CRYSTAL_ITEM, 0)) - crystals
+            if inv[CRYSTAL_ITEM] <= 0:
+                inv.pop(CRYSTAL_ITEM, None)
         self.unit.unlocked_skills.add(s_id)
+        # Vortex-reitit palauttavat introssa menetetyt loitsut
+        spell_cls = data.get("grant_spell")
+        if spell_cls:
+            self._grant_spell(spell_cls)
         self.unit.calculate_final_stats() # Päivitä statsit heti
         sound_system.play_sound("recruit")
+
+    def _grant_spell(self, class_name):
+        """Luo Vortex-loitsun ja asettaa sen ensimmäiseen vapaaseen
+        spell-slottiin (tai reppuun jos kaikki täynnä)."""
+        try:
+            from spells.commander.seam_cut import SeamCut
+            from spells.commander.vortex_warp import VortexWarp
+            from spells.commander.rift_pulse import RiftPulse
+            cls = {"SeamCut": SeamCut, "VortexWarp": VortexWarp,
+                   "RiftPulse": RiftPulse}.get(class_name)
+            if cls is None:
+                return
+            spell = cls()
+            for slot in ("spell1", "spell2", "spell3", "spell4",
+                         "spell5", "spell6"):
+                if self.unit.equipment.get(slot) is None:
+                    self.unit.equipment[slot] = spell
+                    return
+            self.manager.equipment_bag.append(spell)
+        except Exception:
+            pass
 
     def _world_to_screen(self, wx, wy):
         return int(self.cam_x + wx * self.zoom), int(self.cam_y + wy * self.zoom)
@@ -166,10 +209,12 @@ class CommanderSkillMenu(BaseMenu):
                       screen, rect.x + 18, rect.y + 8)
             self.tab_rects.append((rect, name))
             tx += w + 12
-        hint = ("Leadership: roster size, battle shouts, presence."
-                if self.active_tab == "COMMAND" else
-                "Life-skill perks. Tool tiers & spell slots unlock via "
-                "Commander PATHS (by doing).")
+        if self.active_tab == "COMMAND":
+            hint = "Leadership: roster size, battle shouts, presence."
+        else:
+            hint = (f"Abyss magic routes. Nodes cost SP + {CRYSTAL_ITEM}s "
+                    f"(owned: {self._crystals()}) - seal Vortex rifts to "
+                    f"earn them.")
         draw_text(hint, font_small, GRAY, screen, tx + 16, 138)
 
         # Draw Connections
@@ -208,7 +253,9 @@ class CommanderSkillMenu(BaseMenu):
             if is_unlocked:
                 color = (255, 215, 0) # Gold
             elif can_buy:
-                color = (100, 200, 100) # Green available
+                # Vortex-välilehden saatavilla olevat hehkuvat abyssin värein
+                color = (150, 110, 230) if self.active_tab == "VORTEX" \
+                    else (100, 200, 100)
             else:
                 color = (60, 60, 60) # Gray locked
 
@@ -235,7 +282,15 @@ class CommanderSkillMenu(BaseMenu):
         
         name_col = GOLD_COLOR if s_id in self.unit.unlocked_skills else WHITE
         draw_text(data["name"], font_main, name_col, screen, x + 15, y + 15)
-        draw_text(f"Cost: {data['cost']} SP", font_small, (200, 200, 200), screen, x + 15, y + 45)
+        cost_txt = f"Cost: {data['cost']} SP"
+        crystals = int(data.get("crystals", 0))
+        if crystals:
+            have = self._crystals()
+            cost_txt += f"  +  {crystals}x {CRYSTAL_ITEM} ({have} owned)"
+        cost_col = (200, 200, 200)
+        if crystals and self._crystals() < crystals:
+            cost_col = (240, 120, 110)
+        draw_text(cost_txt, font_small, cost_col, screen, x + 15, y + 45)
         draw_text(data["desc"], font_small, (180, 180, 180), screen, x + 15, y + 70)
         
         # Effects

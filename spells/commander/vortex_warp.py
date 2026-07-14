@@ -7,6 +7,7 @@ class VortexWarp(Spell):
     def __init__(self):
         super().__init__()
         self.name = "Vortex Warp"
+        self.is_vortex_spell = True
         self.tier = 1 # Commander Spells have their own progression, but tier 1 for base
         self.rarity = "Legendary" # Commander magic is unique
         self.cost = 0 # Not sold in shops

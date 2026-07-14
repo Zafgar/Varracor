@@ -206,10 +206,11 @@ def test_skill_menu_tabs_and_xp_bar():
     surf = pygame.Surface((1920, 1080))
     menu.draw(surf)
     assert menu.tab_rects, "välilehdet piirtyvät"
-    # Vaihto TRADECRAFT-välilehdelle klikillä
-    rect, name = next((r, n) for r, n in menu.tab_rects if n == "TRADECRAFT")
+    # Pelitesti 19: toinen välilehti on VORTEX (Abyss-magia); tradecraft
+    # siirtyi Commander PATHS -polkuihin (XP tekemisestä)
+    rect, name = next((r, n) for r, n in menu.tab_rects if n == "VORTEX")
     menu._handle_click(rect.center)
-    assert menu.active_tab == "TRADECRAFT"
+    assert menu.active_tab == "VORTEX"
     menu.draw(surf)
 
 

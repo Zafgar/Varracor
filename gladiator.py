@@ -581,7 +581,11 @@ class Gladiator(pygame.sprite.Sprite):
             # Commander Paths -poluista (tools-listat), EI asekoulutuksesta.
             # Liian korkean tierin työkalun käyttö estetään käyttöhetkellä
             # (commander_progression.tool_allowed).
-            if w_group in ("pickaxe", "lumber_axe", "fishing_rod"):
+            # Työkalut eivät vaadi asemestaruutta (pelitesti 19: matalan
+            # tierin työkalut käyvät käteen heti kun ne saa - tierit
+            # portittaa Commander PATHS tekemisen kautta)
+            if w_group in ("pickaxe", "lumber_axe", "fishing_rod",
+                           "harvest_tool"):
                 return True, ""
             # Fists/None always allowed
             if w_group and w_group != "fists":

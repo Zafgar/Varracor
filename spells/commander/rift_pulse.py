@@ -26,6 +26,7 @@ class RiftPulse(Spell):
         self.is_skillshot = False   # itsensä ympärille, ei tähtäystä
 
         self.icon_color = (50, 255, 200)  # Abyssal Teal
+        self.is_vortex_spell = True  # VORTEX-puun passiivit osuvat
 
     def draw_card_icon(self, surface, x, y, size):
         cx, cy = x + size // 2, y + size // 2
@@ -47,6 +48,8 @@ class RiftPulse(Spell):
         caster.current_mana -= self.mana_cost
 
         dmg = int(self.damage + caster.intelligence * self.scaling.get("INT", 0))
+        # VORTEX-puu: Deeper Wounds / Attunement kasvattavat tehoa
+        dmg = int(dmg * (1.0 + getattr(caster, "vortex_power", 0.0)))
         cx, cy = caster.rect.center
 
         # VFX: kaksi aaltoa + tärähdys
@@ -80,7 +83,7 @@ class RiftPulse(Spell):
                 pass
             # Sinkaisu poispäin (ei seinien läpi: check_wall_collision)
             if dist > 0:
-                push = 160
+                push = 160 + int(getattr(caster, "pulse_force", 0))
                 px = (dx / dist) * push
                 py = (dy / dist) * push
                 try:

@@ -80,6 +80,7 @@ class SeamCut(Spell):
     def __init__(self):
         super().__init__()
         self.name = "Vortex Slash" # Nimi vastaamaan visuaalia
+        self.is_vortex_spell = True
         self.tier = 1
         self.rarity = "Legendary"
         self.cost = 0
