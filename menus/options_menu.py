@@ -278,8 +278,10 @@ class OptionsMenu(BaseMenu):
 
         self.bind_rows = []
         mouse = pygame.mouse.get_pos()
-        row_y = right.y + 62
-        row_h = 34
+        # Tiivistetty rivitys: keybind-lista kasvoi (tactics, pelitesti 21)
+        # eikä saa vuotaa paneelin ohi
+        row_y = right.y + 56
+        row_h = 30
         for action, label in keybinds.LABELS:
             rect = pygame.Rect(right.x + 20, row_y, right.w - 40, row_h - 4)
             hover = rect.collidepoint(mouse)
@@ -306,7 +308,7 @@ class OptionsMenu(BaseMenu):
                       right.x + 34, row_y + 4)
             surf = font_small.render(key_txt, True, (150, 150, 160))
             screen.blit(surf, (right.right - surf.get_width() - 36, row_y + 4))
-            row_y += 28
+            row_y += 26
 
         # --- INSTANT CAST (pelitesti 17) ---
         # Slotit 1-8: päällä = näppäin castaa heti kursorin suuntaan,

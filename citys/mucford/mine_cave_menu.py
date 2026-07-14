@@ -37,6 +37,11 @@ class MineCaveMenu(GameplayScreen):
         self.player.facing_right = True
         self._update_camera()
 
+        # Retkikunta mukaan + kaatumisesta rescue (pelitesti 21)
+        self.rescue_on_death = True
+        self.rescue_place_label = "the old mine"
+        self.enable_expedition()
+
         day = self.manager.world_clock.day
         if day != self._spawned_day:
             self._spawned_day = day
@@ -123,6 +128,7 @@ class MineCaveMenu(GameplayScreen):
 
     def _all_units(self):
         units = [self.player]
+        units.extend(self.expedition_units())
         units.extend(self._leashed_undead())
         # Broodmother + sen kutsumat Spiderlingit (enemy_teamissa)
         for e in self.manager.enemy_team:
@@ -161,12 +167,8 @@ class MineCaveMenu(GameplayScreen):
                 self.manager.inventory[name] = self.manager.inventory.get(name, 0) + cnt
             self.manager.round_rewards['loot'] = {}
 
-        if self.player.is_dead:
-            self.player.is_dead = False
-            self.player.current_hp = max(1, int(self.player.max_hp * 0.3))
-            self.manager.vfx.show_damage(self.player.rect.centerx, self.player.rect.top - 30,
-                                         "You crawl out of the dark...", color=(255, 120, 120))
-            self.next_state = "mine_road"
+        # Kaatuminen: _update_gameplay hoitaa rescuen (pelitesti 21)
+        if self.next_state:
             return
 
         if self.player.rect.colliderect(self.exit_rect):

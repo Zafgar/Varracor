@@ -42,6 +42,9 @@ DEFAULTS = {
     # Commander shoutit (avataan COMMAND-taitopuusta)
     "shout_rally":    [pygame.K_g],
     "shout_charge":   [pygame.K_h],
+    # Retkikunnan taktiikkavalikko (pelitesti 21): avaa komentolistan,
+    # numeronäppäimet valitsevat käskyn (ei skill-castia valikon aikana)
+    "tactics":        [pygame.K_t],
 }
 
 # Näytettävät nimet Controls-valikkoon (järjestys = näyttöjärjestys)
@@ -63,6 +66,7 @@ LABELS = [
     ("spell_6",        "Spell Slot 6"),
     ("shout_rally",    "Shout: Rally Cry"),
     ("shout_charge",   "Shout: Charge Order"),
+    ("tactics",        "Expedition Tactics"),
     ("usable_1",       "Usable Item 1"),
     ("usable_2",       "Usable Item 2"),
 ]

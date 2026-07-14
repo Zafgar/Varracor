@@ -360,9 +360,14 @@ class WorldClock:
 
     def draw_hud(self, screen, font, x=None, y=16):
         """Pieni kello/päivä/sää-näyttö aurinko/kuu-ikonilla."""
+        # BUGIKORJAUS (pelitesti 21): "cloudy" puuttui -> KeyError kaatoi
+        # piirron. .get-fallback suojaa myös tulevilta säätyypeiltä.
         weather_names = {"clear": "Clear", "wind": "Windy",
-                         "rain": "Rain", "storm": "STORM"}
-        text = f"{self.get_time_string()}  {weather_names[self.weather]}"
+                         "rain": "Rain", "storm": "STORM",
+                         "cloudy": "Cloudy"}
+        w_name = weather_names.get(self.weather,
+                                   str(self.weather).capitalize())
+        text = f"{self.get_time_string()}  {w_name}"
         date = self.get_date_string()
 
         w_col = (150, 180, 255) if self.weather == "storm" else (230, 225, 200)

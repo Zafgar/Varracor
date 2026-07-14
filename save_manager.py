@@ -279,6 +279,14 @@ def list_slots():
     return rows
 
 
+def _expedition_to_save(manager):
+    try:
+        from systems import expedition as _exp
+        return _exp.to_save(manager)
+    except Exception:
+        return {"order": "follow", "party": []}
+
+
 def _game_date_string(manager) -> str:
     clock = getattr(manager, "world_clock", None)
     if clock is None:
@@ -371,6 +379,8 @@ def save_game(manager, filepath=None, save_name=""):
             # Pelaajan kaupunkisijainti: lataus palauttaa tähän kohtaan
             "city_pos": list(getattr(manager, "last_city_pos", None) or ())
                         or None,
+            # Retkikunta (pelitesti 21): kokoonpano nimillä + käsky
+            "expedition": _expedition_to_save(manager),
         }
 
         target = filepath or SAVE_FILE
@@ -449,6 +459,13 @@ def load_game(manager, filepath=None):
         manager.active_bet = data.get("active_bet") or None
         manager.open_bets = [dict(b) for b in data.get("open_bets", [])
                              if isinstance(b, dict)]
+        # Retkikunta: nimet takaisin yksikköviittauksiksi (roster ladattu yllä)
+        try:
+            from systems import expedition as _exp
+            _exp.from_save(manager, data.get("expedition"))
+        except Exception:
+            manager.expedition_party = []
+            manager.expedition_order = "follow"
         # Kaupunkisijainti savesta: on_enter spawnaa tähän kohtaan
         # ("lataus heitti aina Sunk Caskin eteen")
         pos = data.get("city_pos")

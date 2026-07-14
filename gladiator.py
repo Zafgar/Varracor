@@ -1495,6 +1495,17 @@ class Gladiator(pygame.sprite.Sprite):
                                            obstacles, manager):
                     return
 
+        # --- RETKIKÄSKYT (pelitesti 21): retkikartoilla aktiivinen
+        # kenttäkomento (follow/kite/defend) ohjaa retkeläisen liikettä;
+        # "free" ja soveltumattomat tilanteet valuvat normaaliin AI:hin ---
+        if manager is not None and self.ai_controller and \
+                getattr(manager, "expedition_field_active", False) and \
+                self in (getattr(manager, "expedition_party", None) or ()):
+            from systems import expedition
+            if expedition.follow_order(self, all_units, obstacles, manager):
+                self.prevent_overlap(all_units)
+                return
+
         if self.ai_controller:
             # HUOM: Ei except TypeError -fallbackia! Se piilotti aidot
             # TypeErrorit AI:n sisältä (esim. rikkinäinen create_arrow-kutsu)

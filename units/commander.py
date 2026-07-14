@@ -327,6 +327,9 @@ class Commander(Gladiator):
         self.shouts = set()         # avatut taisteluhuudot ("rally"/"charge")
         self.drillmaster = 0        # voitoista tuplamoraali tiimille
         self.iron_presence = 0      # tappioista puolet moraalisakosta
+        # Warband-haara (pelitesti 21): retkikunnan koko ja kenttäkomennot
+        self.expedition_cap = 0     # montako soturia retkelle (0 = ei vielä)
+        self.tactics = {"follow", "free"}  # opitut kenttäkomennot
 
         # Vortex-puun kertymät (VORTEX-välilehti, pelitesti 19)
         self.vortex_power = 0.0     # +% Vortex-loitsujen tehoon
@@ -354,6 +357,11 @@ class Commander(Gladiator):
                     self.drillmaster = 1
                 if "iron_presence" in effects:
                     self.iron_presence = 1
+                if "expedition_cap" in effects:
+                    self.expedition_cap = max(self.expedition_cap,
+                                              int(effects["expedition_cap"]))
+                if "tactic" in effects:
+                    self.tactics.add(str(effects["tactic"]))
 
                 # Vortex-passiivit
                 if "max_mana" in effects:
@@ -749,6 +757,17 @@ class Commander(Gladiator):
         # COMMANDER SHOUTIT (Rally [G] / Charge [H], avataan COMMAND-puusta)
         self._update_shouts(keys, manager)
 
+        # RETKIKUNNAN TAKTIIKKAVALIKKO [T] (pelitesti 21): valikon ollessa
+        # auki numeronäppäimet valitsevat käskyn EIVÄTKÄ castaa hotbaria,
+        # eikä LMB lyö - liikkuminen toimii normaalisti.
+        _tactics_open = False
+        if manager is not None:
+            from systems import expedition
+            _tactics_open = expedition.handle_tactics_input(self, keys,
+                                                            manager)
+        if _tactics_open:
+            self._melee_hold_block = True
+
         # SPRINT (aktivoituu vasta liikkeessä - ks. LIIKKUMINEN alempana;
         # BUGIKORJAUS: paikallaan seisova ei enää polta staminaa shiftillä)
         _wants_sprint = keybinds.pressed(keys, "sprint")
@@ -779,6 +798,9 @@ class Commander(Gladiator):
                       "spell4": 3, "spell5": 4, "spell6": 5, "usable2": 6}
 
         def check_toggle(key_code, slot_name):
+            # Taktiikkavalikko varaa numeronäppäimet käskyille
+            if _tactics_open:
+                return
             if keys[key_code] and not self.prev_keys[key_code]:
                 if getattr(self, "hotbar_page", 1) == 2:
                     self.try_quick_equip(_PAGE2_IDX.get(slot_name, 0),
@@ -1162,6 +1184,15 @@ class Commander(Gladiator):
             pygame.draw.rect(screen, (40, 40, 0), (stam_x, stam_y, stam_w, stam_h), border_radius=2)
             # Palkki
             pygame.draw.rect(screen, (220, 180, 0), (stam_x, stam_y, int(stam_w * pct_stam), stam_h), border_radius=2)
+
+        # --- 5. RETKIKUNNAN KÄSKYT (pelitesti 21): chip + [T]-valikko ---
+        mgr = getattr(self, "manager_ref", None)
+        if mgr is not None:
+            try:
+                from systems import expedition
+                expedition.draw_tactics_ui(screen, self, mgr)
+            except Exception:
+                pass
 
     def _draw_custom_stamina_bar(self, screen, cx, bottom_y, hud_width):
         # Alkuperäiset mitat: 1312x210

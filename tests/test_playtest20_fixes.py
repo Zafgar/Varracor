@@ -152,16 +152,24 @@ def test_signpost_returns_to_world_map():
     assert menu.next_state == "world_map", "kyltti vie takaisin"
 
 
-def test_player_death_resets_invasion():
+def test_player_death_triggers_rescue():
+    """Pelitesti 21 muutti käytöksen: kaatuminen retkellä vie rescueen
+    (herää Muckfordista, noutopalkkio) - invaasio nollautuu vasta
+    seuraavalla käynnillä on_enterissä."""
     m = _manager()
     menu = _site(m)
     menu._start_invasion()
     assert menu.phase == "wave"
+    m.gold = 200
     m.player_character.is_dead = True
     menu.update()
-    assert menu.phase == "dormant", "kaatuminen nollaa invaasion"
-    assert not menu.monsters
+    assert menu.next_state == "muckford_city", \
+        "ilman tiimiä herätään Sunk Caskista"
     assert not m.player_character.is_dead
-    assert m.player_character.rect.centerx < 400, \
-        "raahattu sisäänkäynnille"
-    menu.draw(pygame.Surface((1920, 1080)))  # piirto kaatumatta
+    assert m.pending_rescue and m.pending_rescue["place"] == "inn"
+    assert m.gold == 200 - 25, "Marda perii noutopalkkion"
+    # Uusi käynti aloittaa repeämän lepotilasta
+    menu2 = _site(m)
+    assert menu2.phase == "dormant"
+    assert not menu2.monsters
+    menu2.draw(pygame.Surface((1920, 1080)))  # piirto kaatumatta

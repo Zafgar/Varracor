@@ -25,6 +25,10 @@ class BarracksInteriorMenu(GameplayScreen):
         self.residents = []          # (unit, wander-data)
         self.show_upgrade = False
         self.upgrade_feedback = ""
+        # Sotapöytä (pelitesti 21): retkikunnan kokoaminen
+        self.show_muster = False
+        self.muster_feedback = ""
+        self._muster_rows = []
         self._overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT),
                                        pygame.SRCALPHA)
         self.banner = ""
@@ -61,6 +65,15 @@ class BarracksInteriorMenu(GameplayScreen):
         self._update_camera()
         self.show_upgrade = False
         self.upgrade_feedback = ""
+        self.show_muster = False
+        self.muster_feedback = ""
+        # Rescue-herääminen (pelitesti 21): toverit raahasivat kaatuneen
+        # Commanderin punkkaan - lähin soturi kertoo mitä tapahtui
+        try:
+            from systems import expedition as _exp
+            _exp.deliver_rescue_dialogue(self.manager, "barracks")
+        except Exception:
+            pass
 
     def on_exit(self):
         super().on_exit()
@@ -154,15 +167,37 @@ class BarracksInteriorMenu(GameplayScreen):
         consider("desk", d, d.rect.centerx, d.rect.centery, 120)
         b = self.arena.plans_board
         consider("plans", b, b.rect.centerx, b.rect.centery, 120)
+        t = self.arena.table
+        consider("muster", t, t.rect.centerx, t.rect.centery, 110)
         door = self.arena.door_rect
         consider("leave", door, door.centerx, door.top, 110)
         return best
 
     def consumes_escape(self):
-        # Kehityspaneeli auki -> ESC sulkee paneelin (ei pausea)
-        return bool(self.show_upgrade)
+        # Kehitys-/musterpaneeli auki -> ESC sulkee paneelin (ei pausea)
+        return bool(self.show_upgrade or self.show_muster)
 
     def handle_event(self, event):
+        # Sotapöydän muster-paneeli nappaa syötteet
+        if self.show_muster:
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_ESCAPE, pygame.K_e,
+                                 pygame.K_RETURN):
+                    self.show_muster = False
+                return
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for rect, unit in self._muster_rows:
+                    if rect.collidepoint(event.pos):
+                        from systems import expedition
+                        ok, msg = expedition.toggle_member(self.manager,
+                                                           unit)
+                        self.muster_feedback = msg
+                        sound_system.play_sound("click" if ok else "error")
+                        return
+                self.show_muster = False
+                return
+            return
+
         # Kehityspaneeli nappaa syötteet
         if self.show_upgrade:
             if event.type == pygame.KEYDOWN:
@@ -198,6 +233,10 @@ class BarracksInteriorMenu(GameplayScreen):
             elif kind == "plans":
                 self.show_upgrade = True
                 self.upgrade_feedback = ""
+                sound_system.play_sound("click")
+            elif kind == "muster":
+                self.show_muster = True
+                self.muster_feedback = ""
                 sound_system.play_sound("click")
             elif kind == "leave":
                 # Palauta kaupunkisijainti ennen siirtymää ("keep" säilyttää)
@@ -297,7 +336,8 @@ class BarracksInteriorMenu(GameplayScreen):
         if self.manager.paused:
             return
         super().update()  # BaseMenu (editor)
-        if self.manager.active_dialogue or self.show_upgrade:
+        if self.manager.active_dialogue or self.show_upgrade \
+                or self.show_muster:
             self.manager.vfx.update(obstacles=self.arena.obstacles)
             return
 
@@ -355,6 +395,8 @@ class BarracksInteriorMenu(GameplayScreen):
         self._draw_prompt(screen, offset)
         if self.show_upgrade:
             self._draw_upgrade_panel(screen)
+        if self.show_muster:
+            self._draw_muster_panel(screen)
         if self.banner_timer > 0 and self.banner:
             surf = font_main.render(self.banner, True, GOLD_COLOR)
             screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, 130))
@@ -428,7 +470,8 @@ class BarracksInteriorMenu(GameplayScreen):
         screen.blit(surf, (panel.right - surf.get_width() - 18, panel.y + 18))
 
     def _draw_prompt(self, screen, offset):
-        if self.manager.active_dialogue or self.show_upgrade:
+        if self.manager.active_dialogue or self.show_upgrade \
+                or self.show_muster:
             return
         kind, obj, _d = self._nearest_interactable()
         if not kind:
@@ -438,6 +481,7 @@ class BarracksInteriorMenu(GameplayScreen):
             "sleep": lambda o: "E - Sleep until morning",
             "desk": lambda o: "E - Team ledger (roster & gear)",
             "plans": lambda o: "E - Barracks upgrade plans",
+            "muster": lambda o: "E - War table (muster expedition)",
             "leave": lambda o: "E - Leave the barracks",
         }
         text = labels[kind](obj)
@@ -456,6 +500,81 @@ class BarracksInteriorMenu(GameplayScreen):
         pygame.draw.rect(screen, (15, 17, 22), bg, border_radius=8)
         pygame.draw.rect(screen, (170, 140, 85), bg, 1, border_radius=8)
         screen.blit(surf, (x, y))
+
+    def _draw_muster_panel(self, screen):
+        """Sotapöytä: valitse retkikunta (Warband-haara rajaa koon)."""
+        from systems import expedition
+        from systems import conditions as _cond
+        shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 170))
+        screen.blit(shade, (0, 0))
+        panel = pygame.Rect(SCREEN_WIDTH // 2 - 400, SCREEN_HEIGHT // 2 - 300,
+                            800, 600)
+        pygame.draw.rect(screen, (24, 24, 30), panel, border_radius=14)
+        pygame.draw.rect(screen, GOLD_COLOR, panel, 3, border_radius=14)
+        draw_text("WAR TABLE - MUSTER THE EXPEDITION", font_main, GOLD_COLOR,
+                  screen, panel.x + 34, panel.y + 24)
+
+        cap = expedition.party_cap(self.manager)
+        sel = expedition.party(self.manager)
+        if cap <= 0:
+            draw_text("Your banner draws no marchers yet.", font_small,
+                      (220, 170, 110), screen, panel.x + 34, panel.y + 78)
+            draw_text("Unlock WARBAND I in the COMMAND tree [C] to take "
+                      "fighters on expeditions.", font_small, GRAY,
+                      screen, panel.x + 34, panel.y + 108)
+        else:
+            col = (130, 220, 140) if len(sel) < cap else (222, 186, 92)
+            draw_text(f"Expedition party: {len(sel)}/{cap}   "
+                      f"(click a fighter to add or remove)", font_small,
+                      col, screen, panel.x + 34, panel.y + 72)
+
+        self._muster_rows = []
+        y = panel.y + 130
+        roster = [u for u in self.manager.my_team]
+        if not roster:
+            draw_text("No fighters in the roster - hire some first.",
+                      font_small, GRAY, screen, panel.x + 34, y)
+        for unit in roster:
+            row = pygame.Rect(panel.x + 30, y, panel.w - 60, 46)
+            in_party = unit in sel
+            bg = (40, 58, 40) if in_party else (30, 30, 38)
+            pygame.draw.rect(screen, bg, row, border_radius=8)
+            pygame.draw.rect(screen, (130, 220, 140) if in_party
+                             else (90, 90, 100), row, 2, border_radius=8)
+            draw_text(unit.name, font_small, WHITE, screen,
+                      row.x + 14, row.y + 12)
+            # HP ja tilat kertovat marssikunnon
+            hp_pct = int(100 * unit.current_hp / max(1, unit.max_hp))
+            hp_col = ((220, 100, 90) if hp_pct < 40 else
+                      (222, 186, 92) if hp_pct < 75 else (130, 220, 140))
+            draw_text(f"HP {hp_pct}%", font_small, hp_col, screen,
+                      row.x + 300, row.y + 12)
+            conds = _cond.describe(unit)
+            if conds:
+                icons = " ".join(c[4] for c in conds)
+                risk = _cond.death_risk(unit)
+                c_col = (255, 110, 100) if risk > 0 else (222, 186, 92)
+                tag = f"[{icons}]" + (" DEATH RISK!" if risk > 0 else "")
+                draw_text(tag, font_small, c_col, screen,
+                          row.x + 420, row.y + 12)
+            if in_party:
+                surf = font_small.render("MARCHING", True, (130, 220, 140))
+                screen.blit(surf, (row.right - surf.get_width() - 14,
+                                   row.y + 12))
+            self._muster_rows.append((row, unit))
+            y += 54
+            if y > panel.bottom - 120:
+                break
+
+        if self.muster_feedback:
+            draw_text(self.muster_feedback, font_small, (255, 190, 120),
+                      screen, panel.x + 34, panel.bottom - 66)
+        draw_text("Orders in the field: [T] then 1-4 (FOLLOW ME / FREE "
+                  "FIGHT / KITE / DEFEND)", font_small, GRAY, screen,
+                  panel.x + 34, panel.bottom - 96)
+        draw_text("ESC to close", font_small, GRAY, screen,
+                  panel.x + 34, panel.bottom - 36)
 
     def _draw_upgrade_panel(self, screen):
         shade = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)

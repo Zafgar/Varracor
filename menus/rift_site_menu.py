@@ -207,6 +207,11 @@ class RiftSiteMenu(GameplayScreen):
         self.player.rect.center = (280, ARENA_H // 2)
         self.player.current_hp = max(self.player.current_hp, 1)
 
+        # Retkikunta mukaan + kaatumisesta rescue Muckfordiin (pelitesti 21)
+        self.rescue_on_death = True
+        self.rescue_place_label = self.theme["title"].split(" - ")[0].title()
+        self.enable_expedition()
+
         self.monsters = []
         self.boss = None
         self.phase = "dormant"
@@ -269,18 +274,6 @@ class RiftSiteMenu(GameplayScreen):
         except Exception:
             pass
         sound_system.play_sound("battle_start")
-
-    def _reset_invasion(self):
-        """Pelaaja kaatui: invaasio raukeaa, repeämä palaa lepotilaan."""
-        self.monsters = []
-        self.boss = None
-        self.phase = "dormant"
-        self.wave_index = 0
-        self.player.is_dead = False
-        self.player.current_hp = max(1, int(self.player.max_hp * 0.3))
-        self.player.rect.center = (280, ARENA_H // 2)
-        self._set_banner("You are dragged back to the trailhead... "
-                         "the rift still hungers.", 300)
 
     def _update_invasion(self):
         if self.phase == "wave":
@@ -367,8 +360,12 @@ class RiftSiteMenu(GameplayScreen):
         if self.manager.paused:
             return
         alive = [m for m in self.monsters if not m.is_dead]
-        all_units = [self.player] + alive
+        all_units = [self.player] + self.expedition_units() + alive
         self._update_gameplay(all_units)
+        # Kaatuminen: _update_gameplay hoitaa rescuen (herää Muckfordista;
+        # invaasio nollautuu seuraavalla käynnillä on_enterissä)
+        if self.next_state:
+            return
 
         # Repeämä sykkii (partikkelit + kanava sinetöinnissä)
         if self.phase == "sealable":
@@ -384,11 +381,6 @@ class RiftSiteMenu(GameplayScreen):
         if self.banner_timer > 0:
             self.banner_timer -= 1
 
-        # Pelaajan kaatuminen nollaa invaasion
-        if self.player.is_dead:
-            self._reset_invasion()
-            return
-
         self._update_invasion()
 
     # ------------------------------------------------------------------
@@ -398,7 +390,8 @@ class RiftSiteMenu(GameplayScreen):
         self.manager.vfx.draw_floor(screen, offset)
 
         renderables = list(self.arena.props) + \
-            [m for m in self.monsters if not m.is_dead] + [self.player]
+            [m for m in self.monsters if not m.is_dead] + \
+            self.expedition_units() + [self.player]
         renderables.sort(key=lambda o: o.rect.bottom)
         for obj in renderables:
             if hasattr(obj, "draw_on_screen"):

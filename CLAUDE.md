@@ -157,6 +157,18 @@ tiedostot kuuluu pudottaa.
   4 hiiltä, 2 rubiinisuonta, vahvistetut epäkuolleet leashilla (heräävät
   vasta pelaajan lähellä). Taontaketju: malmi+hiili → sulatto → Iron Bar →
   sepän Iron-sarja (BLUEPRINTS loot_data.py).
+- **Retkikunta** (systems/expedition.py) — COMMAND-puun Warband-haara
+  (cap 2-10); ryhmä kootaan barracksin sotapöydältä (muster), kulkee
+  mukana retkikartoilla (kaivostie/-luola, rift-alueet:
+  enable_expedition + expedition_units GameplayScreenissä). Kenttä-
+  komennot [T] + numero: FOLLOW ME/FREE FIGHT aina, KITE/DEFEND puusta
+  (tactic_kite/defend); valikon aikana numerot EIVÄT casta hotbaria.
+  Kaatunut retkeläinen pois kentältä + vammat (conditions); sairaana
+  viety voi kuolla. Commanderin kaatuminen retkellä (rescue_on_death-
+  lippu) -> commander_down: herää seuraavana aamuna Sunk Caskista
+  (Marda perii 25 SP) tai barracksista jos tiimi pystyssä (toveri
+  kertoo); pending_rescue-dialogi kohteen on_enterissä. Kokoonpano +
+  käsky tallentuvat saveen.
 - **Valuutta**: sisäinen yksikkö = SP (hopea). format_money muotoilee
   100x-portain (SP/GP/PL/HC). Kaupungin M-näppäin avaa kartan.
 - **Potionit**: Potion.cast() parantaa ja kuluttaa pullon (usable-slotit

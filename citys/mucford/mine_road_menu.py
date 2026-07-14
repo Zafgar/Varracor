@@ -37,6 +37,11 @@ class MineRoadMenu(GameplayScreen):
         self.player.facing_right = True
         self._update_camera()
 
+        # Retkikunta mukaan + kaatumisesta rescue (pelitesti 21)
+        self.rescue_on_death = True
+        self.rescue_place_label = "the Mine Road"
+        self.enable_expedition()
+
         # Päivittäinen respawn: epäkuolleet ja malmit palaavat
         day = self.manager.world_clock.day
         if day != self._spawned_day:
@@ -92,6 +97,7 @@ class MineRoadMenu(GameplayScreen):
 
     def _all_units(self):
         units = [self.player]
+        units.extend(self.expedition_units())
         units.extend(self._leashed_undead())
         # Malmit mukaan, jotta pelaajan lyönnit osuvat niihin
         units.extend(n for n in self.arena.ore_nodes if not n.is_empty)
@@ -117,13 +123,9 @@ class MineRoadMenu(GameplayScreen):
         if not self.manager.world_paused:
             self.manager.world_clock.update()
 
-        # Kaatuminen: raahataan takaisin kylään
-        if self.player.is_dead:
-            self.player.is_dead = False
-            self.player.current_hp = max(1, int(self.player.max_hp * 0.3))
-            self.manager.vfx.show_damage(self.player.rect.centerx, self.player.rect.top - 30,
-                                         "You crawl back to Muckford...", color=(255, 120, 120))
-            self.next_state = "muckford_city"
+        # Kaatuminen: _update_gameplay hoitaa rescuen (pelitesti 21 -
+        # herää Sunk Caskista maksua vastaan tai barracksista)
+        if self.next_state:
             return
 
         # Poistuminen vasemmalta

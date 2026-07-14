@@ -166,6 +166,14 @@ class GameManager:
         # Quest journal -paneeli pelinäkymässä (J tai klikkaus piilottaa)
         self.show_quest_journal = True
         self._journal_toggle_rect = None
+        # Retkikunta (pelitesti 21): barracksin sotapöydältä koottu ryhmä,
+        # aktiivinen kenttäkomento ja [T]-valikon tila. Rescue-data täytetään
+        # kun Commander kaatuu retkellä (systems/expedition.py).
+        self.expedition_party = []
+        self.expedition_order = "follow"
+        self.expedition_field_active = False
+        self.tactics_menu_open = False
+        self.pending_rescue = None
 
         # --- GAME STATE ---
         self.mode = "Arena" 

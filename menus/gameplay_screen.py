@@ -30,6 +30,28 @@ class GameplayScreen(BaseMenu):
     def on_exit(self):
         """Kutsutaan kun tästä tilasta poistutaan."""
         self.manager.match_in_progress = False
+        # Retkikartan liput eivät saa jäädä päälle muihin tiloihin
+        if getattr(self.manager, "expedition_field_active", False):
+            self.manager.expedition_field_active = False
+            self.manager.tactics_menu_open = False
+
+    # --- RETKIKUNTA (pelitesti 21) ---
+    def enable_expedition(self, spawn=True):
+        """Retkikartta kutsuu on_enterissä: retkikunta pelaajan viereen ja
+        [T]-kenttäkomennot käyttöön."""
+        from systems import expedition
+        self.manager.expedition_field_active = True
+        self.manager.tactics_menu_open = False
+        if spawn:
+            expedition.spawn_party(self.manager,
+                                   *self.player.rect.center)
+
+    def expedition_units(self):
+        """Kentällä mukana kulkevat retkeläiset (lisää all_units-listaan)."""
+        if not getattr(self.manager, "expedition_field_active", False):
+            return []
+        from systems import expedition
+        return expedition.field_party(self.manager)
 
     def handle_event(self, event):
         # --- UNIVERSAL MAP EDITOR ---
@@ -81,6 +103,21 @@ class GameplayScreen(BaseMenu):
 
         # Varmistetaan että peli on "käynnissä" jotta combat toimii
         self.manager.match_in_progress = True
+
+        # Retkikunnan kaatumiset: alas mennyt kannetaan pois kentältä ja
+        # saa areenataistelun tapaiset jälkiseuraukset (pelitesti 21)
+        if getattr(self.manager, "expedition_field_active", False):
+            from systems import expedition
+            expedition.check_party_downs(self.manager)
+
+        # Commanderin kaatuminen retkellä -> rescue: herää majatalosta
+        # (noutopalkkio) tai barracksista (toveri kertoo raahauksesta)
+        if getattr(self, "rescue_on_death", False) and self.player.is_dead:
+            from systems import expedition
+            self.next_state = expedition.commander_down(
+                self.manager, getattr(self, "rescue_place_label",
+                                      "the wilds"))
+            return
 
         # 1. Päivitä managerin yksikkölista
         self.manager.all_units.empty()

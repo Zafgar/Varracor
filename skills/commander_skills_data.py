@@ -68,6 +68,80 @@ COMMANDER_COMMAND_TREE = {
         "requires": ["drillmaster"],
         "effects": {"iron_presence": 1}
     },
+
+    # --- WARBAND-HAARA (pelitesti 21): retkikunta maailmankartalle ---
+    # Kokoa barracksin sotapöydältä (muster) retkikunta joka seuraa
+    # Commanderia retkillä. Kapasiteetti 2 -> 4 -> 6 -> 8 -> 10.
+    "warband_1": {
+        "name": "Warband I",
+        "desc": "Muster an expedition at the barracks war table: take "
+                "2 fighters with you on the road. Orders: FOLLOW ME / "
+                "FREE FIGHT ([T] in the field).",
+        "pos": (0, 110),
+        "cost": 1,
+        "min_level": 2,
+        "requires": [],
+        "effects": {"expedition_cap": 2}
+    },
+    "warband_2": {
+        "name": "Warband II",
+        "desc": "A tighter marching column: 4 fighters may join "
+                "your expeditions.",
+        "pos": (-120, 200),
+        "cost": 2,
+        "min_level": 5,
+        "requires": ["warband_1"],
+        "effects": {"expedition_cap": 4}
+    },
+    "warband_3": {
+        "name": "Warband III",
+        "desc": "Your banner draws a warband: 6 fighters on the road.",
+        "pos": (-120, 300),
+        "cost": 2,
+        "min_level": 9,
+        "requires": ["warband_2"],
+        "effects": {"expedition_cap": 6}
+    },
+    "warband_4": {
+        "name": "Warband IV",
+        "desc": "A small company marches with you: 8 fighters.",
+        "pos": (-120, 400),
+        "cost": 3,
+        "min_level": 13,
+        "requires": ["warband_3"],
+        "effects": {"expedition_cap": 8}
+    },
+    "warband_5": {
+        "name": "Warband V",
+        "desc": "A full expedition under your command: 10 fighters "
+                "(current cap).",
+        "pos": (-120, 500),
+        "cost": 3,
+        "min_level": 18,
+        "requires": ["warband_4"],
+        "effects": {"expedition_cap": 10}
+    },
+    # Taktiikat: uusia, parempia kenttäkomentoja [T]-valikkoon
+    "tactic_kite": {
+        "name": "Tactic: Kite",
+        "desc": "New field order KITE: ranged fighters loose and give "
+                "ground while melee falls back at the same time.",
+        "pos": (120, 200),
+        "cost": 2,
+        "min_level": 6,
+        "requires": ["warband_1"],
+        "effects": {"tactic": "kite"}
+    },
+    "tactic_defend": {
+        "name": "Tactic: Defend",
+        "desc": "New field order DEFEND: everyone screens the Commander "
+                "and shields the ranged and healing fighters.",
+        "pos": (120, 300),
+        "cost": 2,
+        "min_level": 8,
+        "requires": ["warband_1"],
+        "effects": {"tactic": "defend"}
+    },
 }
 
 COMMANDER_SKILL_TREE = {

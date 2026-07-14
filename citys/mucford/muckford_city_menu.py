@@ -220,6 +220,14 @@ class MuckfordCityMenu(BaseMenu):
         # 3. Fallback (Keskelle)
         if not spawned:
             self.player.rect.center = (self.arena.width//2, self.arena.height//2)
+
+        # Rescue-herääminen (pelitesti 21): Commander kaatui retkellä ja
+        # kannettiin Sunk Caskiin - Marda perii noutopalkkion ovella
+        try:
+            from systems import expedition as _exp
+            _exp.deliver_rescue_dialogue(self.manager, "inn")
+        except Exception:
+            pass
             
         # Kerää kokoontumispaikat (Gathering Spots)
         self.gathering_spots = []
