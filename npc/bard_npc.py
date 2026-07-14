@@ -1,3 +1,4 @@
+from ui_kit import format_money
 from .base_npc import BaseNPC, DialogueNode, DialogueChoice
 from sound_manager import sound_system
 import os
@@ -94,7 +95,7 @@ class BardNPC(BaseNPC):
         if not is_playing:
             if player_gold >= self.song_cost:
                 nodes["hub"].choices.append(
-                    DialogueChoice(f"Play a song. ({self.song_cost} Gold)", "play_song", effects=[f"pay_bard:{self.song_cost}", "close_chat"])
+                    DialogueChoice(f"Play a song. ({format_money(self.song_cost)})", "play_song", effects=[f"pay_bard:{self.song_cost}", "close_chat"])
                 )
             else:
                 nodes["hub"].choices.append(
@@ -172,7 +173,7 @@ class BardNPC(BaseNPC):
         # --- RECRUITMENT ---
         nodes["recruit_start"] = DialogueNode(
             id="recruit_start",
-            text=f"You want me to chronicle your deeds? A personal bard for the Guild House... It is tempting. The ale here is watered down anyway. My fee is {self.hire_cost} Gold. Up front.",
+            text=f"You want me to chronicle your deeds? A personal bard for the Guild House... It is tempting. The ale here is watered down anyway. My fee is {format_money(self.hire_cost)}. Up front.",
             speaker=self.name,
             emotion="proud",
             choices=[]
@@ -180,7 +181,7 @@ class BardNPC(BaseNPC):
 
         if player_gold >= self.hire_cost:
             nodes["recruit_start"].choices.append(
-                DialogueChoice(f"You're hired. ({self.hire_cost} Gold)", "recruit_confirm", 
+                DialogueChoice(f"You're hired. ({format_money(self.hire_cost)})", "recruit_confirm", 
                                effects=[f"pay_bard:{self.hire_cost}", "hire_bard", "close_chat"])
             )
         else:

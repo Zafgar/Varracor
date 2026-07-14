@@ -31,7 +31,9 @@ class ManureQuest(QuestDefinition):
             )
             nodes["accept_quest"] = DialogueNode(
                 id="accept_quest",
-                text=f"Great! Grab a shovel. Clean up {self.required_amount} piles and dump them in the compost heap. I'll pay you 5 Gold.",
+                text=(f"Great! Grab a shovel. Clean up {self.required_amount} piles "
+                     f"and dump them in the compost heap. "
+                     f"I'll pay you {self.reward_text}."),
                 speaker="Farmer Gus",
                 emotion="happy",
                 choices=[DialogueChoice("I'm on it.", None, effects=["close_chat"])]

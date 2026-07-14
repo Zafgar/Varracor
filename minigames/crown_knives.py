@@ -12,6 +12,43 @@ CARD_W, CARD_H = 100, 140
 ASSET_PATH = "assets/tiles/gamling/"
 
 
+# --- TALON KASSA (Crown & Dagger) ---
+# Jokaisella pelipaikalla on oma kukkaro: talo maksaa voitot siitä. Kun
+# kassa tyhjenee, diileri ei ota vetoja - kassa täyttyy ajan kanssa.
+HOUSE_PURSE_MAX = 300        # SP
+HOUSE_REFILL_PER_DAY = 100   # SP / pelipäivä
+
+VENUE_LABELS = {"sunk_cask": "The Sunk Cask",
+                "arena_hall": "Arena Hall Lounge"}
+
+
+def _abs_day(manager):
+    clock = getattr(manager, "world_clock", None)
+    if clock is None:
+        return 0
+    try:
+        from world_clock import DAYS_PER_YEAR
+        return int(getattr(clock, "year", 1)) * DAYS_PER_YEAR + int(clock.day)
+    except Exception:
+        return int(getattr(clock, "day", 0))
+
+
+def get_house(manager, venue):
+    """Pelipaikan kassa {purse, last_day, wins} + ajan tuoma täydennys."""
+    g = manager.npc_state.setdefault("global", {})
+    houses = g.setdefault("crown_dagger_houses", {})
+    house = houses.setdefault(venue, {"purse": HOUSE_PURSE_MAX,
+                                      "last_day": None, "wins": 0})
+    today = _abs_day(manager)
+    last = house.get("last_day")
+    if last is not None and today > last:
+        refill = (today - last) * HOUSE_REFILL_PER_DAY
+        house["purse"] = min(HOUSE_PURSE_MAX,
+                             int(house.get("purse", 0)) + refill)
+    house["last_day"] = today
+    return house
+
+
 class Card:
     def __init__(self, ctype, image):
         self.type = ctype # "CROWN", "COIN", "SWORD", "CHEAT", "LUCK"
@@ -127,6 +164,8 @@ class CrownKnivesMenu(BaseMenu):
         self.current_voice_channel = sound_system.play_sound(key)
 
     def on_enter(self):
+        self.venue = getattr(self.manager, "crown_venue", None) or "sunk_cask"
+        self._round_stake = 0
         self._reset_to_betting()
         self._play_voice("ck_voice_greeting")
 
@@ -211,6 +250,13 @@ class CrownKnivesMenu(BaseMenu):
             self._play_voice("ck_voice_betting")
 
     def _start_round(self):
+        # Talon kassa ei riitä -> diileri ei ota vetoa
+        house = get_house(self.manager, getattr(self, "venue", "sunk_cask"))
+        if int(house.get("purse", 0)) <= 0:
+            self._reset_to_betting()
+            self.message = "House purse is empty - come back tomorrow."
+            return
+        self._round_stake = int(self.bet_amount)
         # Subtract gold
         # AI matches bet visually
         for c_type, count in self.pot_counts.items():
@@ -307,7 +353,8 @@ class CrownKnivesMenu(BaseMenu):
     def handle_event(self, event):
         if self.state == "BETTING":
             if self.btn_leave_bet.is_clicked(event):
-                self.next_state = "tavern_sunk_cask"
+                self.next_state = (getattr(self.manager, "crown_return_state", None)
+                                   or "tavern_sunk_cask")
                 return
             
             if self.bet_amount > 0 and self.btn_start.is_clicked(event):
@@ -442,7 +489,8 @@ class CrownKnivesMenu(BaseMenu):
 
         if self.state == "GAME_OVER":
             if self.btn_leave.is_clicked(event):
-                self.next_state = "tavern_sunk_cask"
+                self.next_state = (getattr(self.manager, "crown_return_state", None)
+                                   or "tavern_sunk_cask")
             elif self.btn_again.is_clicked(event):
                 self._reset_to_betting()
                 sound_system.play_sound("click")
@@ -1033,8 +1081,34 @@ class CrownKnivesMenu(BaseMenu):
             target_y = -50 # Dealer wins -> top
             
         # If player won (and collected), add gold now
+        house = get_house(self.manager, getattr(self, "venue", "sunk_cask"))
+        stake = int(getattr(self, "_round_stake", 0))
         if win:
-            self.manager.gold += self.current_winnings
+            # Voitto maksetaan talon kassasta: oma panos takaisin + voitto
+            # niin pitkälle kuin kassa riittää
+            profit = max(0, int(self.current_winnings) - stake)
+            covered = min(profit, int(house.get("purse", 0)))
+            house["purse"] = int(house.get("purse", 0)) - covered
+            self.manager.gold += stake + covered
+            if covered < profit:
+                self.message = "The house can't cover it all - purse is dry!"
+            # Voittoputki tuo mainetta: joka 3. voitto +1 rep
+            house["wins"] = int(house.get("wins", 0)) + 1
+            if house["wins"] % 3 == 0:
+                try:
+                    from quest_system import quest_manager
+                    quest_manager.add_reputation(1)
+                    self.manager.reputation = quest_manager.reputation
+                    self.manager.vfx.show_damage(
+                        SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 120,
+                        "+1 Reputation - the table talks!",
+                        color=(140, 230, 150))
+                except Exception:
+                    pass
+        else:
+            # Talo voittaa panoksen kassaansa
+            house["purse"] = min(HOUSE_PURSE_MAX,
+                                 int(house.get("purse", 0)) + stake)
 
         # Calculate delay spread based on coin count (More coins = longer animation)
         coin_count = len(self.visual_pot)
@@ -1064,6 +1138,33 @@ class CrownKnivesMenu(BaseMenu):
 
         cx = SCREEN_WIDTH // 2
         cy = SCREEN_HEIGHT // 2
+
+        # --- LOMPAKKO + TALON KASSA (pelaajapalaute: saldot näkyviin) ---
+        from ui_kit import format_money, font_small as _fs, font_main as _fm
+        house = get_house(self.manager, getattr(self, "venue", "sunk_cask"))
+        venue_label = VENUE_LABELS.get(getattr(self, "venue", "sunk_cask"),
+                                       "The Sunk Cask")
+        panel = pygame.Rect(SCREEN_WIDTH - 380, 20, 360, 118)
+        chip = pygame.Surface(panel.size, pygame.SRCALPHA)
+        chip.fill((12, 22, 14, 215))
+        screen.blit(chip, panel.topleft)
+        pygame.draw.rect(screen, (170, 140, 85), panel, 2, border_radius=10)
+        t = _fs.render(venue_label.upper(), True, (200, 180, 130))
+        screen.blit(t, (panel.x + 16, panel.y + 10))
+        t = _fm.render(f"Your purse: {format_money(self.manager.gold)}",
+                       True, (235, 228, 210))
+        screen.blit(t, (panel.x + 16, panel.y + 34))
+        purse = int(house.get("purse", 0))
+        col = ((220, 110, 90) if purse <= 0 else
+               (222, 186, 92) if purse < HOUSE_PURSE_MAX // 3 else
+               (150, 220, 150))
+        t = _fm.render(f"House pot: {format_money(purse)} / "
+                       f"{format_money(HOUSE_PURSE_MAX)}", True, col)
+        screen.blit(t, (panel.x + 16, panel.y + 62))
+        wins = int(house.get("wins", 0))
+        t = _fs.render(f"Your wins here: {wins}  (every 3rd win: +1 rep)",
+                       True, (160, 160, 170))
+        screen.blit(t, (panel.x + 16, panel.y + 92))
 
         # --- BETTING SCREEN ---
         # Draw Betting UI elements even if game is running (pot visible)

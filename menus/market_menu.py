@@ -122,7 +122,7 @@ class MarketMenu(BaseMenu):
         self.draw_header_bar(screen, title)
 
         # Kulta
-        draw_text(f"Gold: {format_money(self.manager.gold)}", font_main,
+        draw_text(f"Funds: {format_money(self.manager.gold)}", font_main,
                   GOLD_COLOR, screen, SCREEN_WIDTH - 320, 130)
 
         mouse = pygame.mouse.get_pos()

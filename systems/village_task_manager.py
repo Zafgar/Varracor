@@ -105,7 +105,8 @@ class VillageTaskManager:
         gained = []
         if r.get("gold"):
             manager.gold += int(r["gold"])
-            gained.append(f"+{int(r['gold'])} Gold")
+            from ui_kit import format_money
+            gained.append(f"+{format_money(int(r['gold']))}")
         if r.get("reputation"):
             try:
                 from quest_system import quest_manager

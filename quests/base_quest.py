@@ -10,7 +10,9 @@ class QuestDefinition:
     @property
     def reward_text(self):
         parts = []
-        if "gold" in self.rewards: parts.append(f"{self.rewards['gold']} Gold")
+        if "gold" in self.rewards:
+            from ui_kit import format_money
+            parts.append(format_money(self.rewards["gold"]))
         return ", ".join(parts)
 
     def get_dialogue_for_npc(self, npc_id, status):

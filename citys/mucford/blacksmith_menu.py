@@ -1,7 +1,7 @@
 import pygame
 import math
 from settings import *
-from ui_kit import UIButton, draw_text, font_title, font_main, font_small, GOLD_COLOR, WHITE, GRAY, GREEN, RED, draw_panel
+from ui_kit import UIButton, draw_text, font_title, font_main, font_small, GOLD_COLOR, WHITE, GRAY, GREEN, RED, draw_panel, format_money
 from menus.base_menu import BaseMenu
 from sound_manager import sound_system
 from assets.tiles.blacksmith_arena import BlacksmithArena
@@ -388,7 +388,7 @@ class BlacksmithMenu(BaseMenu):
             draw_text(data.get('desc', ''), font_main, (200, 200, 200), screen, details_x, details_y + 60)
             
             # Cost
-            draw_text(f"Cost: {data.get('cost', 0)} Gold", font_main, WHITE, screen, details_x, details_y + 100)
+            draw_text(f"Cost: {format_money(data.get('cost', 0))}", font_main, WHITE, screen, details_x, details_y + 100)
             
             # Materials
             mat_y = details_y + 160

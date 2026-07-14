@@ -1,5 +1,6 @@
 from .base_npc import BaseNPC, DialogueNode, DialogueChoice
 from settings import GOLD_COLOR, RED, GREEN
+from ui_kit import format_money
 import random
 
 class RecruitNPC(BaseNPC):
@@ -84,7 +85,7 @@ class RecruitNPC(BaseNPC):
         
         # Lisää palkkausvaihtoehto vain jos pelaaja on todistanut itsensä (tai on tarpeeksi rahaa uhitteluun)
         if matches_played > 0 or player_rep > 200:
-            nodes["start"].choices.insert(0, DialogueChoice(f"I want to hire you. ({self.final_cost} Gold)", "hire_confirm"))
+            nodes["start"].choices.insert(0, DialogueChoice(f"I want to hire you. ({format_money(self.final_cost)})", "hire_confirm"))
         else:
             # Jos tuntematon, pitää vakuuttaa
             nodes["start"].choices.insert(0, DialogueChoice("I am building a team for the League.", "convince_rookie"))
@@ -95,7 +96,7 @@ class RecruitNPC(BaseNPC):
             speaker=self.name,
             emotion="neutral",
             choices=[
-                DialogueChoice(f"Here is {self.final_cost} Gold. Is that proof enough?", "hire_confirm"),
+                DialogueChoice(f"Here is {format_money(self.final_cost)}. Is that proof enough?", "hire_confirm"),
                 DialogueChoice("I'll come back when I'm famous.", None, effects=["close_chat"])
             ]
         )

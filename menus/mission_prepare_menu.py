@@ -201,7 +201,7 @@ class MissionPrepareMenu(BaseMenu):
             
             if is_wave_mission:
                 draw_text("SURVIVE THE WAVES", font_main, (255, 100, 100), screen, intel_x + 20, ry + 25)
-                draw_text("Gold & Reputation scale with waves.", font_small, WHITE, screen, intel_x + 20, ry + 50)
+                draw_text("Coin & Reputation scale with waves.", font_small, WHITE, screen, intel_x + 20, ry + 50)
                 draw_text("Survive longer for better rewards.", font_small, GRAY, screen, intel_x + 20, ry + 70)
             else:
                 draw_text(f"{format_money(mission.get('reward_gold', 0))}", font_small, WHITE, screen, intel_x + 20, ry + 25)

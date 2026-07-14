@@ -30,7 +30,7 @@ from settings import (
     WHITE,
 )
 from sound_manager import sound_system
-from ui_kit import UIButton, draw_text, font_main, font_small, font_header
+from ui_kit import UIButton, draw_text, font_main, font_small, font_header, format_money
 
 
 # One Varracor game day is approximately fifteen real minutes.
@@ -573,7 +573,8 @@ def _cost_text(manager, materials: Dict[str, int], gold: int) -> str:
     parts = [f"{name} {available_material(manager, name)}/{amount}"
              for name, amount in materials.items()]
     if gold:
-        parts.append(f"Gold {int(getattr(manager, 'gold', 0))}/{gold}")
+        parts.append(f"{format_money(gold)} (have "
+                     f"{format_money(int(getattr(manager, 'gold', 0)))})")
     return "   ".join(parts) if parts else "No construction cost"
 
 

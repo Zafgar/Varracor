@@ -415,6 +415,10 @@ class ArenaHallMenu(_InteriorMenuBase):
         self._make_npc("Odds-Maker Vint", "Goblin",
                        self.odds_stand.rect.centerx - 60,
                        self.odds_stand.rect.centery + 10, "bookie")
+        # Crown & Dagger -diileri loungessa (toinen pelipaikka tavernan
+        # lisäksi - oma talon kassa)
+        self._make_npc("Sly Petro", "Goblin",
+                       WALL + 220, h // 2 + 320, "dealer")
         # Vartijat oven pieliin
         d = a.door_rect
         self._make_npc("Yard Guard", "Human", d.left - 70, d.top - 60, "guard")
@@ -443,6 +447,7 @@ class ArenaHallMenu(_InteriorMenuBase):
             "betting": "E - Place a wager",
             "bookie": "E - Place a wager",
             "trophies": "E - Trophy case (deeds & titles)",
+            "dealer": "E - Crown & Dagger (card game)",
             "guard": "E - Talk",
             "rival": f"E - Talk with {getattr(obj, 'name', 'rival')}",
         }.get(kind)
@@ -459,6 +464,14 @@ class ArenaHallMenu(_InteriorMenuBase):
             return True
         if kind == "trophies":
             self.show_trophies = True
+            sound_system.play_sound("click")
+            return True
+        if kind == "dealer":
+            # Crown & Dagger loungen pöydässä - oma talon kassa
+            self.manager.crown_venue = "arena_hall"
+            self.manager.crown_return_state = "arena_hall"
+            self._keep_positions = True
+            self.next_state = "crown_knives"
             sound_system.play_sound("click")
             return True
         if kind == "guard":

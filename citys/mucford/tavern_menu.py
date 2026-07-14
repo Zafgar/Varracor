@@ -402,12 +402,15 @@ class TavernMenu(BaseMenu):
             sound_system.play_sound('recruit')
         elif action == "start_minigame:crown_knives":
             # Vähennä rahat (hoidettu dialogissa pay_gold:lla, mutta varmistus ei haittaa)
-            
+
             # Stop Bard music specifically (keep ambient)
             if hasattr(self, "bard") and hasattr(self.bard, "ai_controller"):
                 if hasattr(self.bard.ai_controller, "stop_music"):
                     self.bard.ai_controller.stop_music()
-            
+
+            # Pelipaikka: tavernan pöytä (oma talon kassa)
+            self.manager.crown_venue = "sunk_cask"
+            self.manager.crown_return_state = "tavern_sunk_cask"
             self.next_state = "crown_knives"
             sound_system.play_sound('click')
         elif action == "open_recruit_menu":

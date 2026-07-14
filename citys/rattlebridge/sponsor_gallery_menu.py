@@ -11,7 +11,7 @@ import pygame
 from menus.base_menu import BaseMenu
 from settings import SCREEN_HEIGHT, SCREEN_WIDTH, WHITE, GRAY, GREEN, RED, GOLD_COLOR
 from sound_manager import sound_system
-from ui_kit import UIButton, draw_text, draw_panel, font_title, font_main, font_small
+from ui_kit import UIButton, draw_text, draw_panel, font_title, font_main, font_small, format_money
 from systems import sponsors
 
 
@@ -88,7 +88,7 @@ class SponsorGalleryMenu(BaseMenu):
         draw_text("SPONSOR GALLERY", font_title, GOLD_COLOR, screen, 50, 40)
         used = sponsors.slots_used(self.manager)
         draw_text(f"Sera Quench • Slots {used}/{sponsors.SPONSOR_SLOTS}  •  "
-                  f"Gold {int(getattr(self.manager, 'gold', 0))}  •  "
+                  f"Funds {format_money(int(getattr(self.manager, 'gold', 0)))}  •  "
                   f"Rep {sponsors._reputation(self.manager)}",
                   font_main, (200, 190, 175), screen, 52, 100)
 
