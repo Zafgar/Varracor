@@ -237,6 +237,24 @@ def main():
             pc.selected_spell_slot = None
             pc._melee_hold_block = False
 
+        # BUGIKORJAUS: valikkokäynti (C-menu, kaupat, barracks, options...)
+        # ei saa teleportata pelaajaa - kaupungin on_enter spawnasi aina
+        # tavernan ovelle. Kun kaupungista poistutaan MUUHUN kuin oikeaan
+        # maailmasijaintiin, merkitään "keep" -> paluu säilyttää sijainnin.
+        _WORLD_EXITS = (
+            "tavern_sunk_cask", "blacksmith_interior", "forest_road",
+            "mine_road", "mine_cave", "forest_excursion", "world_map",
+            "regional_staging", "rattlebridge_city", "hub", "battle",
+            "game", "menu", "muckford_intro", "muckford_city",
+        )
+        effective_new = new_key
+        if new_key == "loading":
+            effective_new = getattr(manager, "loading_target_state", new_key)
+        if (old_key == "muckford_city"
+                and effective_new not in _WORLD_EXITS
+                and not getattr(manager, "city_spawn_point", None)):
+            manager.city_spawn_point = "keep"
+
         # Sään ambient-luupit (sade/tuuli) soivat vain ulkotiloissa
         OUTDOOR_STATES = ("muckford_city", "forest_road", "rattlebridge_city",
                           "mine_road", "forest_excursion", "world_map")

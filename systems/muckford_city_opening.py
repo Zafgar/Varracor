@@ -319,7 +319,11 @@ def _patch_muckford_city() -> None:
 
     def draw(self, screen):
         previous_draw(self, screen)
-        self._draw_muckford_opening_tracker(screen)
+        # Quest-paneeli ei saa peittää karttaa/dialogia/pausea
+        if not (getattr(self, "show_map", False)
+                or getattr(self, "show_pause_menu", False)
+                or getattr(self.manager, "active_dialogue", None)):
+            self._draw_muckford_opening_tracker(screen)
         if self._team_registration_active:
             self._draw_team_registration(screen)
 

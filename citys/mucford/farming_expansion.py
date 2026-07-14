@@ -210,6 +210,7 @@ class CropPlot(Prop):
         self.is_structure = False
         self.blocks_projectiles = False
         self.has_shadow = False
+        self.is_flat = True  # piirretään lattiapassissa - ei koskaan heron päälle
         self.name = f"{crop_name} Plot"
         self.interaction_range = 75
         self.interaction_label = "Farm"
@@ -444,8 +445,11 @@ class FarmingSystem:
             self.plots.append(plot)
 
         arena.crop_plots = self.plots
-        # Existing VillagerAI understands this optional farm gate waypoint.
-        arena.farm_gate_pos = (farm.centerx, farm.bottom - 45)
+        # BUGIKORJAUS: portti oli alareunan sisäpuolella, mutta kyläläiset
+        # tulevat kaupungista POHJOISESTA - he jumittivat yläaitaan.
+        # Yläaidan aukko on segmentissä i==2 (256 px segmentit) ->
+        # aukon keskikohta x + 640.
+        arena.farm_gate_pos = (farm.x + 640, farm.y)
 
     def rebind_state(self):
         root = self._state_root().setdefault("plots", {})

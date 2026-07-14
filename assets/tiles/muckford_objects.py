@@ -78,6 +78,7 @@ class SewerGrate(Prop):
         self.blocks_projectiles = False
         self.is_structure = True
         self.has_shadow = False # Litteä
+        self.is_flat = True  # lattiapassi: pelto ei peitä hahmoja
 
 class StreetLamp(Prop):
     """

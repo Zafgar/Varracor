@@ -272,9 +272,11 @@ class ManagerMenu(BaseMenu):
         self.btn_paths.check_hover(pygame.mouse.get_pos())
         self.btn_paths.draw(screen)
         
+        # Otsikko vasempaan laitaan BACKin viereen - keskitetty palkki
+        # peittäisi yläreunan PATHS/TEAM/REPUTATION-napit
         from ui_kit import font_header
-        _t = font_header.render("COMMANDER PROFILE", True, GOLD_COLOR)
-        self.draw_header_bar(screen, _t, y=10)
+        draw_text("COMMANDER PROFILE", font_header, GOLD_COLOR, screen,
+                  190, 40)
         
         # --- CHARACTER STATS (Left) ---
         cx, cy = self.slots_center_x, self.slots_center_y

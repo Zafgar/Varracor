@@ -135,6 +135,7 @@ class PastureFloor(Prop):
         self.rect = pygame.Rect(x, y, 0, 0) # Lattia
         self.is_structure = False
         self.has_shadow = False
+        self.is_flat = True
         
         # Jos kuva löytyy, tiilitetään se koko alueelle
         path = "assets/tiles/farm/pasture.png"

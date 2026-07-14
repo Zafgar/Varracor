@@ -629,7 +629,11 @@ class VillagerAI(BaseAI):
         return None
 
     def _get_nav_target(self, final_pos, manager):
-        """Palauttaa seuraavan liikkumiskohteen (portti tai lopullinen kohde)."""
+        """Palauttaa seuraavan liikkumiskohteen (portti tai lopullinen kohde).
+
+        BUGIKORJAUS: yksi porttipiste ajoi NPC:t viistosti päin aitaa.
+        Nyt portti ylitetään kahdessa vaiheessa: ensin oman puolen
+        porttipisteelle (aukon kohdalle), sitten läpi toiselle puolelle."""
         farm_rect = getattr(manager.current_arena, "farm_area", None)
         gate_pos = getattr(manager.current_arena, "farm_gate_pos", None)
 
@@ -639,11 +643,23 @@ class VillagerAI(BaseAI):
         my_in_farm = farm_rect.collidepoint(self.unit.rect.center)
         target_in_farm = farm_rect.collidepoint(final_pos)
 
-        if my_in_farm != target_in_farm:
-            # Reitti kulkee portin kautta
-            return gate_pos
-        
-        return final_pos
+        if my_in_farm == target_in_farm:
+            return final_pos
+
+        gx, gy = gate_pos
+        # Portti voi olla ylä- tai alareunassa: valitse pisteet sen mukaan
+        if abs(gy - farm_rect.bottom) < abs(gy - farm_rect.y):
+            outside_pt = (gx, farm_rect.bottom + 70)
+            inside_pt = (gx, farm_rect.bottom - 80)
+        else:
+            outside_pt = (gx, farm_rect.y - 70)
+            inside_pt = (gx, farm_rect.y + 80)
+
+        own_side = inside_pt if my_in_farm else outside_pt
+        # Kohdista ensin aukon x-linjalle omalla puolella, sitten läpi
+        if abs(self.unit.rect.centerx - gx) > 60:
+            return own_side
+        return outside_pt if my_in_farm else inside_pt
 
     def _move_towards_point(self, target_pos, obstacles, all_units):
         """Liikuttaa yksikköä kohti pistettä, väistellen esteitä."""

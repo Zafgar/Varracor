@@ -651,8 +651,9 @@ class Commander(Gladiator):
 
         from systems import keybinds
 
-        # SPRINT
-        self.set_sprinting(keybinds.pressed(keys, "sprint"))
+        # SPRINT (aktivoituu vasta liikkeessä - ks. LIIKKUMINEN alempana;
+        # BUGIKORJAUS: paikallaan seisova ei enää polta staminaa shiftillä)
+        _wants_sprint = keybinds.pressed(keys, "sprint")
 
         # DASH
         if keybinds.pressed(keys, "dash"):
@@ -741,6 +742,16 @@ class Commander(Gladiator):
         if keybinds.pressed(keys, "move_down"): dy = 1
         if keybinds.pressed(keys, "move_left"): dx = -1
         if keybinds.pressed(keys, "move_right"): dx = 1
+
+        # Pelkkä SHIFT ilman WASD: juokse hiiren osoittamaan suuntaan
+        if _wants_sprint and dx == 0 and dy == 0:
+            _mdx = world_mx - self.rect.centerx
+            _mdy = world_my - self.rect.centery
+            if math.hypot(_mdx, _mdy) > 60:
+                _l = math.hypot(_mdx, _mdy)
+                dx, dy = _mdx / _l, _mdy / _l
+
+        self.set_sprinting(_wants_sprint and (dx != 0 or dy != 0))
         
         if dx != 0 or dy != 0:
             l = math.hypot(dx, dy)

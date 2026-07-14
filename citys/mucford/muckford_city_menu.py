@@ -421,87 +421,178 @@ class MuckfordCityMenu(BaseMenu):
         if removed:
             print(f"[City] Removed {removed} out-of-bounds props")
 
+    @staticmethod
+    def _draw_map_icon(screen, x, y, kind, col):
+        """Pieni koodilla piirretty ikoni karttamerkille (tuoppi, alasin...)."""
+        badge = pygame.Rect(x - 12, y - 12, 24, 24)
+        pygame.draw.rect(screen, (32, 28, 24), badge, border_radius=6)
+        pygame.draw.rect(screen, col, badge, 2, border_radius=6)
+        c = col
+        if kind == "tavern":       # tuoppi + korva
+            pygame.draw.rect(screen, c, (x - 6, y - 6, 9, 12), border_radius=2)
+            pygame.draw.rect(screen, c, (x - 6, y - 6, 9, 3))
+            pygame.draw.arc(screen, c, (x + 2, y - 4, 8, 8), -1.6, 1.6, 2)
+        elif kind == "anvil":      # alasin
+            pygame.draw.rect(screen, c, (x - 7, y - 4, 14, 4))
+            pygame.draw.rect(screen, c, (x - 3, y, 6, 4))
+            pygame.draw.rect(screen, c, (x - 5, y + 4, 10, 2))
+        elif kind == "market":     # kojukatos
+            pygame.draw.polygon(screen, c, [(x - 8, y - 2), (x, y - 8), (x + 8, y - 2)])
+            pygame.draw.rect(screen, c, (x - 6, y - 1, 12, 7), 1)
+        elif kind == "hall":       # torni + lippu
+            pygame.draw.rect(screen, c, (x - 4, y - 6, 8, 13), 1)
+            pygame.draw.line(screen, c, (x, y - 6), (x, y - 10), 1)
+            pygame.draw.polygon(screen, c, [(x, y - 10), (x + 6, y - 8), (x, y - 6)])
+        elif kind == "smeltery":   # uuni + liekki
+            pygame.draw.rect(screen, c, (x - 6, y - 2, 12, 8), 1)
+            pygame.draw.circle(screen, (240, 140, 60), (x, y + 2), 3)
+        elif kind == "well":       # kaivon rengas
+            pygame.draw.circle(screen, c, (x, y), 6, 2)
+            pygame.draw.line(screen, c, (x - 6, y - 6), (x + 6, y - 6), 2)
+        elif kind == "coop":       # muna
+            pygame.draw.ellipse(screen, c, (x - 4, y - 6, 8, 12))
+        elif kind == "storage":    # laatikko
+            pygame.draw.rect(screen, c, (x - 6, y - 5, 12, 10), 1)
+            pygame.draw.line(screen, c, (x - 6, y), (x + 6, y), 1)
+        elif kind == "compost":    # kasa
+            pygame.draw.polygon(screen, c, [(x - 7, y + 5), (x, y - 5), (x + 7, y + 5)])
+        elif kind == "league":     # ristikkäiset miekat
+            pygame.draw.line(screen, c, (x - 6, y + 6), (x + 6, y - 6), 2)
+            pygame.draw.line(screen, c, (x - 6, y - 6), (x + 6, y + 6), 2)
+        elif kind == "quarters":   # kilpi
+            pygame.draw.polygon(screen, c, [(x - 6, y - 5), (x + 6, y - 5),
+                                            (x + 5, y + 2), (x, y + 7), (x - 5, y + 2)], 1)
+        elif kind == "board":      # ilmoitus
+            pygame.draw.rect(screen, c, (x - 5, y - 6, 10, 12), 1)
+            pygame.draw.line(screen, c, (x - 3, y - 2), (x + 3, y - 2), 1)
+            pygame.draw.line(screen, c, (x - 3, y + 1), (x + 3, y + 1), 1)
+        elif kind == "mine":       # hakku
+            pygame.draw.line(screen, c, (x - 5, y + 6), (x + 4, y - 4), 2)
+            pygame.draw.arc(screen, c, (x - 3, y - 9, 14, 10), 2.0, 4.4, 2)
+        elif kind == "forest":     # puu
+            pygame.draw.polygon(screen, c, [(x - 6, y + 2), (x, y - 8), (x + 6, y + 2)])
+            pygame.draw.rect(screen, c, (x - 1, y + 2, 3, 5))
+        else:
+            pygame.draw.circle(screen, c, (x, y), 5)
+
     def _draw_city_map(self, screen):
-        """Muckfordin kartta: rakennukset, maatila, portit ja pelaaja."""
+        """Muckfordin kartta: maastovyöhykkeet, ikonit + nimet suoraan
+        kartalla (ei enää pelkkiä väripisteitä ja erillistä legendaa)."""
         from ui_kit import get_fullscreen_overlay
         screen.blit(get_fullscreen_overlay((0, 0, 0, 190)), (0, 0))
 
         # Karttapaneeli keskelle
-        map_w, map_h = 1100, 750
-        panel = pygame.Rect((SCREEN_WIDTH - map_w) // 2, (SCREEN_HEIGHT - map_h) // 2 - 30, map_w, map_h)
-        pygame.draw.rect(screen, (52, 46, 38), panel, border_radius=10)
-        pygame.draw.rect(screen, (140, 125, 95), panel, 3, border_radius=10)
-        draw_text("MUCKFORD", font_title, GOLD_COLOR, screen, panel.centerx - 90, panel.y + 12)
+        map_w, map_h = 1240, 800
+        panel = pygame.Rect((SCREEN_WIDTH - map_w) // 2, (SCREEN_HEIGHT - map_h) // 2 - 20, map_w, map_h)
+        pygame.draw.rect(screen, (58, 50, 40), panel, border_radius=12)
+        pygame.draw.rect(screen, (150, 130, 95), panel, 3, border_radius=12)
+        draw_text("MUCKFORD", font_title, GOLD_COLOR, screen, panel.centerx - 110, panel.y + 10)
 
         # Skaalaus maailmasta kartalle
-        inner = panel.inflate(-60, -110)
-        inner.y += 30
+        inner = panel.inflate(-50, -120)
+        inner.y += 40
         sx = inner.w / self.arena.width
         sy = inner.h / self.arena.height
 
         def to_map(wx, wy):
             return (int(inner.x + wx * sx), int(inner.y + wy * sy))
 
-        # Maatila-alue (jos määritelty)
+        def to_rect(r):
+            return pygame.Rect(*to_map(r.x, r.y),
+                               max(4, int(r.w * sx)), max(4, int(r.h * sy)))
+
+        # --- MAASTO ---
+        # Pohja: kuiva maa
+        pygame.draw.rect(screen, (96, 82, 62), inner, border_radius=8)
+        # Katu (vaakavyöhyke keskellä)
+        street_y = self.arena.height // 2
+        street = pygame.Rect(0, street_y - 200, self.arena.width, 400)
+        pygame.draw.rect(screen, (128, 114, 92), to_rect(street))
+        # Maatila (vihreä)
         farm = getattr(self.arena, "farm_area", None)
         if farm:
-            fr = pygame.Rect(*to_map(farm.x, farm.y),
-                             max(6, int(farm.w * sx)), max(6, int(farm.h * sy)))
-            pygame.draw.rect(screen, (70, 85, 55), fr, border_radius=4)
-            pygame.draw.rect(screen, (110, 130, 85), fr, 2, border_radius=4)
+            fr = to_rect(farm)
+            pygame.draw.rect(screen, (88, 116, 66), fr, border_radius=4)
+            pygame.draw.rect(screen, (120, 150, 92), fr, 2, border_radius=4)
+        # Metsä (oikea alakulma)
+        forest = pygame.Rect(self.arena.width // 2 + 100, street_y + 250,
+                             self.arena.width // 2 - 150,
+                             self.arena.height - street_y - 300)
+        pygame.draw.rect(screen, (62, 88, 56), to_rect(forest), border_radius=6)
+        # Vesialueet
+        for p in getattr(self.arena, "floor_props", []):
+            if getattr(p, "is_water", False) or type(p).__name__ == "WaterBody":
+                pygame.draw.ellipse(screen, (74, 112, 142), to_rect(p.rect))
+        # Puut pieninä täplinä
+        from assets.tiles.muckford_objects import MuckfordTree
+        for p in self.arena.props:
+            if isinstance(p, MuckfordTree):
+                tx, ty = to_map(p.rect.centerx, p.rect.centery)
+                pygame.draw.circle(screen, (52, 74, 48), (tx, ty), 3)
+        # Talot (rakennukset harmaanruskeina laattoina)
+        for p in self.arena.props:
+            if getattr(p, "is_structure", False) and p.rect.w > 100 and not getattr(p, "is_flat", False):
+                hr = to_rect(p.rect)
+                pygame.draw.rect(screen, (118, 100, 78), hr, border_radius=3)
+                pygame.draw.rect(screen, (76, 64, 50), hr, 1, border_radius=3)
 
-        # Kohteet: (objekti/rect, väri, nimi)
+        # --- KOHTEET: ikoni + nimi suoraan kartalle ---
         from assets.tiles.muckford_objects import TownHall, MuckfordStall, Smeltery, Well, ChickenCoop, ShantyYardGate, TeamBarracks, NoticeBoard
         from assets.tiles.farm_objects import FarmStorage, ManurePile
         markers = []
         if getattr(self, "tavern_house", None):
-            markers.append((self.tavern_house.rect, (230, 190, 90), "Tavern (Sunk Cask)"))
+            markers.append((self.tavern_house.rect, "tavern", (240, 200, 110), "Sunk Cask"))
         if getattr(self, "blacksmith_house", None):
-            markers.append((self.blacksmith_house.rect, (230, 140, 60), "Blacksmith"))
+            markers.append((self.blacksmith_house.rect, "anvil", (235, 150, 80), "Blacksmith"))
         seen = set()
         for prop in self.arena.props:
-            for cls, col, label in ((TownHall, (110, 150, 230), "Town Hall"),
-                                    (MuckfordStall, (110, 210, 110), "Market"),
-                                    (Smeltery, (220, 90, 70), "Smeltery"),
-                                    (Well, (100, 200, 220), "Well"),
-                                    (ChickenCoop, (200, 170, 120), "Chicken Coop"),
-                                    (FarmStorage, (170, 140, 90), "Storage"),
-                                    (ManurePile, (130, 110, 70), "Compost"),
-                                    (ShantyYardGate, (170, 45, 45), "Shanty Yard (League)"),
-                                    (TeamBarracks, (70, 170, 90), "Team Quarters"),
-                                    (NoticeBoard, (220, 200, 150), "Notice Board")):
+            for cls, kind, col, label in (
+                    (TownHall, "hall", (130, 165, 235), "Town Hall"),
+                    (MuckfordStall, "market", (130, 215, 120), "Market"),
+                    (Smeltery, "smeltery", (230, 110, 80), "Smeltery"),
+                    (Well, "well", (120, 205, 225), "Well"),
+                    (ChickenCoop, "coop", (225, 200, 140), "Coop"),
+                    (FarmStorage, "storage", (190, 160, 105), "Storage"),
+                    (ManurePile, "compost", (150, 125, 85), "Compost"),
+                    (ShantyYardGate, "league", (225, 90, 80), "Shanty Yard"),
+                    (TeamBarracks, "quarters", (110, 200, 120), "Team Quarters"),
+                    (NoticeBoard, "board", (235, 215, 165), "Notices")):
                 if isinstance(prop, cls) and label not in seen:
                     seen.add(label)
-                    markers.append((prop.rect, col, label))
+                    markers.append((prop.rect, kind, col, label))
 
-        # Kaivostien portti
-        gate = self._mine_gate_rect()
-        gate_col = (200, 200, 210) if getattr(self.manager, "mine_key_owned", False) else (120, 120, 130)
-        gate_label = "Mine Road" if getattr(self.manager, "mine_key_owned", False) else "Mine Road (locked)"
-        markers.append((gate, gate_col, gate_label))
+        mine_owned = getattr(self.manager, "mine_key_owned", False)
+        markers.append((self._mine_gate_rect(), "mine",
+                        (215, 215, 225) if mine_owned else (140, 140, 150),
+                        "Mine Road" if mine_owned else "Mine (locked)"))
+        markers.append((self._forest_gate_rect(), "forest",
+                        (140, 200, 130), "Forest Trail"))
 
-        # Piirrä merkit + legenda
-        legend_x = panel.x + 20
-        legend_y = panel.bottom - 46
-        col_w = 215
-        for i, (rect, col, label) in enumerate(markers):
+        for rect, kind, col, label in markers:
             mx, my = to_map(rect.centerx, rect.centery)
-            pygame.draw.circle(screen, col, (mx, my), 8)
-            pygame.draw.circle(screen, (20, 20, 20), (mx, my), 8, 2)
-            lx = legend_x + (i % 5) * col_w
-            ly = legend_y - (1 - i // 5) * 24
-            pygame.draw.circle(screen, col, (lx, ly + 8), 6)
-            draw_text(label, font_small, WHITE, screen, lx + 12, ly)
+            self._draw_map_icon(screen, mx, my, kind, col)
+            # Nimi ikonin viereen; oikeassa laidassa teksti vasemmalle
+            lbl = font_small.render(label, True, (240, 235, 220))
+            bg = pygame.Surface((lbl.get_width() + 8, lbl.get_height() + 2),
+                                pygame.SRCALPHA)
+            bg.fill((20, 16, 12, 165))
+            if mx > inner.right - 150:
+                lx = mx - 16 - lbl.get_width() - 8
+            else:
+                lx = mx + 16
+            screen.blit(bg, (lx - 4, my - 9))
+            screen.blit(lbl, (lx, my - 8))
 
-        # Pelaaja (sykkivä valkoinen piste)
+        # Pelaaja (sykkivä merkki)
         px, py = to_map(self.player.rect.centerx, self.player.rect.centery)
         pulse = 3 + int(2 * abs(math.sin(pygame.time.get_ticks() * 0.005)))
-        pygame.draw.circle(screen, WHITE, (px, py), 6 + pulse, 2)
+        pygame.draw.circle(screen, (255, 250, 220), (px, py), 6 + pulse, 2)
         pygame.draw.circle(screen, (255, 255, 255), (px, py), 5)
+        pygame.draw.circle(screen, (60, 40, 20), (px, py), 5, 1)
         draw_text("YOU", font_small, WHITE, screen, px + 10, py - 8)
 
-        draw_text("[M] / [ESC] close", font_small, (170, 170, 170), screen,
-                  panel.right - 160, panel.y + 18)
+        draw_text("[M] / [ESC] close", font_small, (190, 185, 170), screen,
+                  panel.right - 170, panel.y + 18)
 
     def _mine_gate_rect(self):
         """Kaivostien portti kaupungin itäreunalla."""
@@ -1059,21 +1150,34 @@ class MuckfordCityMenu(BaseMenu):
         dx, dy = 0, 0
         speed = 4.0 # Pelaajan nopeus kaupungissa
         
-        # Block
-        # Shift = sprintti (sama kuin taistelussa; kuluttaa staminaa).
-        # Block ei ole hyödyllinen rauhallisessa kaupungissa.
+        # Shift = sprintti (kuluttaa staminaa VAIN liikkuessa).
         from systems import keybinds as _kb
         wants_sprint = _kb.pressed(keys, "sprint")
-        self.player.set_sprinting(wants_sprint)
-        if self.player.is_sprinting and self.player.current_stamina > 0.5:
-            speed *= 1.5
-        
+
         # Estä manuaalinen liike jos dash on käynnissä (Commander hoitaa sen itse)
         if not self.player.is_dashing:
             if _kb.pressed(keys, "move_up"): dy = -speed
             if _kb.pressed(keys, "move_down"): dy = speed
             if _kb.pressed(keys, "move_left"): dx = -speed
             if _kb.pressed(keys, "move_right"): dx = speed
+
+            # Pelkkä SHIFT ilman WASD: juokse hiiren osoittamaan suuntaan
+            if wants_sprint and dx == 0 and dy == 0:
+                mx, my = pygame.mouse.get_pos()
+                wx = mx + self.camera_x - self.player.rect.centerx
+                wy = my + self.camera_y - self.player.rect.centery
+                dist = math.hypot(wx, wy)
+                if dist > 40:  # pieni kuollut alue ettei tärise paikallaan
+                    dx = (wx / dist) * speed
+                    dy = (wy / dist) * speed
+
+        # BUGIKORJAUS: sprintti kulutti staminaa vaikka hahmo seisoi
+        # paikallaan - sprintataan vain kun oikeasti liikutaan
+        moving = (dx != 0 or dy != 0)
+        self.player.set_sprinting(wants_sprint and moving)
+        if self.player.is_sprinting and self.player.current_stamina > 0.5:
+            dx *= 1.5
+            dy *= 1.5
         
         if dx != 0 or dy != 0:
             # Liikkuminen keskeyttää kalastuksen
@@ -1553,15 +1657,47 @@ class MuckfordCityMenu(BaseMenu):
                     s.fill((0, 0, 0, 150))
                     screen.blit(s, (x, y + slot_size - h))
 
+    def _head_anchor(self, unit):
+        """Promptin ankkuri hahmon pään YLLE (rect on jalkojen hitbox,
+        kuva on korkeampi - vanha rect.top-20 osui vatsan kohdalle)."""
+        img_h = unit.image.get_height() if getattr(unit, "image", None) else \
+            unit.rect.height
+        return unit.rect.centerx, unit.rect.bottom - img_h - 22
+
+    def _queue_prompt(self, x, y, key, label=None):
+        """Kerää interaktiopromptit; framen lopussa piirretään vain
+        pelaajaa LÄHIN (ennen: monta päällekkäistä kuvaketta)."""
+        self._prompt_queue.append((x, y, key, label))
+
+    def _flush_prompts(self, screen, offset):
+        if not self._prompt_queue:
+            return
+        px, py = self.player.rect.center
+        x, y, key, label = min(
+            self._prompt_queue,
+            key=lambda p: (p[0] - px) ** 2 + (p[1] - py) ** 2)
+        self.manager._draw_floating_prompt(screen, x, y, key, offset, label)
+        self._prompt_queue = []
+
     def draw(self, screen):
         screen.fill((20, 20, 25))
         offset = (self.camera_x, self.camera_y)
+        self._prompt_queue = []
         
         # 1. Tausta
         self.arena.draw_background(screen, offset)
         
+        # 2a. Litteät propit (pellot, palstat) lattiapassissa - eivät
+        # koskaan peitä hahmoja (BUGIKORJAUS: CropPlot piirtyi heron päälle)
+        flats = [p for p in self.arena.props if getattr(p, "is_flat", False)]
+        for obj in flats:
+            if hasattr(obj, "draw_on_screen"):
+                obj.draw_on_screen(screen, offset)
+
         # 2. Objektit ja Hahmot (Y-Sort)
-        renderables = list(self.arena.props) + self.npcs + self.animals + self.raid_rats + [self.player]
+        renderables = [p for p in self.arena.props
+                       if not getattr(p, "is_flat", False)] \
+            + self.npcs + self.animals + self.raid_rats + [self.player]
         renderables.sort(key=lambda x: x.rect.bottom)
         
         for obj in renderables:
@@ -1628,7 +1764,7 @@ class MuckfordCityMenu(BaseMenu):
             # Tarkista etäisyys
             dist = math.hypot(self.player.rect.centerx - door_x, self.player.rect.bottom - door_y)
             if dist < 100:
-                self.manager._draw_floating_prompt(screen, door_x, door_y - 40, "E", offset, "Enter Tavern")
+                self._queue_prompt(door_x, door_y - 40, "E", "Enter Tavern")
                 
         # Blacksmith
         if self.blacksmith_house:
@@ -1639,7 +1775,7 @@ class MuckfordCityMenu(BaseMenu):
             
             dist = math.hypot(self.player.rect.centerx - door_x, self.player.rect.bottom - door_y)
             if dist < 100:
-                self.manager._draw_floating_prompt(screen, door_x, door_y - 40, "E", offset, "Enter Smithy")
+                self._queue_prompt(door_x, door_y - 40, "E", "Enter Smithy")
 
         # Kalastus: koho vedessä + prompt laiturilla
         spot = self.active_fishing_spot if self.fishing_session \
@@ -1667,7 +1803,7 @@ class MuckfordCityMenu(BaseMenu):
                                   bx - 6, by - 58)
                     self.manager._draw_floating_prompt(
                         screen, self.player.rect.centerx,
-                        self.player.rect.top - 26, "E", offset, "HOOK IT!")
+                        self.player.rect.top - 26, "E", "HOOK IT!")
 
                 # Väsytysvaihe: kireys- ja kelausmittarit pelaajan yllä
                 if self.fishing_session.state == "REELING":
@@ -1698,8 +1834,7 @@ class MuckfordCityMenu(BaseMenu):
                 lvl = fishing_system.get_progress(self.manager)["level"]
                 label = (f"Fish (Lv {lvl}, T{rod_tier} rod)" if rod
                          else "Fish (need rod)")
-                self.manager._draw_floating_prompt(
-                    screen, spot[0], spot[1] - 36, "E", offset, label)
+                self._queue_prompt(spot[0], spot[1] - 36, "E", label)
 
         # NPC Prompts (Chat)
         for npc in self.npcs:
@@ -1709,7 +1844,7 @@ class MuckfordCityMenu(BaseMenu):
             if self.player.rect.colliderect(npc.rect.inflate(60, 60)):
                 ux = npc.rect.centerx - offset[0]
                 uy = npc.rect.top - offset[1]
-                self.manager._draw_floating_prompt(screen, npc.rect.centerx, npc.rect.top - 20, "E", offset, "Chat")
+                self._queue_prompt(*self._head_anchor(npc), "E", "Chat")
 
         # Farm Prompts
         for cow in self.animals:
@@ -1718,7 +1853,7 @@ class MuckfordCityMenu(BaseMenu):
                     txt = "Milk" if cow.milk_ready else "Pet"
                 else:
                     txt = "Pet"
-                self.manager._draw_floating_prompt(screen, cow.rect.centerx, cow.rect.top - 20, "E", offset, txt)
+                self._queue_prompt(*self._head_anchor(cow), "E", txt)
         
         # Muut propit
         for prop in self.arena.props:
@@ -1726,58 +1861,60 @@ class MuckfordCityMenu(BaseMenu):
                 if isinstance(prop, ManurePile):
                     count = self.manager.inventory.get("Manure", 0)
                     if count > 0:
-                        self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, f"Dump {count}")
+                        self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", f"Dump {count}")
                 elif isinstance(prop, FarmStorage):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Storage")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", "Storage")
                 elif isinstance(prop, TownHall):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Town Hall")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", "Town Hall")
                 elif prop is getattr(self, "arena_gate", None):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 30, "E", offset, "Enter Shanty Yard (League)")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.bottom + 30, "E", "Enter Shanty Yard (League)")
                 elif prop is getattr(self, "barracks", None):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 30, "E", offset, "Team Quarters")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.bottom + 30, "E", "Team Quarters")
                 elif prop is getattr(self, "notice_board", None):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.bottom + 20, "E", offset, "Notice Board")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.bottom + 20, "E", "Notice Board")
                 elif isinstance(prop, MarketStall):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, prop.shop["name"])
+                    self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", prop.shop["name"])
                 elif isinstance(prop, MuckfordStall):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Trade")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", "Trade")
                 elif isinstance(prop, AppleTree):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Shake")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", "Shake")
                 elif isinstance(prop, Smeltery):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Smeltery")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", "Smeltery")
                 elif isinstance(prop, ChickenCoop):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Coop")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", "Coop")
                 elif isinstance(prop, Well):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Fetch Water")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", "Fetch Water")
                 elif isinstance(prop, (MuckfordTree, ScrapPile, ScrapPileBig)) and not getattr(prop, "is_empty", False):
                     label = "Chop" if isinstance(prop, MuckfordTree) else "Scavenge"
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, label)
+                    self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", label)
                 elif isinstance(prop, (Apple, Egg, Manure)):
-                    self.manager._draw_floating_prompt(screen, prop.rect.centerx, prop.rect.top - 20, "E", offset, "Pick Up")
+                    self._queue_prompt(prop.rect.centerx, prop.rect.top - 20, "E", "Pick Up")
 
         # Kaivostien portin prompt
         gate = self._mine_gate_rect()
         if self.player.rect.colliderect(gate.inflate(60, 60)):
             label = "Mine Road" if getattr(self.manager, "mine_key_owned", False) else "Mine Road (Locked)"
-            self.manager._draw_floating_prompt(screen, gate.centerx, gate.top - 20, "E", offset, label)
+            self._queue_prompt(gate.centerx, gate.top - 20, "E", label)
 
         # Metsäpolun aukon prompt
         fgate = self._forest_gate_rect()
         if self.player.rect.colliderect(fgate.inflate(60, 60)):
-            self.manager._draw_floating_prompt(screen, fgate.centerx, fgate.top - 20, "E", offset, "Forest Trail")
+            self._queue_prompt(fgate.centerx, fgate.top - 20, "E", "Forest Trail")
 
         # Rekryprospektit: kultatimantti pään päällä + prompt lähietäisyydellä
         for unit in getattr(self, "prospects", []):
-            px = unit.rect.centerx - offset[0]
-            py = unit.rect.top - offset[1] - 16
+            hx, hy = self._head_anchor(unit)
+            px = hx - offset[0]
+            py = hy - offset[1] + 8
             if -60 < px < SCREEN_WIDTH + 60 and -60 < py < SCREEN_HEIGHT + 60:
                 pts = [(px, py - 7), (px + 5, py), (px, py + 7), (px - 5, py)]
                 pygame.draw.polygon(screen, (255, 215, 0), pts)
                 pygame.draw.polygon(screen, (120, 90, 20), pts, 1)
             if self.player.rect.colliderect(unit.rect.inflate(60, 60)):
-                self.manager._draw_floating_prompt(
-                    screen, unit.rect.centerx, unit.rect.top - 34, "E",
-                    offset, f"Recruit: {unit.name}")
+                self._queue_prompt(hx, hy, "E", f"Recruit: {unit.name}")
+
+        # Piirrä pelaajaa lähin interaktioprompti (vain yksi kerrallaan)
+        self._flush_prompts(screen, offset)
 
         # Kello, kalenteri ja sää (yläkeskellä - quest-paneeli vie
         # oikean yläkulman, joten kello ei saa jäädä sen alle)
