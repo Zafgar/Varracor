@@ -726,6 +726,16 @@ class GameManager:
         self.current_map_vfx = None
         self.current_mission_logic = None
 
+        # BUGIKORJAUS: edellisen taistelun efektit (lentävät ammukset,
+        # AoE-kyvyt, tekstit) vuotivat seuraavalle areenalle ja "isku
+        # siirtyi toiseen mappiin". Tyhjennetään kaikki VFX-ryhmät.
+        try:
+            self.vfx.particles.empty()
+            self.vfx.floor_particles.empty()
+            self.vfx.texts.empty()
+        except Exception:
+            pass
+
         fighters = selected_units
         if battle_size_limit:
             fighters = selected_units[:battle_size_limit]
@@ -1289,7 +1299,8 @@ class GameManager:
         if bet and self.mode == "League":
             from citys.mucford.city_interiors import BET_PAYOUT
             if win:
-                payout = int(bet["amount"] * BET_PAYOUT)
+                payout = int(bet["amount"] * float(bet.get("mult",
+                                                           BET_PAYOUT)))
                 self.gold += payout
                 self.hire_block_message = (f"Vint pays out your wager: "
                                            f"+{payout} SP!")

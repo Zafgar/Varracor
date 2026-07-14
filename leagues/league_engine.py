@@ -404,9 +404,25 @@ class LeagueEngine:
         self._initialized = False
 
     def _ensure_initialized(self):
-        if not self._initialized:
-            self._init_seasons()
+        # Käyttää samoja lämmitysaskelia kuin loading-ruutu, jotta
+        # osittain lämmitetty tila ei nollaudu
+        while not self._initialized:
+            self.warm_up_step()
+
+    def warm_up_step(self) -> bool:
+        """Alustaa YHDEN liigakauden per kutsu. Loading-ruutu kutsuu tätä
+        taustatyönä, jotta tiimigenerointi ei jäädytä peliä ensimmäisellä
+        liiga-avauksella (pelaajapalaute: 'tuntui kuin peli olisi crash').
+        Palauttaa True kun kaikki kaudet ovat valmiit."""
+        if self._initialized:
+            return True
+        for mode in ("1v1", "3v3", "5v5"):
+            if mode not in self.seasons:
+                self.seasons[mode] = LeagueSeason(tier=self.tier)
+                break
+        if all(m in self.seasons for m in ("1v1", "3v3", "5v5")):
             self._initialized = True
+        return self._initialized
 
     def _init_seasons(self) -> None:
         self.seasons.clear()

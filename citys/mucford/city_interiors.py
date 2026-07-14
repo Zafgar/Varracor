@@ -320,6 +320,11 @@ class _InteriorMenuBase(GameplayScreen):
         self._draw_header(screen)
         self._draw_prompt(screen, offset)
         self._draw_extra(screen)
+        # KRIITTINEN: in-game dialogi (vartijat, vedonlyönti) on piirrettävä
+        # myös täällä - muuten se aukeaa näkymättömänä ja syö kaiken syötteen
+        # ("place wager ei tee mitään", "NPC:lle ei voi puhua")
+        if self.manager.active_dialogue:
+            self.manager._draw_in_game_dialogue(screen)
         if self.player:
             # HUD häivytetään kun hahmo jää sen taakse
             p_screen_y = self.player.rect.centery - self.camera_y
@@ -373,7 +378,22 @@ class _InteriorMenuBase(GameplayScreen):
 # ======================================================================
 
 BET_OPTIONS = (20, 50, 100)
-BET_PAYOUT = 2.0
+BET_PAYOUT = 2.0  # fallback vanhoille veikkauksille ilman kerrointa
+
+# Matalilla tiereillä ei liiku isot rahat: maksimipanos tierin mukaan
+# (engine-tier 1 = loren Tier 0 / Shanty Yard)
+WAGER_MAX_BY_TIER = {1: 50, 2: 150, 3: 300, 4: 600, 5: 1200, 6: 2500}
+
+
+def wager_odds(manager) -> float:
+    """Kerroin pelaajan dominanssin mukaan: dominoiva suosikki saa
+    laihan maksun, altavastaaja hyvän. Kausisaldo ratkaisee."""
+    wins = int(getattr(manager, "season_wins", 0))
+    losses = int(getattr(manager, "season_losses", 0))
+    played = wins + losses
+    winrate = (wins / played) if played >= 3 else 0.5
+    mult = 2.4 - 1.8 * winrate   # 50 % -> x1.5, dominointi -> pohja
+    return round(max(1.15, min(2.4, mult)), 2)
 
 
 class ArenaHallMenu(_InteriorMenuBase):
@@ -508,8 +528,9 @@ class ArenaHallMenu(_InteriorMenuBase):
             pygame.draw.rect(screen, (15, 17, 22), chip, border_radius=9)
             pygame.draw.rect(screen, (196, 164, 90), chip, 2, border_radius=9)
             draw_text(f"Active wager: {format_money(bet['amount'])} "
-                      f"(pays x{BET_PAYOUT:.0f})", font_small,
-                      (222, 200, 140), screen, chip.x + 14, chip.y + 12)
+                      f"(pays x{float(bet.get('mult', BET_PAYOUT)):.2f})",
+                      font_small, (222, 200, 140), screen,
+                      chip.x + 14, chip.y + 12)
         if self.show_trophies:
             self._draw_trophy_panel(screen)
 
@@ -578,27 +599,37 @@ class ArenaHallMenu(_InteriorMenuBase):
         bookie = next((u for u, k in self.hall_npcs if k == "bookie"), None)
         bet = getattr(self.manager, "active_bet", None)
         if bet:
+            mult = float(bet.get("mult", BET_PAYOUT))
             self.manager.start_dialogue(
                 bookie,
                 f"You already have {format_money(bet['amount'])} riding on "
-                f"your next league match. Win it, and I pay double.",
+                f"your next league match at x{mult:.2f}. Win it first.",
                 options=[{"text": "I'll hold my ticket.",
                           "action": "close_dialogue"}])
             return
+        tier = int(getattr(getattr(self.manager, "league_engine", None),
+                           "tier", 1)) or 1
+        max_bet = WAGER_MAX_BY_TIER.get(tier, 50)
+        mult = wager_odds(self.manager)
         options = []
         for amount in BET_OPTIONS:
+            if amount > max_bet:
+                continue
             options.append({
                 "text": f"Bet {format_money(amount)} on my next league win "
-                        f"(pays x{BET_PAYOUT:.0f})",
+                        f"(pays x{mult:.2f})",
                 "action": f"hall_bet_{amount}",
             })
         options.append({"text": "Not today.", "action": "close_dialogue"})
+        favorite_note = (" You're the favorite - don't expect fat odds."
+                         if mult < 1.4 else "")
         self.manager.dialogue_action_handler = self._on_bet_action
         self.manager.start_dialogue(
             bookie,
-            "Vint grins over his slate. Simple terms, Commander: coin down, "
-            "your team wins its next LEAGUE match, I pay double. They lose, "
-            "the Yard eats your stake.",
+            f"Vint grins over his slate. Coin down, your team wins its next "
+            f"LEAGUE match, I pay x{mult:.2f}. They lose, the Yard eats your "
+            f"stake. Table limit here: {format_money(max_bet)}."
+            f"{favorite_note}",
             options=options)
 
     def _on_bet_action(self, action):
@@ -613,7 +644,8 @@ class ArenaHallMenu(_InteriorMenuBase):
                 sound_system.play_sound("error")
             else:
                 manager.gold -= amount
-                manager.active_bet = {"amount": amount}
+                manager.active_bet = {"amount": amount,
+                                      "mult": wager_odds(manager)}
                 manager.vfx.show_damage(
                     self.player.rect.centerx, self.player.rect.top - 30,
                     f"Wager placed: {format_money(amount)}",

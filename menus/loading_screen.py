@@ -99,7 +99,17 @@ class LoadingScreen(BaseMenu):
         if self.dot_timer > 15:
             self.dot_timer = 0
             self.dots = (self.dots + 1) % 4
-            
+
+        # Taustatyö: lämmitä liigamoottori (1 kausi / ~0.5 s) tässä, jotta
+        # tiimien generointi ei jäädytä peliä liigan ensiavauksessa
+        if self.timer % 30 == 0:
+            try:
+                engine = getattr(self.manager, "league_engine", None)
+                if engine is not None and not engine._initialized:
+                    engine.warm_up_step()
+            except Exception:
+                pass
+
         if self.timer <= 0:
             self.next_state = self.target_state
 

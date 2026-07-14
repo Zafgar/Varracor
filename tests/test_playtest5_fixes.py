@@ -198,7 +198,7 @@ def test_arena_hall_npcs_and_league_desk():
 
 def test_arena_hall_betting_flow(tmp_saves):
     m = _manager()
-    from citys.mucford.city_interiors import ArenaHallMenu, BET_PAYOUT
+    from citys.mucford.city_interiors import ArenaHallMenu, wager_odds
     hall = ArenaHallMenu(m)
     hall.on_enter()
     m.gold = 100
@@ -206,12 +206,13 @@ def test_arena_hall_betting_flow(tmp_saves):
     assert m.active_dialogue is not None
     hall._on_bet_action("hall_bet_20")
     assert m.gold == 80
-    assert m.active_bet == {"amount": 20}
-    # Voitto liigamatsissa maksaa panoksen kaksinkertaisena
+    mult = wager_odds(m)  # tuore kausi -> neutraali x1.5
+    assert m.active_bet == {"amount": 20, "mult": mult}
+    # Voitto liigamatsissa maksaa panoksen kertoimella
     m.mode = "League"
     m.current_enemy_team = None
     m.end_match(True)
-    assert m.gold == 80 + int(20 * BET_PAYOUT)
+    assert m.gold == 80 + int(20 * mult)
     assert m.active_bet is None
 
 
