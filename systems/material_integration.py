@@ -336,8 +336,8 @@ def _patch_save_load():
         return
     original_load = save_manager.load_game
 
-    def load_game(manager):
-        result = original_load(manager)
+    def load_game(manager, *args, **kwargs):
+        result = original_load(manager, *args, **kwargs)
         if result:
             migrate_manager_materials(manager)
             try:

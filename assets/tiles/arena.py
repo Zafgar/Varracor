@@ -130,14 +130,19 @@ class Arena:
         # Town Hall (Keskellä ylhäällä)
         self._add_prop(TownHall(w // 2 - 350, 50))
         
-        # Shanty Yard -areenan portti (kadun pohjoisreuna, Town Hallin oikealla)
+        # Shanty Yard -areenan portti: kadun ETELÄreunalla hökkelimetsän
+        # rajalla - portti johtaa slummien kehälle (ei enää talojen keskellä)
         from assets.tiles.muckford_objects import ShantyYardGate
-        self._add_prop(ShantyYardGate(w // 2 + 700, street_top - 300))
+        gate = ShantyYardGate(w // 2 + 260, street_bottom - 160)
+        self._clear_overlapping(gate)
+        self._add_prop(gate)
 
-        # Pelaajan tiimitila (Team Barracks) - Bramin antamat köyhät tilat,
-        # areenaportin vieressä (tiimin hallinta: varusteet + jäsenet)
+        # Pelaajan tiimitila (Team Barracks): kadun varrella lännessä
+        # tavernan alapuolella - erillään areenaportista
         from assets.tiles.muckford_objects import TeamBarracks
-        self._add_prop(TeamBarracks(w // 2 + 1100, street_top - 320))
+        barracks = TeamBarracks(260, street_top - 340)
+        self._clear_overlapping(barracks)
+        self._add_prop(barracks)
 
         # Blacksmith & Smeltery (Oikea ylä)
         self._add_prop(ScrapIronBuilding(w - 700, 100))
@@ -222,6 +227,27 @@ class Arena:
                 else:
                     # Jos aukko, laitetaan romua
                     self._add_prop(ScrapBarrel(x + 100, y + 100))
+
+    def _clear_overlapping(self, prop, pad=60):
+        """Raivaa aiemmin generoidut propit (puut, romut, talot) uuden
+        rakennuksen alta, ettei se huku niiden sekaan."""
+        area = pygame.Rect(prop.image_pos[0], prop.image_pos[1],
+                           prop.image.get_width() if prop.image else prop.rect.w,
+                           prop.image.get_height() if prop.image else prop.rect.h)
+        area = area.inflate(pad, pad)
+        for other in list(self.props):
+            # Lattiat (pelto, laidun, metsäpohja) ja litteät jätetään:
+            # niiden rect on 0-kokoinen mutta kuva valtava
+            if getattr(other, "is_flat", False) or other.rect.w == 0:
+                continue
+            orect = pygame.Rect(
+                other.image_pos[0], other.image_pos[1],
+                other.image.get_width() if other.image else max(other.rect.w, 1),
+                other.image.get_height() if other.image else max(other.rect.h, 1))
+            if area.colliderect(orect):
+                self.props.remove(other)
+                if other in self.obstacles:
+                    self.obstacles.remove(other)
 
     def _add_prop(self, prop):
         self.props.append(prop)

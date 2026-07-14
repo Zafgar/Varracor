@@ -81,8 +81,8 @@ def _patch_save_discovery():
 
     previous_load = save_manager.load_game
 
-    def load_game(manager):
-        result = previous_load(manager)
+    def load_game(manager, *args, **kwargs):
+        result = previous_load(manager, *args, **kwargs)
         if result:
             sync_material_discovery(manager)
         return result

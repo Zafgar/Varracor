@@ -125,8 +125,8 @@ def _patch_save_load():
 
     previous_load = save_manager.load_game
 
-    def load_game(manager):
-        result = previous_load(manager)
+    def load_game(manager, *args, **kwargs):
+        result = previous_load(manager, *args, **kwargs)
         if result:
             ensure_world_state(manager)
             refresh_world_progression(manager)

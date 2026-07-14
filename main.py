@@ -359,18 +359,25 @@ def main():
                 or new_key.startswith("dialogue:")
             )
 
+            # Latausruutu VAIN kun raskas kohdetila pitää oikeasti
+            # rakentaa (ensiluonti tai pakotettu uudelleenluonti).
+            # Kevyet valikkokäynnit kaupungista (kaupat, C-menu, barracks,
+            # options...) eivät enää väläytä loading-ruutua suuntaansa.
+            def _needs_build(key):
+                if menus.get(key) is None:
+                    return True
+                if key in RECREATE_ALWAYS:
+                    return True
+                if key in RECREATE_UNLESS_FROM \
+                        and old_key not in RECREATE_UNLESS_FROM[key]:
+                    return True
+                return False
+
             if (
                 new_key in heavy_states
                 and old_key != "loading"
                 and old_key != "dialogue"
-            ):
-                manager.loading_target_state = new_key
-                new_key = "loading"
-            elif (
-                old_key in heavy_states
-                and new_key not in ["loading", "battle", "game"]
-                and not is_dialogue_transition
-                and new_key not in heavy_states
+                and _needs_build(new_key)
             ):
                 manager.loading_target_state = new_key
                 new_key = "loading"

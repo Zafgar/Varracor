@@ -236,8 +236,60 @@ def has_save():
     return os.path.exists(SAVE_FILE)
 
 
-def save_game(manager):
-    """Tallentaa pelitilan. Palauttaa True onnistuessa."""
+SLOT_COUNT = 5
+
+
+def slot_path(slot: int) -> str:
+    return os.path.join(SAVE_DIR, f"save_slot_{int(slot)}.json")
+
+
+def list_slots():
+    """Palauttaa slottien metatiedot Save/Load-paneelia varten:
+    [{slot, exists, name, game_date, saved_at}]. Slot 0 = pikatallennus
+    (F5 / vanha savegame.json)."""
+    rows = []
+    paths = [(0, SAVE_FILE)] + [(n, slot_path(n)) for n in range(1, SLOT_COUNT + 1)]
+    for slot, path in paths:
+        row = {"slot": slot, "exists": False, "name": "", "game_date": "",
+               "saved_at": ""}
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                meta = data.get("meta", {})
+                row["exists"] = True
+                row["name"] = meta.get("name") or ("Quicksave" if slot == 0
+                                                   else f"Save {slot}")
+                row["game_date"] = meta.get("game_date", "")
+                row["saved_at"] = data.get("timestamp", "")
+        except Exception:
+            pass
+        rows.append(row)
+    return rows
+
+
+def _game_date_string(manager) -> str:
+    clock = getattr(manager, "world_clock", None)
+    if clock is None:
+        return ""
+    try:
+        return f"{clock.get_date_string()}  {clock.get_time_string()}"
+    except Exception:
+        return ""
+
+
+def save_to_slot(manager, slot: int, name: str = ""):
+    return save_game(manager, filepath=slot_path(slot), save_name=name)
+
+
+def load_from_slot(manager, slot: int):
+    return load_game(manager, filepath=slot_path(slot))
+
+
+def save_game(manager, filepath=None, save_name=""):
+    """Tallentaa pelitilan. Palauttaa True onnistuessa.
+    filepath=None -> pikatallennus (SAVE_FILE). save_name näkyy
+    Save/Load-paneelissa pelin sisäisen päivämäärän rinnalla."""
     try:
         from quest_system import quest_manager
     except ImportError:
@@ -247,6 +299,10 @@ def save_game(manager):
         data = {
             "version": SAVE_VERSION,
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "meta": {
+                "name": str(save_name or ""),
+                "game_date": _game_date_string(manager),
+            },
             # --- Talous & kausi ---
             "gold": manager.gold,
             "reputation": manager.reputation,
@@ -281,23 +337,24 @@ def save_game(manager):
             "mine_key_owned": bool(getattr(manager, "mine_key_owned", False)),
         }
 
+        target = filepath or SAVE_FILE
         os.makedirs(SAVE_DIR, exist_ok=True)
         # Kirjoitetaan ensin väliaikaistiedostoon, ettei epäonnistunut
         # tallennus tuhoa vanhaa savea
-        tmp = SAVE_FILE + ".tmp"
+        tmp = target + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-        os.replace(tmp, SAVE_FILE)
-        print(f"[Save] Game saved to {SAVE_FILE}")
+        os.replace(tmp, target)
+        print(f"[Save] Game saved to {target}")
         return True
     except Exception as e:
         print(f"[Save] ERROR: saving failed: {e}")
         return False
 
 
-def load_game(manager):
+def load_game(manager, filepath=None):
     """Lataa pelitilan manageriin. Palauttaa True onnistuessa."""
-    if not has_save():
+    if not os.path.exists(filepath or SAVE_FILE):
         print("[Save] No save file found.")
         return False
 
@@ -307,7 +364,7 @@ def load_game(manager):
         quest_manager = None
 
     try:
-        with open(SAVE_FILE, "r", encoding="utf-8") as f:
+        with open(filepath or SAVE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as e:
         print(f"[Save] ERROR: could not read save file: {e}")

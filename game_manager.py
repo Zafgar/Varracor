@@ -253,10 +253,19 @@ class GameManager:
             "RETURN TO HUB", target_width=250
         )
 
+        # BUGIKORJAUS: save-nappi lainasi OPTIONS-kuvia -> pausessa näkyi
+        # kaksi "OPTIONS"-nappia. Omat kuvapolut (fallback piirtää tekstin
+        # kunnes btn_save/btn_load -kuvat lisätään assetteihin).
         self.btn_save = SpriteButton(
             cx, 0,
-            "assets/ui/btn_options_idle.png", "assets/ui/btn_options_hover.png", "assets/ui/btn_options_pressed.png",
+            "assets/ui/btn_save_idle.png", "assets/ui/btn_save_hover.png", "assets/ui/btn_save_pressed.png",
             "SAVE GAME", target_width=250
+        )
+
+        self.btn_load = SpriteButton(
+            cx, 0,
+            "assets/ui/btn_load_idle.png", "assets/ui/btn_load_hover.png", "assets/ui/btn_load_pressed.png",
+            "LOAD GAME", target_width=250
         )
 
         self.btn_exit = SpriteButton(
@@ -265,9 +274,16 @@ class GameManager:
             "EXIT GAME", target_width=250
         )
 
-        self.pause_buttons = [self.btn_resume, self.btn_save, self.btn_options, self.btn_hub, self.btn_exit]
+        self.pause_buttons = [self.btn_resume, self.btn_save, self.btn_load,
+                              self.btn_options, self.btn_hub, self.btn_exit]
         self.save_feedback_msg = ""
         self.save_feedback_timer = 0
+
+        # Save/Load-slottipaneeli pausen sisällä
+        self.pause_panel_mode = None      # None | "save" | "load"
+        self.pause_slot_rects = []        # (rect, slot_no)
+        self.pause_name_slot = None       # slotti jota nimetään
+        self.pause_name_buffer = ""
 
     # --- SAVE / LOAD ---
     def save_current_game(self):
@@ -2261,6 +2277,12 @@ class GameManager:
                 self.player_character.handle_inventory_event(event, self)
             return True # Estä muut toiminnot kun inventory on auki
 
+        # --- SAVE/LOAD-SLOTTIPANEELIN SYÖTE (pausen sisällä) ---
+        if self.paused and self.pause_panel_mode:
+            handled = self._handle_pause_panel_event(event)
+            if handled is not None:
+                return handled
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 # Toggle pause (vain jos ei olla päävalikossa/latauksessa)
@@ -2276,7 +2298,7 @@ class GameManager:
             if event.key == pygame.K_F9:
                 if self.load_saved_game():
                     self.paused = False
-                    return "hub"  # Palataan Hubiin ladatulla tilalla
+                    return "muckford_city"  # suoraan pelimaailmaan
                 return True
 
         if self.paused:
@@ -2294,14 +2316,153 @@ class GameManager:
             
         return None
 
+    def _handle_pause_panel_event(self, event):
+        """Save/Load-slottipaneelin syöte. Palauttaa True/str jos käsitelty,
+        None jos event valuu normaalille käsittelylle."""
+        import save_manager
+
+        # Nimen syöttö (save)
+        if self.pause_name_slot is not None:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.pause_name_slot = None
+                    return True
+                if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    name = self.pause_name_buffer.strip() or None
+                    ok = save_manager.save_to_slot(self, self.pause_name_slot,
+                                                   name or "")
+                    self.save_feedback_msg = "Game Saved!" if ok else "Save Failed!"
+                    self.save_feedback_timer = 120
+                    sound_system.play_sound('click' if ok else 'error')
+                    self.pause_name_slot = None
+                    self.pause_panel_mode = None
+                    return True
+                if event.key == pygame.K_BACKSPACE:
+                    self.pause_name_buffer = self.pause_name_buffer[:-1]
+                    return True
+                ch = getattr(event, "unicode", "")
+                if ch and ch.isprintable() and len(self.pause_name_buffer) < 24:
+                    self.pause_name_buffer += ch
+                return True
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                return True
+            return None
+
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.pause_panel_mode = None
+            sound_system.play_sound('click')
+            return True
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for rect, slot in self.pause_slot_rects:
+                if rect.collidepoint(event.pos):
+                    if self.pause_panel_mode == "save":
+                        if slot == 0:
+                            sound_system.play_sound('error')
+                            return True
+                        # Aloita nimeäminen (oletusnimi = pelipäivä)
+                        self.pause_name_slot = slot
+                        clock = getattr(self, "world_clock", None)
+                        default = ""
+                        if clock is not None:
+                            try:
+                                default = (f"Day {clock.day_of_season} "
+                                           f"{clock.get_time_string()}")
+                            except Exception:
+                                pass
+                        self.pause_name_buffer = default
+                        sound_system.play_sound('click')
+                        return True
+                    else:  # load
+                        rows = {r["slot"]: r for r in save_manager.list_slots()}
+                        if not rows.get(slot, {}).get("exists"):
+                            sound_system.play_sound('error')
+                            return True
+                        ok = (save_manager.load_game(self) if slot == 0 else
+                              save_manager.load_from_slot(self, slot))
+                        self.save_feedback_msg = ("Game Loaded!" if ok
+                                                  else "Load Failed!")
+                        self.save_feedback_timer = 120
+                        sound_system.play_sound('click' if ok else 'error')
+                        if ok:
+                            self.paused = False
+                            self.pause_panel_mode = None
+                            return "muckford_city"
+                        return True
+            # Klikkaus paneelin ulkopuolelle sulkee
+            self.pause_panel_mode = None
+            return True
+        return None
+
+    def _draw_pause_panel(self, screen):
+        """Save/Load-slottien piirto: nimi + pelipäivä + tallennusaika."""
+        import save_manager
+        cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+        panel = pygame.Rect(cx - 360, cy - 300, 720, 600)
+        surf = pygame.Surface(panel.size, pygame.SRCALPHA)
+        surf.fill((16, 14, 12, 240))
+        screen.blit(surf, panel.topleft)
+        pygame.draw.rect(screen, (196, 158, 82), panel, 3, border_radius=14)
+        title = "SAVE GAME - choose a slot" if self.pause_panel_mode == "save"             else "LOAD GAME - choose a slot"
+        draw_text(title, font_main, GOLD_COLOR, screen, panel.x + 28,
+                  panel.y + 20)
+        draw_text("[ESC] back", font_small, GRAY, screen,
+                  panel.right - 110, panel.y + 24)
+
+        rows = save_manager.list_slots()
+        if self.pause_panel_mode == "save":
+            rows = [r for r in rows if r["slot"] != 0]
+        self.pause_slot_rects = []
+        y = panel.y + 70
+        mouse = pygame.mouse.get_pos()
+        for row in rows:
+            rect = pygame.Rect(panel.x + 24, y, panel.w - 48, 78)
+            hover = rect.collidepoint(mouse)
+            pygame.draw.rect(screen, (46, 40, 34) if hover else (30, 27, 24),
+                             rect, border_radius=10)
+            pygame.draw.rect(screen, (150, 122, 76), rect, 2, border_radius=10)
+            slot_label = "QUICKSAVE (F5)" if row["slot"] == 0                 else f"SLOT {row['slot']}"
+            draw_text(slot_label, font_small, (200, 180, 140), screen,
+                      rect.x + 16, rect.y + 8)
+            if self.pause_name_slot == row["slot"]:
+                # Nimen syöttö käynnissä
+                cursor = "_" if (pygame.time.get_ticks() // 400) % 2 == 0 else " "
+                draw_text(f"Name: {self.pause_name_buffer}{cursor}",
+                          font_main, WHITE, screen, rect.x + 16, rect.y + 34)
+                draw_text("[ENTER] save   [ESC] cancel", font_small, GRAY,
+                          screen, rect.right - 250, rect.y + 44)
+            elif row["exists"]:
+                draw_text(row["name"], font_main, WHITE, screen,
+                          rect.x + 16, rect.y + 32)
+                info = row["game_date"] or ""
+                draw_text(info, font_small, (170, 200, 170), screen,
+                          rect.x + 240, rect.y + 12)
+                draw_text(f"saved {row['saved_at']}", font_small,
+                          (150, 150, 160), screen, rect.x + 240, rect.y + 46)
+            else:
+                draw_text("- Empty -", font_main, (120, 120, 125), screen,
+                          rect.x + 16, rect.y + 32)
+            self.pause_slot_rects.append((rect, row["slot"]))
+            y += 88
+
     def _update_pause_menu(self, current_state_key):
         """Päivittää pause-valikon logiikan (napit). Kutsutaan draw_ui_overlaysta."""
         if self.btn_resume.update():
                 self.paused = False
                 return None
 
+        # Slottipaneelin ollessa auki päänapit eivät reagoi
+        if self.pause_panel_mode:
+            return None
+
         if self.btn_save.update():
-            self.save_current_game()
+            self.pause_panel_mode = "save"
+            sound_system.play_sound('click')
+            return None
+
+        if self.btn_load.update():
+            self.pause_panel_mode = "load"
+            sound_system.play_sound('click')
             return None
 
         if self.btn_options.update():
@@ -2373,7 +2534,8 @@ class GameManager:
                 show_hub = False
             
             # Asettelu: näkyvät napit järjestyksessä
-            visible_buttons = [self.btn_resume, self.btn_save, self.btn_options]
+            visible_buttons = [self.btn_resume, self.btn_save, self.btn_load,
+                               self.btn_options]
             if show_hub:
                 visible_buttons.append(self.btn_hub)
             visible_buttons.append(self.btn_exit)
@@ -2425,6 +2587,10 @@ class GameManager:
                     # Mutta tässä fallbackissa ne voivat olla missä vain.
                     # Asetetaan ne keskelle.
                     pass # (Oletetaan että esc.png löytyy, tai korjaa fallback myöhemmin)
+
+            # Save/Load-slottipaneeli nappien päälle
+            if self.pause_panel_mode:
+                self._draw_pause_panel(screen)
 
             # Tarkista pending state change (HACK)
             if hasattr(self, "pending_state_change") and self.pending_state_change:

@@ -253,8 +253,8 @@ def _patch_save_load() -> None:
         return
     previous_load = save_manager.load_game
 
-    def load_game(manager):
-        ok = previous_load(manager)
+    def load_game(manager, *args, **kwargs):
+        ok = previous_load(manager, *args, **kwargs)
         if ok:
             _opening(manager)
             manager.team_registration_pending = False

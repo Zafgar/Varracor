@@ -583,6 +583,18 @@ class MuckfordCityMenu(BaseMenu):
             screen.blit(bg, (lx - 4, my - 9))
             screen.blit(lbl, (lx, my - 8))
 
+        # Raid-viholliset punaisina sykkivinä pisteinä
+        rat_pulse = 2 + int(2 * abs(math.sin(pygame.time.get_ticks() * 0.008)))
+        for rat in self.raid_rats:
+            if getattr(rat, "is_dead", False):
+                continue
+            rx, ry = to_map(rat.rect.centerx, rat.rect.centery)
+            pygame.draw.circle(screen, (230, 60, 50), (rx, ry), 4 + rat_pulse, 2)
+            pygame.draw.circle(screen, (255, 90, 70), (rx, ry), 3)
+        if any(not getattr(r, "is_dead", False) for r in self.raid_rats):
+            draw_text("RAID! Red marks = rats", font_small, (255, 110, 90),
+                      screen, panel.x + 24, panel.bottom - 30)
+
         # Pelaaja (sykkivä merkki)
         px, py = to_map(self.player.rect.centerx, self.player.rect.centery)
         pulse = 3 + int(2 * abs(math.sin(pygame.time.get_ticks() * 0.005)))
@@ -1214,12 +1226,22 @@ class MuckfordCityMenu(BaseMenu):
         # Palkatut prospektit pois kadulta (siirtyivät tiimiin)
         self._cleanup_hired_prospects()
 
-        # Kerätään kaikki yksiköt listaan NPC-logiikkaa varten
-        all_units = [self.player] + self.npcs + self.animals
-        
+        # Kerätään kaikki yksiköt listaan NPC-logiikkaa varten.
+        # BUGIKORJAUS: raid-rotat puuttuivat listasta -> kyläläiset eivät
+        # pelänneet eivätkä vartijat puolustautuneet raidin aikana.
+        living_rats = [r for r in self.raid_rats if not r.is_dead]
+        all_units = [self.player] + self.npcs + self.animals + living_rats
+
         # Päivitä NPC:t (Animaatio ja fysiikka)
         for npc in self.npcs:
             if self.manager.world_paused: continue
+            # Esiintyvä bardi pysyy lavalla (AI veti hänet töihin -> ei
+            # koskaan näkynyt lavalla vaikka banneri ja musiikki tulivat)
+            if npc is getattr(self, "_event_bard", None) and \
+                    getattr(npc, "sim_state", "") == "PERFORMING":
+                npc.animation_state = "idle"
+                npc.update(self.arena.obstacles, self.manager)
+                continue
             # Kutsutaan run_combat_ai, jotta VillagerAI toimii (maitotilat, lanta, jne.)
             npc.run_combat_ai(all_units, self.arena.obstacles, self.manager)
             npc.update(self.arena.obstacles, self.manager)
@@ -1430,7 +1452,8 @@ class MuckfordCityMenu(BaseMenu):
     def _start_bard_performance(self, stage):
         candidates = [n for n in self.npcs if hasattr(n, "sim_state")
                       and n is not getattr(self, "bram", None)
-                      and not getattr(n, "rival_info", None)]
+                      and not getattr(n, "rival_info", None)
+                      and getattr(n, "sim_state", "") != "INSIDE"]
         if not candidates:
             self._event_timer = self.rng.randint(600, 1800)
             return

@@ -166,8 +166,8 @@ def install_farming_hardening():
     # effect before the player can launch another battle from the hub.
     previous_load_game = save_manager.load_game
 
-    def load_game(manager):
-        loaded = previous_load_game(manager)
+    def load_game(manager, *args, **kwargs):
+        loaded = previous_load_game(manager, *args, **kwargs)
         if loaded:
             _restore_meal_buff(manager)
         return loaded

@@ -3,9 +3,9 @@
 Generoitu komennolla `python tools/asset_scan.py` — aja uudelleen
 aina kun lisäät tiedostoja, niin lista pysyy ajan tasalla.
 
-- Koodissa viitattuja tiedostoja: **197**
+- Koodissa viitattuja tiedostoja: **200**
 - Löytyy levyltä: **0**
-- Puuttuu: **197**
+- Puuttuu: **200**
 
 Laita tiedosto täsmälleen alla olevaan polkuun (suhteessa pelin
 juurikansioon), niin peli löytää sen automaattisesti — koodia ei
@@ -194,7 +194,7 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/tiles/houses/floor_wood_poor.png` | kuva | citys/mucford/tavern_menu.py |
 | `assets/tiles/muckford/barrel.png` | kuva | units/villager.py |
 
-## assets/ui/ (51 kpl)
+## assets/ui/ (54 kpl)
 
 | Tiedosto | Tyyppi | Käytetään tiedostossa |
 |---|---|---|
@@ -219,9 +219,9 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/ui/btn_league_hover.png` | kuva | menus/town_hub.py |
 | `assets/ui/btn_league_idle.png` | kuva | menus/town_hub.py |
 | `assets/ui/btn_league_pressed.png` | kuva | menus/town_hub.py |
-| `assets/ui/btn_load_hover.png` | kuva | menus/main_menu.py |
-| `assets/ui/btn_load_idle.png` | kuva | menus/main_menu.py |
-| `assets/ui/btn_load_pressed.png` | kuva | menus/main_menu.py |
+| `assets/ui/btn_load_hover.png` | kuva | game_manager.py, menus/main_menu.py |
+| `assets/ui/btn_load_idle.png` | kuva | game_manager.py, menus/main_menu.py |
+| `assets/ui/btn_load_pressed.png` | kuva | game_manager.py, menus/main_menu.py |
 | `assets/ui/btn_mage_hover.png` | kuva | menus/town_hub.py |
 | `assets/ui/btn_mage_idle.png` | kuva | menus/town_hub.py |
 | `assets/ui/btn_mage_pressed.png` | kuva | menus/town_hub.py |
@@ -237,6 +237,9 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/ui/btn_resume_hover.png` | kuva | game_manager.py |
 | `assets/ui/btn_resume_idle.png` | kuva | game_manager.py |
 | `assets/ui/btn_resume_pressed.png` | kuva | game_manager.py |
+| `assets/ui/btn_save_hover.png` | kuva | game_manager.py |
+| `assets/ui/btn_save_idle.png` | kuva | game_manager.py |
+| `assets/ui/btn_save_pressed.png` | kuva | game_manager.py |
 | `assets/ui/btn_shop_hover.png` | kuva | menus/town_hub.py |
 | `assets/ui/btn_shop_idle.png` | kuva | menus/town_hub.py |
 | `assets/ui/btn_shop_pressed.png` | kuva | menus/town_hub.py |
