@@ -514,6 +514,15 @@ def _patch_forest_menu() -> None:
 
     ForestRoadMenu.__init__ = __init__
     ForestRoadMenu.on_enter = on_enter
+    # BUGIKORJAUS: metodit asennettiin vain pitkillä _tutorial_-nimillä,
+    # mutta patchattu update/draw kutsuu LYHYITÄ nimiä (self._update_stage
+    # jne.) -> AttributeError heti metsäpolulle astuttaessa. Asennetaan
+    # molemmilla nimillä.
+    ForestRoadMenu._spawn_stage = _spawn_stage
+    ForestRoadMenu._stage_enemies_dead = _stage_enemies_dead
+    ForestRoadMenu._repeat_stage = _repeat_stage
+    ForestRoadMenu._advance_stage = _advance_stage
+    ForestRoadMenu._update_stage = _update_stage
     ForestRoadMenu._spawn_tutorial_stage = _spawn_stage
     ForestRoadMenu._tutorial_stage_enemies_dead = _stage_enemies_dead
     ForestRoadMenu._repeat_tutorial_stage = _repeat_stage
