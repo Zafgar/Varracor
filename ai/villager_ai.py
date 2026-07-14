@@ -516,25 +516,28 @@ class VillagerAI(BaseAI):
             if abs(dx) > 1: self.unit.facing_right = (dx > 0)
 
             # Animaatio ja äänet tyypin mukaan
+            # HUOM (pelitesti 15): työäänet soivat etäisyysvaimennettuina
+            # (play_sound_at) - kaukainen hakkuu ei enää kuulu korvassa
+            wx, wy = self.work_target.rect.center
             if self.work_type == "chop":
                 self.unit.animation_state = "attack" # Hakkaa
                 if self.state_timer % 45 == 0: # Joka 0.75s
                     from sound_manager import sound_system
-                    sound_system.play_sound("axe_1")
+                    sound_system.play_sound_at("axe_1", wx, wy, manager)
                     if manager: manager.vfx.create_falling_leaves(self.work_target.rect.centerx, self.work_target.rect.centery)
 
             elif self.work_type == "scavenge":
                 self.unit.animation_state = "attack" # Hakkaa/Tonkii
                 if self.state_timer % 60 == 0:
                     from sound_manager import sound_system
-                    sound_system.play_sound("mining_hit")
+                    sound_system.play_sound_at("mining_hit", wx, wy, manager)
                     if manager: manager.vfx.create_dust_cloud(self.work_target.rect.centerx, self.work_target.rect.centery)
 
             elif self.work_type in ("farm", "milk"):
                 self.unit.animation_state = "working"
                 if self.state_timer % 120 == 0:
                     from sound_manager import sound_system
-                    sound_system.play_sound("moo") # Lehmä vastaa
+                    sound_system.play_sound_at("moo", wx, wy, manager)
 
             else:
                 self.unit.animation_state = "working"

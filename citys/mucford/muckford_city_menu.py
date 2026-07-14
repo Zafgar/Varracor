@@ -189,6 +189,18 @@ class MuckfordCityMenu(BaseMenu):
         if spawn_target == "keep":
             spawned = True
 
+        # 0.5 ("pos", (x, y)): tarkka sijainti - esim. savesta ladattu
+        # kaupunkipaikka (BUGIKORJAUS pelitesti 15: lataus heitti aina
+        # Sunk Caskin ovelle vaikka tallensi muualla)
+        if not spawned and isinstance(spawn_target, tuple) \
+                and len(spawn_target) == 2 and spawn_target[0] == "pos":
+            try:
+                self.player.rect.center = (int(spawn_target[1][0]),
+                                           int(spawn_target[1][1]))
+                spawned = True
+            except Exception:
+                pass
+
         # 1. Blacksmith Spawn
         if spawn_target == "blacksmith" and self.blacksmith_house:
             base_x, base_y = self.blacksmith_house.image_pos
@@ -1321,6 +1333,10 @@ class MuckfordCityMenu(BaseMenu):
 
         # Päivitä pelaajan tilat (cooldowns, mana regen) ilman AI:ta
         self.player.update(self.arena.obstacles, self.manager)
+
+        # Viimeisin kaupunkisijainti talteen saveä varten (lataus
+        # palauttaa pelaajan tähän kohtaan, ei tavernan ovelle)
+        self.manager.last_city_pos = self.player.rect.center
 
         # Palkatut prospektit pois kadulta (siirtyivät tiimiin)
         self._cleanup_hired_prospects()

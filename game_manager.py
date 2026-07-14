@@ -152,8 +152,12 @@ class GameManager:
         # Barracksin taso (1-3): määrää punkkien määrän ja tiimin koon
         self.barracks_level = 1
         self.hire_block_message = ""
-        # Arena Hallin aktiivinen veto: {"amount": SP} tai None
+        # Arena Hallin aktiivinen veto: {"amount": SP} tai None (legacy)
         self.active_bet = None
+        # Vedonlyöntitoimiston avoimet kupongit (systems/betting.py)
+        self.open_bets = []
+        # Viimeisin sijainti kaupungissa (save/load palauttaa tähän)
+        self.last_city_pos = None
         # Kaivoksen avain: Marda antaa kun velka on maksettu
         self.mine_key_owned = False
         # Quest journal -paneeli pelinäkymässä (J tai klikkaus piilottaa)
@@ -1375,6 +1379,17 @@ class GameManager:
             # päätteeksi (sama kierros etenee kaikilla samaan aikaan).
             try:
                 self.league_engine.get_standings(self.match_mode)
+            except Exception:
+                pass
+
+            # Vedonlyöntitoimiston kupongit ratkeavat kun kierros on
+            # pelattu (oma matsi + simuloidut taustamatsit)
+            try:
+                from systems.betting import check_open_bets
+                msgs = check_open_bets(self)
+                if msgs:
+                    self.hire_block_message = "  |  ".join(msgs[:2])
+                    self._toast_timer = 420
             except Exception:
                 pass
 

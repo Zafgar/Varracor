@@ -357,6 +357,10 @@ def save_game(manager, filepath=None, save_name=""):
             "mine_key_owned": bool(getattr(manager, "mine_key_owned", False)),
             "barracks_level": int(getattr(manager, "barracks_level", 1)),
             "active_bet": getattr(manager, "active_bet", None),
+            "open_bets": list(getattr(manager, "open_bets", []) or []),
+            # Pelaajan kaupunkisijainti: lataus palauttaa tähän kohtaan
+            "city_pos": list(getattr(manager, "last_city_pos", None) or ())
+                        or None,
         }
 
         target = filepath or SAVE_FILE
@@ -433,6 +437,14 @@ def load_game(manager, filepath=None):
         manager.has_smith = bool(data.get("has_smith", False))
         manager.barracks_level = int(data.get("barracks_level", 1))
         manager.active_bet = data.get("active_bet") or None
+        manager.open_bets = [dict(b) for b in data.get("open_bets", [])
+                             if isinstance(b, dict)]
+        # Kaupunkisijainti savesta: on_enter spawnaa tähän kohtaan
+        # ("lataus heitti aina Sunk Caskin eteen")
+        pos = data.get("city_pos")
+        if pos and len(pos) == 2:
+            manager.last_city_pos = (int(pos[0]), int(pos[1]))
+            manager.city_spawn_point = ("pos", (int(pos[0]), int(pos[1])))
         if getattr(manager, "village_tasks", None) and data.get("village_tasks"):
             manager.village_tasks.from_dict(data["village_tasks"])
 

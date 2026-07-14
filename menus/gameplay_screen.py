@@ -74,6 +74,11 @@ class GameplayScreen(BaseMenu):
                 obstacles=getattr(self.arena, "obstacles", None))
             return
 
+        # Dialogin jälkijäähy hupenee myös kenttäpäivityksessä (muuten
+        # E voi jäädä jumiin tiloissa joissa update_match ei pyöri)
+        if self.manager.dialogue_cooldown > 0:
+            self.manager.dialogue_cooldown -= 1
+
         # Varmistetaan että peli on "käynnissä" jotta combat toimii
         self.manager.match_in_progress = True
 

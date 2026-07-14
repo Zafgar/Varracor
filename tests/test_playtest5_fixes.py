@@ -197,23 +197,18 @@ def test_arena_hall_npcs_and_league_desk():
 
 
 def test_arena_hall_betting_flow(tmp_saves):
+    # Pelitesti 15: E Vintin kojulla avaa vedonlyöntitoimiston
     m = _manager()
-    from citys.mucford.city_interiors import ArenaHallMenu, wager_odds
+    from citys.mucford.city_interiors import ArenaHallMenu
     hall = ArenaHallMenu(m)
     hall.on_enter()
-    m.gold = 100
-    hall._open_bet_dialogue()
-    assert m.active_dialogue is not None
-    hall._on_bet_action("hall_bet_20")
-    assert m.gold == 80
-    mult = wager_odds(m)  # tuore kausi -> neutraali x1.5
-    assert m.active_bet == {"amount": 20, "mult": mult}
-    # Voitto liigamatsissa maksaa panoksen kertoimella
-    m.mode = "League"
-    m.current_enemy_team = None
-    m.end_match(True)
-    assert m.gold == 80 + int(20 * mult)
-    assert m.active_bet is None
+    bookie = next(u for u, k in hall.hall_npcs if k == "bookie")
+    hall.player.rect.center = (bookie.rect.centerx,
+                               bookie.rect.bottom + 40)
+    hall.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e,
+                                         unicode="e"))
+    assert hall.next_state == "betting_office"
+    assert m.betting_return_state == "arena_hall"
 
 
 def test_town_hall_desks():

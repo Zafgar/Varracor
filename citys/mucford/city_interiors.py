@@ -285,6 +285,11 @@ class _InteriorMenuBase(GameplayScreen):
         # BaseMenu (editor)
         from menus.base_menu import BaseMenu
         BaseMenu.update(self)
+        # BUGIKORJAUS (pelitesti 15): kukaan ei vähentänyt cooldownia
+        # sisätiloissa -> dialogin jälkeen E lakkasi toimimasta PYSYVÄSTI
+        # ("en voi E:llä enää tehdä mitään Shanty Yardin sisällä")
+        if self.manager.dialogue_cooldown > 0:
+            self.manager.dialogue_cooldown -= 1
         if self.manager.active_dialogue:
             self.manager.vfx.update(obstacles=self.arena.obstacles)
             return
@@ -464,8 +469,8 @@ class ArenaHallMenu(_InteriorMenuBase):
         return {
             "league_desk": "E - League board (matches & standings)",
             "league_host": "E - League board (matches & standings)",
-            "betting": "E - Place a wager",
-            "bookie": "E - Place a wager",
+            "betting": "E - Betting office (odds & tickets)",
+            "bookie": "E - Betting office (odds & tickets)",
             "trophies": "E - Trophy case (deeds & titles)",
             "dealer": "E - Crown & Dagger (card game)",
             "guard": "E - Talk",
@@ -480,7 +485,11 @@ class ArenaHallMenu(_InteriorMenuBase):
             sound_system.play_sound("click")
             return True
         if kind in ("betting", "bookie"):
-            self._open_bet_dialogue()
+            # Pelitesti 15: kunnon vedonlyöntitoimisto dialogin sijaan
+            self.manager.betting_return_state = "arena_hall"
+            self._keep_positions = True
+            self.next_state = "betting_office"
+            sound_system.play_sound("click")
             return True
         if kind == "trophies":
             self.show_trophies = True
@@ -522,13 +531,18 @@ class ArenaHallMenu(_InteriorMenuBase):
         super().handle_event(event)
 
     def _draw_extra(self, screen):
-        bet = getattr(self.manager, "active_bet", None)
-        if bet:
-            chip = pygame.Rect(24, 90, 330, 44)
+        # Avoimet vedonlyöntikupongit näkyvät hallissa muistutuksena
+        bets = list(getattr(self.manager, "open_bets", []) or [])
+        legacy = getattr(self.manager, "active_bet", None)
+        n = len(bets) + (1 if legacy else 0)
+        if n:
+            risked = sum(int(b.get("amount", 0)) for b in bets)
+            if legacy:
+                risked += int(legacy.get("amount", 0))
+            chip = pygame.Rect(24, 90, 360, 44)
             pygame.draw.rect(screen, (15, 17, 22), chip, border_radius=9)
             pygame.draw.rect(screen, (196, 164, 90), chip, 2, border_radius=9)
-            draw_text(f"Active wager: {format_money(bet['amount'])} "
-                      f"(pays x{float(bet.get('mult', BET_PAYOUT)):.2f})",
+            draw_text(f"Open tickets: {n}  ({format_money(risked)} riding)",
                       font_small, (222, 200, 140), screen,
                       chip.x + 14, chip.y + 12)
         if self.show_trophies:
@@ -594,72 +608,6 @@ class ArenaHallMenu(_InteriorMenuBase):
                       "and no debt.", font_small, (150, 150, 160),
                       screen, panel.x + 44, y)
 
-    # -------------------- Vedonlyönti --------------------
-    def _open_bet_dialogue(self):
-        bookie = next((u for u, k in self.hall_npcs if k == "bookie"), None)
-        bet = getattr(self.manager, "active_bet", None)
-        if bet:
-            mult = float(bet.get("mult", BET_PAYOUT))
-            self.manager.start_dialogue(
-                bookie,
-                f"You already have {format_money(bet['amount'])} riding on "
-                f"your next league match at x{mult:.2f}. Win it first.",
-                options=[{"text": "I'll hold my ticket.",
-                          "action": "close_dialogue"}])
-            return
-        tier = int(getattr(getattr(self.manager, "league_engine", None),
-                           "tier", 1)) or 1
-        max_bet = WAGER_MAX_BY_TIER.get(tier, 50)
-        mult = wager_odds(self.manager)
-        options = []
-        for amount in BET_OPTIONS:
-            if amount > max_bet:
-                continue
-            options.append({
-                "text": f"Bet {format_money(amount)} on my next league win "
-                        f"(pays x{mult:.2f})",
-                "action": f"hall_bet_{amount}",
-            })
-        options.append({"text": "Not today.", "action": "close_dialogue"})
-        favorite_note = (" You're the favorite - don't expect fat odds."
-                         if mult < 1.4 else "")
-        self.manager.dialogue_action_handler = self._on_bet_action
-        self.manager.start_dialogue(
-            bookie,
-            f"Vint grins over his slate. Coin down, your team wins its next "
-            f"LEAGUE match, I pay x{mult:.2f}. They lose, the Yard eats your "
-            f"stake. Table limit here: {format_money(max_bet)}."
-            f"{favorite_note}",
-            options=options)
-
-    def _on_bet_action(self, action):
-        manager = self.manager
-        manager.dialogue_action_handler = None
-        if isinstance(action, str) and action.startswith("hall_bet_"):
-            amount = int(action.rsplit("_", 1)[1])
-            if manager.gold < amount:
-                manager.vfx.show_damage(
-                    self.player.rect.centerx, self.player.rect.top - 30,
-                    "Not enough coin for that wager.", color=(255, 150, 120))
-                sound_system.play_sound("error")
-            else:
-                manager.gold -= amount
-                manager.active_bet = {"amount": amount,
-                                      "mult": wager_odds(manager)}
-                manager.vfx.show_damage(
-                    self.player.rect.centerx, self.player.rect.top - 30,
-                    f"Wager placed: {format_money(amount)}",
-                    color=(150, 230, 160))
-                sound_system.play_sound("coin")
-        manager.active_dialogue = None
-        manager.dialogue_cooldown = 20
-
-    def on_exit(self):
-        super().on_exit()
-        # Ei jätetä omaa action-handleria roikkumaan
-        if getattr(self.manager, "dialogue_action_handler", None) == \
-                self._on_bet_action:
-            self.manager.dialogue_action_handler = None
 
 # ======================================================================
 # TOWN HALL

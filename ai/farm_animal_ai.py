@@ -47,7 +47,10 @@ class FarmAnimalAI(BaseAI):
                     self.state = "moo"
                     self.timer = 60
                     self.unit.animation_state = "moo"
-                    sound_system.play_sound("moo")
+                    # Etäisyysvaimennus: kaukainen ammunta ei huuda korvaan
+                    sound_system.play_sound_at(
+                        "moo", self.unit.rect.centerx,
+                        self.unit.rect.centery, manager)
                 else:
                     self.timer = random.randint(60, 180)
 

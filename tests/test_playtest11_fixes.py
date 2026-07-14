@@ -96,7 +96,9 @@ def test_interior_draws_active_dialogue():
     surf = pygame.Surface((1920, 1080))
     hall.draw(surf)
     assert called["n"] == 0, "ei dialogia -> ei piirtoa"
-    hall._open_bet_dialogue()
+    guard = next(u for u, k in hall.hall_npcs if k == "guard")
+    m.start_dialogue(guard, "Steady, Commander.",
+                     options=[{"text": "Aye.", "action": "close_dialogue"}])
     assert m.active_dialogue is not None
     hall.draw(surf)
     assert called["n"] == 1, "aktiivinen dialogi piirretään sisätilassa"
@@ -104,6 +106,7 @@ def test_interior_draws_active_dialogue():
     # Oikea piirtokin toimii kaatumatta
     hall.draw(surf)
     m.active_dialogue = None
+    m.dialogue_cooldown = 0
 
 
 def test_interior_guard_talk_opens_visible_dialogue():
@@ -142,55 +145,55 @@ def test_wager_odds_clamped_by_dominance():
     assert wager_odds(m) == pytest.approx(2.4)
 
 
-def test_tier1_table_limit_filters_big_bets():
-    from citys.mucford.city_interiors import (ArenaHallMenu,
-                                              WAGER_MAX_BY_TIER)
+def test_tier1_table_limit_blocks_big_bets():
+    from systems import betting
+    from citys.mucford.city_interiors import WAGER_MAX_BY_TIER
     assert WAGER_MAX_BY_TIER[1] == 50, "Shanty Yardissa ei liiku isot rahat"
     m = _manager()
     m.league_engine.tier = 1
     m.gold = 1000
-    hall = ArenaHallMenu(m)
-    hall.on_enter()
-    hall._open_bet_dialogue()
-    actions = [o.get("action", "") for o in m.active_dialogue["options"]]
-    assert "hall_bet_20" in actions
-    assert "hall_bet_50" in actions
-    assert "hall_bet_100" not in actions, "100 SP ylittää tierin 1 katon"
-    m.active_dialogue = None
-    m.dialogue_action_handler = None
+    season = m.league_engine.seasons.get("1v1") or \
+        (m.league_engine._ensure_initialized() or
+         m.league_engine.seasons["1v1"])
+    tid = betting.fixtures(season)[0][0]
+    ok, msg = betting.place_bet(m, "1v1", tid, 100)
+    assert not ok and "limit" in msg.lower(), "100 SP ylittää tierin 1 katon"
+    ok, _msg = betting.place_bet(m, "1v1", tid, 50)
+    assert ok, "pöytärajan sisällä kuponki menee läpi"
 
 
-def test_bet_stores_odds_and_pays_by_multiplier():
-    from citys.mucford.city_interiors import ArenaHallMenu, wager_odds
+def test_bet_on_player_pays_by_multiplier():
+    from systems import betting
     m = _manager()
     m.gold = 100
-    # Dominoiva joukkue saa laihan kertoimen
-    m.season_wins, m.season_losses = 12, 0
-    mult = wager_odds(m)
-    hall = ArenaHallMenu(m)
-    hall.on_enter()
-    hall._open_bet_dialogue()
-    hall._on_bet_action("hall_bet_20")
-    assert m.gold == 80
-    assert m.active_bet == {"amount": 20, "mult": mult}
+    m.league_engine._ensure_initialized()
+    season = m.league_engine.seasons["1v1"]
+    opp_id = betting.current_opponent(season, "PLAYER")
+    assert opp_id, "pelaajalla on ottelu kierroksella"
+    mult = betting.odds_multiplier(season, "PLAYER", opp_id)
+    ok, _msg = betting.place_bet(m, "1v1", "PLAYER", 20)
+    assert ok and m.gold == 80
+    # Voitto liigamatsissa -> kuponki ratkeaa end_matchissa
     m.mode = "League"
-    m.current_enemy_team = None
+    m.match_mode = "1v1"
+    m.current_enemy_team = season.records[opp_id].team
     m.end_match(True)
     assert m.gold == 80 + int(20 * mult), "voitto maksaa panos*kerroin"
-    assert m.active_bet is None
+    assert m.open_bets == []
 
 
 def test_lost_league_bet_is_kept_by_house():
-    from citys.mucford.city_interiors import ArenaHallMenu
+    from systems import betting
     m = _manager()
     m.gold = 100
-    hall = ArenaHallMenu(m)
-    hall.on_enter()
-    hall._open_bet_dialogue()
-    hall._on_bet_action("hall_bet_20")
-    assert m.gold == 80
+    m.league_engine._ensure_initialized()
+    season = m.league_engine.seasons["1v1"]
+    opp_id = betting.current_opponent(season, "PLAYER")
+    ok, _msg = betting.place_bet(m, "1v1", "PLAYER", 20)
+    assert ok and m.gold == 80
     m.mode = "League"
-    m.current_enemy_team = None
+    m.match_mode = "1v1"
+    m.current_enemy_team = season.records[opp_id].team
     m.end_match(False)
     assert m.gold == 80, "hävitty panos jää talolle"
-    assert m.active_bet is None
+    assert m.open_bets == []

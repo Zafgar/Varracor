@@ -249,12 +249,34 @@ class SoundManager:
         return False
 
     def play_sound(self, name, loops=0, volume=None):
-        if self.sound_enabled and name in self.sounds: 
+        if self.sound_enabled and name in self.sounds:
             s = self.sounds[name]
             if volume is not None:
                 s.set_volume(volume * self.sfx_volume)
             return s.play(loops=loops)
         return None
+
+    def play_sound_at(self, name, x, y, manager=None, max_dist=1100):
+        """Etäisyysvaimennettu ääni (pelitesti 15): voimakkuus putoaa
+        kuulijan (pelaajan) etäisyyden mukaan ja kantaman ulkopuolella
+        ääni ei soi lainkaan. Vaimennus tehdään kanavaan, joten jaetun
+        Sound-olion perusvolyymi ei muutu."""
+        if not (self.sound_enabled and name in self.sounds):
+            return None
+        pc = getattr(manager, "player_character", None) if manager else None
+        listener = pc.rect.center if pc is not None and \
+            getattr(pc, "rect", None) is not None else None
+        if listener is None:
+            return self.play_sound(name)
+        import math as _math
+        dist = _math.hypot(x - listener[0], y - listener[1])
+        if dist >= max_dist:
+            return None
+        falloff = (1.0 - dist / max_dist) ** 1.3
+        ch = self.sounds[name].play()
+        if ch:
+            ch.set_volume(falloff)
+        return ch
 
     # =========================================================
     # MASTER VOLUME (Options-valikko)
