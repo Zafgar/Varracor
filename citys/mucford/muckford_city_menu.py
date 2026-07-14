@@ -268,8 +268,44 @@ class MuckfordCityMenu(BaseMenu):
                 self.market_spots.append((p.rect.centerx + 70,
                                           p.rect.bottom + 74))
 
+        # Griznakin vankkurit torin laidalle (pelitesti 23)
+        self._setup_griznak()
+
         self._update_camera()
         self._spawn_prospects()
+
+    def _setup_griznak(self):
+        """Griznakin vankkurit + goblini torin laidalle. Griznak on AINA
+        kaupungissa: hän kuuluttaa parvista/bosseista ja jakaa Killan
+        urakat vankkureiltaan (pelitesti 23). Idempotentti."""
+        if getattr(self, "griznak", None) is not None:
+            return
+        from systems import griznak_caravan
+        # Ankkuri: markkinarivin länsipuoli; fallback kentän keskusta
+        stalls = [p for p in self.arena.props
+                  if isinstance(p, (MuckfordStall, MarketStall))]
+        if stalls:
+            left = min(s.rect.left for s in stalls)
+            base_y = min(s.rect.top for s in stalls)
+            wx, wy = left - 380, base_y - 40
+        else:
+            wx, wy = self.arena.width // 2 - 600, self.arena.height // 2 + 200
+        wagon = None
+        for _try in range(8):
+            cand = griznak_caravan.GriznakWagon(wx, wy)
+            if not any(cand.rect.colliderect(o.rect)
+                       for o in self.arena.obstacles):
+                wagon = cand
+                break
+            wy += 120   # siirry alaspäin kunnes mahtuu
+        if wagon is None:
+            wagon = griznak_caravan.GriznakWagon(wx, wy)
+        self.griznak_wagon = wagon
+        self.griznak = griznak_caravan.make_griznak(
+            wagon.rect.centerx - 40, wagon.rect.bottom + 6)
+        self.arena.props.append(wagon)
+        self.arena.obstacles.append(wagon)
+        self.npcs.append(self.griznak)
 
     def _spawn_prospects(self):
         """Rekryprospektit kaupungilla: 1-2 Sunk Caskin vapaata taistelijaa
@@ -1115,6 +1151,17 @@ class MuckfordCityMenu(BaseMenu):
                         self.next_state = "notice_board"
                         sound_system.play_sound('click')
                         return
+
+                # Griznakin vankkurit -> urakat & huhut (pelitesti 23)
+                from systems import griznak_caravan
+                if griznak_caravan.near_griznak(self.player,
+                                                getattr(self, "griznak",
+                                                        None)):
+                    if griznak_caravan.open_chat(self.manager,
+                                                 "muckford_city"):
+                        self.next_state = "dialogue_active"
+                        sound_system.play_sound('click')
+                    return
 
                 # Tarkista ollaanko Tavernan ovella
                 if self.tavern_house:
@@ -2392,11 +2439,13 @@ class MuckfordCityMenu(BaseMenu):
         for npc in self.npcs:
             if getattr(npc, "ai_controller", None) and getattr(npc.ai_controller, "state", 0) == "INSIDE":
                 continue
-                
+
             if self.player.rect.colliderect(npc.rect.inflate(60, 60)):
                 ux = npc.rect.centerx - offset[0]
                 uy = npc.rect.top - offset[1]
-                self._queue_prompt(*self._head_anchor(npc), "E", "Chat")
+                label = ("Griznak (contracts & rumors)"
+                         if getattr(npc, "is_griznak", False) else "Chat")
+                self._queue_prompt(*self._head_anchor(npc), "E", label)
 
         # Farm Prompts
         for cow in self.animals:

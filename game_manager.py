@@ -549,6 +549,12 @@ class GameManager:
             "innkeeper_debt": int(getattr(self, "innkeeper_debt", 0)),
             "inventory": self.inventory,
         }
+        # Griznakin kuulutukset: parvet ja bossit pitäjillä (pelitesti 23)
+        try:
+            from systems import griznak_caravan
+            context["world_events"] = griznak_caravan.world_events(self)
+        except Exception:
+            context["world_events"] = []
 
         NPC_Class = get_npc_class(npc_id)
         if NPC_Class:

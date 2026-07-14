@@ -154,6 +154,8 @@ class RattlebridgeCityMenu(BaseMenu):
         self.manager.current_arena = self.city
         mark_location_visited(self.manager, "rattlebridge", set_current=True)
         self.manager.pending_world_location = "rattlebridge"
+        # Griznak seuraa pelaajaa tier-kaupungista toiseen vankkureineen
+        self._setup_griznak()
         spawn = getattr(self.manager, "city_spawn_point", None)
         self.manager.city_spawn_point = None
         self._place_player(spawn or "west_gate")
@@ -182,6 +184,32 @@ class RattlebridgeCityMenu(BaseMenu):
         if not self.city.is_walkable(self.player.rect):
             self.player.rect.center = self.city.main_deck.center
         self.player.facing_right = True
+
+    def _setup_griznak(self):
+        """Griznakin vankkurit länsiportille (pelitesti 23): sama goblini
+        kiertää tier-kaupunkeja ja jakaa urakat/huhut. Idempotentti."""
+        if getattr(self, "griznak", None) is not None:
+            return
+        from systems import griznak_caravan
+        gx, gy = self.city.spawn_points[0]
+        wagon = None
+        for ox, oy in ((260, -220), (340, -220), (260, -340), (420, -220),
+                       (200, -140)):
+            cand = griznak_caravan.GriznakWagon(int(gx + ox), int(gy + oy))
+            if self.city.is_walkable(cand.rect):
+                wagon = cand
+                break
+        if wagon is None:
+            wagon = griznak_caravan.GriznakWagon(int(gx + 260),
+                                                 int(gy - 220))
+        self.griznak_wagon = wagon
+        self.griznak = griznak_caravan.make_griznak(
+            wagon.rect.centerx - 40, wagon.rect.bottom + 6)
+        # rattle_id pitää _update_populationin poissa (kohdellaan
+        # nimettynä NPC:nä: seisoo paikallaan)
+        self.griznak.rattle_id = "griznak_caravan"
+        self.griznak.rattle_role = "Guild Contractor"
+        self.npcs.append(self.griznak)
 
     def _spawn_population(self):
         districts = tuple(DISTRICTS)
@@ -358,6 +386,14 @@ class RattlebridgeCityMenu(BaseMenu):
             return
         npc = self._nearest_npc()
         if npc:
+            if getattr(npc, "is_griznak", False):
+                # Griznakin oikea dialogi (urakat & huhut, pelitesti 23)
+                from systems import griznak_caravan
+                if griznak_caravan.open_chat(self.manager,
+                                             "rattlebridge_city"):
+                    self.next_state = "dialogue_active"
+                    sound_system.play_sound("click")
+                return
             if getattr(npc, "rattle_id", None):
                 self._open_dialogue(npc)
             else:
@@ -714,11 +750,15 @@ class RattlebridgeCityMenu(BaseMenu):
         self.city.draw_landmarks(screen, (self.camera_x, self.camera_y), highlighted)
 
         renderables = list(self.npcs) + [self.player] + list(self.carts)
+        if getattr(self, "griznak_wagon", None) is not None:
+            renderables.append(self.griznak_wagon)
         renderables.sort(key=lambda item: item.rect.bottom)
         offset = (self.camera_x, self.camera_y)
         for item in renderables:
             if isinstance(item, _FreightCart):
                 item.draw(screen, offset)
+            elif item is getattr(self, "griznak_wagon", None):
+                item.draw_on_screen(screen, offset)
             else:
                 self._draw_unit(screen, item)
         self.city.draw_foreground(screen, (self.camera_x, self.camera_y))

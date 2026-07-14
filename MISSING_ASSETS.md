@@ -3,9 +3,9 @@
 Generoitu komennolla `python tools/asset_scan.py` — aja uudelleen
 aina kun lisäät tiedostoja, niin lista pysyy ajan tasalla.
 
-- Koodissa viitattuja tiedostoja: **210**
+- Koodissa viitattuja tiedostoja: **211**
 - Löytyy levyltä: **0**
-- Puuttuu: **210**
+- Puuttuu: **211**
 
 Laita tiedosto täsmälleen alla olevaan polkuun (suhteessa pelin
 juurikansioon), niin peli löytää sen automaattisesti — koodia ei
@@ -184,7 +184,7 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/sounds/sword_swing.wav` | ääni | sound_manager.py |
 | `assets/sounds/win_fanfare.wav` | ääni | sound_manager.py |
 
-## assets/tiles/ (15 kpl)
+## assets/tiles/ (16 kpl)
 
 | Tiedosto | Tyyppi | Käytetään tiedostossa |
 |---|---|---|
@@ -203,6 +203,7 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/tiles/interiors/odds_board.png` | kuva | citys/mucford/city_interiors.py |
 | `assets/tiles/interiors/trophy_case.png` | kuva | citys/mucford/city_interiors.py |
 | `assets/tiles/muckford/barrel.png` | kuva | units/villager.py |
+| `assets/tiles/muckford/griznak_wagon.png` | kuva | systems/griznak_caravan.py |
 
 ## assets/ui/ (54 kpl)
 

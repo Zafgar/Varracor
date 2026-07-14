@@ -67,7 +67,11 @@ class QuestMenu:
             return
 
         if self.close_btn.is_clicked(event):
-            self.next_state = "hub"
+            # Griznakin vankkureilta avattu lista palaa kaupunkiin
+            # (quests_return_state, pelitesti 23); oletus on hub
+            self.next_state = getattr(self.gm, "quests_return_state",
+                                      None) or "hub"
+            self.gm.quests_return_state = None
             return
 
         # Tabien vaihto

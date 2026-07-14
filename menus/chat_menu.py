@@ -324,6 +324,11 @@ class ChatMenu(BaseMenu):
         elif command == "start_minigame" and value:
             self.next_state = value
 
+        # Suora tilasiirtymä (esim. Griznakin "[Show me the contracts]"
+        # -> "goto:quests" avaa urakkalistan; pelitesti 23)
+        elif command == "goto" and value:
+            self.next_state = value
+
         # --- LEGACY TUKI ---
         elif effect_str == "set_flag_intro_done":
             npc_data["flags"]["intro_done"] = True

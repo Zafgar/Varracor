@@ -185,6 +185,17 @@ tiedostot kuuluu pudottaa.
   _position_units sietää nyt spawn_points-LISTAN (kaatoi jahdin ennen);
   mission voi lavastaa itse (manager.mission_handles_positioning).
   Käyttäjän vanha bosses/-paketti poistettu (rikkinäinen duplikaatti).
+  Intro-dialogi ennen taistelua (MissionLogic._begin_boss_intro;
+  update_match on pausella dialogin ajan, handleri siivotaan updatessa).
+- **Griznakin vankkurit** (systems/griznak_caravan.py) — Griznak on AINA
+  kaupungissa vankkureineen (Muckford: torin laita, Rattlebridge:
+  länsiportti; lisää tier-kaupunkeja samalla spawn()-helperillä).
+  E → oikea ChatMenu-dialogi (open_chat asettaa return_staten +
+  quests_return_staten); "[Show me the contracts]" = goto:quests
+  (ChatMenu-efekti) ja urakkalistan sulku palaa kaupunkiin.
+  world_events(manager) kokoaa kuulutukset (rottaparvet next_raid_day,
+  rift-alueet, bossikontrahdit) → open_dialogue-kontekstin
+  "world_events" → Griznakin "What's stirring out there?" -node.
 - **Valuutta**: sisäinen yksikkö = SP (hopea). format_money muotoilee
   100x-portain (SP/GP/PL/HC). Kaupungin M-näppäin avaa kartan.
 - **Potionit**: Potion.cast() parantaa ja kuluttaa pullon (usable-slotit

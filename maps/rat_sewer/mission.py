@@ -10,6 +10,8 @@ class MissionLogic:
         self.data = mission_data
         self.pending_enemies = []
         self.spawn_timer = 0
+        self._king = None
+        self._mgr = None
 
     def setup(self, manager):
         # Tyhjennetään vanhat viholliset varmuuden vuoksi
@@ -28,6 +30,7 @@ class MissionLogic:
             # henkivartijarotat putkien suilla. Pelaajat astuvat sisään
             # viemärin länsisuulta - EI enää päällekkäin bossin kanssa.
             manager.mission_handles_positioning = True
+            self.handles_positioning = True   # start_matchin vastaava lippu
 
             throne = getattr(arena, "throne_pos",
                              (arena.width - 460, arena.height // 2))
@@ -53,6 +56,10 @@ class MissionLogic:
             for i, u in enumerate(manager.active_player_units):
                 u.rect.center = (entry_x, entry_y - 90 * (i - 1))
                 u.facing_right = True
+
+            # EEPPINEN INTRO (pelitesti 23): Rat King uhoaa ennen kuin
+            # taistelu alkaa - update_match on pausella dialogin ajan
+            self._begin_boss_intro(manager, king)
         else:
             # --- NORMAL MONSTER HUNT ---
             enemy_list = self.data.get('enemies', [])
@@ -65,7 +72,62 @@ class MissionLogic:
                 list(manager.active_player_units),
                 arena.width // 2, arena.height // 2)
 
+    # ------------------------------------------------------------------
+    # Rat Kingin intro-dialogi (pelitesti 23)
+    # ------------------------------------------------------------------
+    def _begin_boss_intro(self, manager, king):
+        self._king = king
+        self._mgr = manager
+        manager.dialogue_action_handler = self._boss_intro_action
+        manager.start_dialogue(
+            king,
+            "Ssso... two-legs crawl into MY palace. You reek of Griznak's "
+            "coin. He sends many. My children grow FAT on them.",
+            options=[
+                {"text": "1. Your reign ends today, rat.",
+                 "action": "ratking_taunt"},
+                {"text": "2. [Draw your weapon in silence]",
+                 "action": "ratking_fight"},
+            ])
+
+    def _boss_intro_action(self, action):
+        m = self._mgr
+        if m is None:
+            return
+        if action == "ratking_taunt":
+            m.start_dialogue(
+                self._king,
+                "HEHEHEHE! Fat words from thin meat! I have gnawed a "
+                "THRONE from this city's bones - and I will gnaw one "
+                "from yours. COME! My children are HUNGRY!",
+                options=[{"text": "1. [FIGHT]", "action": "ratking_fight"}])
+            return
+        # ratking_fight (tai mikä tahansa muu): taistelu alkaa
+        self._end_boss_intro()
+
+    def _end_boss_intro(self):
+        m = self._mgr
+        m.active_dialogue = None
+        m.dialogue_cooldown = 20
+        if m.dialogue_action_handler == self._boss_intro_action:
+            m.dialogue_action_handler = None
+        sound_system.play_sound("rat_king_intro")
+        sound_system.play_sound("battle_start")
+        try:
+            m.trigger_screen_shake(14)
+            if self._king is not None:
+                m.vfx.show_damage(self._king.rect.centerx,
+                                  self._king.rect.top - 70,
+                                  "THE RAT KING", color=(120, 255, 120))
+        except Exception:
+            pass
+
     def update(self, manager):
+        # Jos intro suljettiin suoraan nappisulkemisella (SPACE/ESC/E),
+        # action-handleri ei saa jäädä roikkumaan muiden dialogien tielle
+        if manager.dialogue_action_handler == self._boss_intro_action and \
+                not manager.active_dialogue:
+            manager.dialogue_action_handler = None
         if self.pending_enemies:
             self.spawn_timer -= 1
             if self.spawn_timer <= 0:

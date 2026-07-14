@@ -131,12 +131,33 @@ class GriznakQuestGiver(BaseNPC):
             ]
         )
 
+        # --- KUULUTUKSET (pelitesti 23): Griznak on pitäjien uutistoimisto -
+        # hän kertoo parvista ja bosseista jotka riehuvat seudulla, ja
+        # vankkureiltaan hän myös jakaa Killan urakat
+        events = context.get("world_events") or []
+        event_choice = [DialogueChoice("What's stirring out there?",
+                                       "events")] if events else []
+        contract_choice = [DialogueChoice("[Show me the contracts]", None,
+                                          effects=["goto:quests"])]
+
+        if events:
+            nodes["events"] = DialogueNode(
+                id="events",
+                text=" ".join(events[:3]),
+                speaker="Griznak",
+                emotion="proud",
+                choices=contract_choice + [
+                    DialogueChoice("Good to know.", None,
+                                   effects=["close_chat"])]
+            )
+
         nodes["root_empty"] = DialogueNode(
             id="root_empty",
             text="I got nothing for you right now. Come back later.",
             speaker="Griznak",
             emotion="neutral",
-            choices=[DialogueChoice("Fine.", None, effects=["close_chat"])]
+            choices=event_choice + [
+                DialogueChoice("Fine.", None, effects=["close_chat"])]
         )
 
         nodes["root_normal"] = DialogueNode(
@@ -144,7 +165,9 @@ class GriznakQuestGiver(BaseNPC):
             text=normal_text,
             speaker="Griznak",
             emotion="neutral",
-            choices=[DialogueChoice("Just looking.", None, effects=["close_chat"])]
+            choices=event_choice + contract_choice + [
+                DialogueChoice("Just looking.", None,
+                               effects=["close_chat"])]
         )
 
         return nodes
