@@ -66,6 +66,23 @@ class GrandSlamArena(BaseArena):
         for wx, wy, ww, wh in walls:
             self.obstacles.add(ArenaObstacle(wx, wy, ww, wh, 'wall'))
 
+        # Suojaesteet monttuun (pelaajapalaute: "aika paljas kartta").
+        # Symmetrinen asettelu: kivipilarit, kaadetut kärryt ja
+        # laatikkokasat - spawn-kaistat ja portit jätetään vapaiksi.
+        cx, cy = PIT.center
+        self._cover = [
+            # (rect, tyyppi) - tyyppi ohjaa piirtoa _build_basessa
+            (pygame.Rect(cx - 520, cy - 240, 74, 74), "pillar"),
+            (pygame.Rect(cx + 446, cy + 166, 74, 74), "pillar"),
+            (pygame.Rect(cx - 210, PIT.y + 230, 190, 46), "barricade"),
+            (pygame.Rect(cx + 20, PIT.bottom - 276, 190, 46), "barricade"),
+            (pygame.Rect(PIT.x + 430, cy + 150, 100, 74), "crates"),
+            (pygame.Rect(PIT.right - 530, cy - 224, 100, 74), "crates"),
+        ]
+        for rect, _kind in self._cover:
+            self.obstacles.add(ArenaObstacle(rect.x, rect.y, rect.w, rect.h,
+                                             'wall'))
+
         # Joukkueiden spawn-pisteet (game_manager._position_units käyttää)
         self.spawn_points = {
             "left": (PIT.x + 90, PIT.centery - 150),
@@ -78,10 +95,14 @@ class GrandSlamArena(BaseArena):
         # Yleisön istumapaikat (deterministinen)
         self._seats = self._build_seats()
         self._base = None  # staattinen pohja (laiska)
+        self._crowd_sprites = None  # oikeat kyläläissprite-kuvat (laiska)
 
         # Huudot: (teksti, x, y, ttl, väri)
         self.crowd_bubbles = []
         self._next_shout = 200
+        # Reunahuutelu: yleisö reagoi kun pelaaja tulee lähelle laitaa
+        self.manager = None      # FinaleShowMenu asettaa
+        self._next_taunt = 0
 
         # --- KIERROSTEN JUJUT ---
         self.twist = "none"
@@ -124,6 +145,30 @@ class GrandSlamArena(BaseArena):
                 if rng.random() < 0.82:
                     seats.append((x_r, y + rng.randint(-6, 6), row))
         return seats
+
+    def _build_crowd_sprites(self):
+        """Rakentaa katsomon kuvapankin OIKEISTA kyläläisspriteistä
+        (samat hahmot kuin Muckfordissa) - ei enää pelkkiä neliöitä.
+        Palauttaa listan pieniä pintoja; epäonnistuessa None (fallback
+        piirtää vanhat laatikkokatsojat)."""
+        try:
+            from units.villager import Villager
+            sprites = []
+            races = ("Human", "Human", "Human", "Dwarf", "Dwarf", "Goblin",
+                     "Goblin", "Human", "Dwarf", "Goblin", "Human", "Human")
+            for i, race in enumerate(races):
+                v = Villager(f"Spectator {i}", race, 0, 0)
+                img = v.image
+                if img is None or img.get_width() == 0:
+                    continue
+                h = 34 if race != "Goblin" else 30
+                w = max(1, int(img.get_width() * h / img.get_height()))
+                small = pygame.transform.scale(img, (w, h))
+                sprites.append(small)
+                sprites.append(pygame.transform.flip(small, True, False))
+            return sprites or None
+        except Exception:
+            return None
 
     def _build_base(self):
         base = pygame.Surface((self.width, self.height))
@@ -187,6 +232,39 @@ class GrandSlamArena(BaseArena):
             pygame.draw.polygon(base, (30, 24, 22),
                                 [(px, py - 110), (px + 64, py - 96),
                                  (px, py - 82)], 1)
+        # Suojaesteet (visuaalit; törmäysrectit lisätty __init__:ssä)
+        for rect, kind in self._cover:
+            shadow = rect.inflate(14, 10).move(0, 8)
+            sh = pygame.Surface(shadow.size, pygame.SRCALPHA)
+            pygame.draw.ellipse(sh, (0, 0, 0, 70), sh.get_rect())
+            base.blit(sh, shadow.topleft)
+            if kind == "pillar":
+                pygame.draw.rect(base, (108, 100, 92), rect, border_radius=10)
+                pygame.draw.rect(base, (76, 70, 64), rect, 3, border_radius=10)
+                pygame.draw.rect(base, (128, 120, 110),
+                                 (rect.x + 8, rect.y + 6, rect.w - 16, 10),
+                                 border_radius=4)
+                for cy_ in range(rect.y + 22, rect.bottom - 8, 16):
+                    pygame.draw.line(base, (88, 82, 76), (rect.x + 6, cy_),
+                                     (rect.right - 6, cy_), 2)
+            elif kind == "barricade":
+                pygame.draw.rect(base, (104, 78, 50), rect, border_radius=6)
+                pygame.draw.rect(base, (64, 48, 32), rect, 3, border_radius=6)
+                for bx in range(rect.x + 12, rect.right - 8, 26):
+                    pygame.draw.line(base, (78, 58, 38), (bx, rect.y + 4),
+                                     (bx + 10, rect.bottom - 4), 4)
+                pygame.draw.line(base, (140, 108, 70),
+                                 (rect.x + 4, rect.y + 6),
+                                 (rect.right - 4, rect.y + 6), 3)
+            else:  # crates
+                for i, (ox_, oy_, s) in enumerate(((0, 14, 46), (44, 20, 40),
+                                                   (20, -14, 38))):
+                    cr = pygame.Rect(rect.x + ox_, rect.y + oy_, s, s)
+                    pygame.draw.rect(base, (116, 88, 56), cr)
+                    pygame.draw.rect(base, (70, 52, 34), cr, 3)
+                    pygame.draw.line(base, (70, 52, 34), cr.topleft,
+                                     cr.bottomright, 2)
+
         # Suuri finaalibanneri yläkatsomon takana
         banner = pygame.Rect(PIT.centerx - 330, 8, 660, 64)
         pygame.draw.rect(base, (110, 38, 34), banner, border_radius=10)
@@ -223,6 +301,13 @@ class GrandSlamArena(BaseArena):
         for b in self.crowd_bubbles:
             b[3] -= 1
         self.crowd_bubbles = [b for b in self.crowd_bubbles if b[3] > 0]
+
+        # Reunahuutelu: kun pelaaja tulee lähelle montun laitaa, lähin
+        # katsoja kommentoi sarjatilannetta (johtavan tiimin kehut /
+        # häviäjän pilkka)
+        self._next_taunt -= 1
+        if self._next_taunt <= 0 and self.manager is not None:
+            self._update_edge_taunt(all_units)
 
         # --- TWIST: CROWD DEBRIS ---
         if self.twist == "debris":
@@ -264,6 +349,53 @@ class GrandSlamArena(BaseArena):
                     if dist > self.fire_radius:
                         u.take_damage(4, "Fire")
 
+    def _update_edge_taunt(self, all_units):
+        m = self.manager
+        pc = getattr(m, "player_character", None)
+        if pc is None or getattr(pc, "is_dead", False) or \
+                pc not in (all_units or []):
+            return
+        px, py = pc.rect.center
+        edge_dist = min(px - PIT.x, PIT.right - px, py - PIT.y,
+                        PIT.bottom - py)
+        if edge_dist > 130:
+            return
+        self._next_taunt = self.rng.randint(360, 620)  # ~6-10 s
+        series = getattr(m, "finale_series", None) or {}
+        wins = int(series.get("wins", 0))
+        losses = int(series.get("losses", 0))
+        mine = "My Guild"
+        try:
+            flags = m.npc_state.get("global", {}).get("flags", {})
+            mine = flags.get("team_name") or mine
+        except Exception:
+            pass
+        enemy = getattr(getattr(m, "current_enemy_team", None), "name",
+                        "The Rivals")
+        if wins > losses:
+            lines = [f"{mine.upper()}! {mine.upper()}!",
+                     f"You're one fall from glory, {mine}!",
+                     f"{enemy}? More like {enemy.split()[0]} the Fallen!",
+                     f"My coin's on {mine} - don't you dare lose it!"]
+        elif losses > wins:
+            lines = [f"{enemy.upper()} has your number, losers!",
+                     f"Go home, {mine}! The mud misses you!",
+                     f"I bet my boots on {enemy} - easy money!",
+                     "Booooo! Fight like you mean it!"]
+        else:
+            lines = [f"Even falls! {mine} or {enemy} - somebody BLEED!",
+                     "This is anyone's series! Don't blink!",
+                     f"Come on {mine}, my rent money is riding on you!"]
+        # Lähin istuin pelaajaan nähden huutaa
+        seat = min(self._seats,
+                   key=lambda s: (s[0] - px) ** 2 + (s[1] - py) ** 2)
+        self.crowd_bubbles.append(
+            [self.rng.choice(lines), seat[0], seat[1] - 26, 190,
+             (255, 214, 130)])
+        if self.rng.random() < 0.6:
+            sound_system.play_sound(
+                f"cheering_{self.rng.randint(1, 4)}", volume=0.4)
+
     def cheer(self, big=False):
         """Yleisö räjähtää (kutsutaan mm. kierroksen ratketessa)."""
         for _ in range(3 if big else 1):
@@ -280,25 +412,36 @@ class GrandSlamArena(BaseArena):
         ox, oy = int(offset[0]), int(offset[1])
         screen.blit(self._base, (-ox, -oy))
 
-        # Animoitu yleisö (vain näkyvät istuimet)
+        # Animoitu yleisö: oikeita muckfordilaisia (Villager-spritet).
+        # Fallback vanhoihin laatikkokatsojiin jos spritejä ei saada.
+        if self._crowd_sprites is None:
+            self._crowd_sprites = self._build_crowd_sprites() or []
         sw, sh = screen.get_size()
         t = self.timer * 0.08
+        sprites = self._crowd_sprites
         for i, (x, y, row) in enumerate(self._seats):
             sx, sy = x - ox, y - oy
             if not (-30 < sx < sw + 30 and -40 < sy < sh + 40):
                 continue
             bob = math.sin(t + i * 0.7) * (2 + row)
-            c = 46 + (i * 13) % 34
-            col = (c + 14, c, c - 6)
-            pygame.draw.rect(screen, col, (sx - 7, sy - 10 + bob, 14, 20),
-                             border_radius=4)
-            skin = (188 - (i * 7) % 60, 152 - (i * 5) % 50, 118)
-            pygame.draw.circle(screen, skin, (int(sx), int(sy - 16 + bob)), 6)
-            # Osa heiluttaa käsiä
-            if i % 5 == 0:
-                wave = math.sin(t * 1.6 + i) * 8
-                pygame.draw.line(screen, col, (sx + 6, sy - 8 + bob),
-                                 (sx + 13, sy - 20 + bob - wave), 3)
+            if sprites:
+                img = sprites[i % len(sprites)]
+                screen.blit(img, (sx - img.get_width() // 2,
+                                  int(sy - img.get_height() + 6 + bob)))
+                # Osa heiluttaa käsiä innoissaan
+                if i % 5 == 0:
+                    wave = math.sin(t * 1.6 + i) * 8
+                    pygame.draw.line(screen, (222, 186, 140),
+                                     (sx + 7, sy - 16 + bob),
+                                     (sx + 13, sy - 28 + bob - wave), 3)
+            else:
+                c = 46 + (i * 13) % 34
+                col = (c + 14, c, c - 6)
+                pygame.draw.rect(screen, col, (sx - 7, sy - 10 + bob, 14, 20),
+                                 border_radius=4)
+                skin = (188 - (i * 7) % 60, 152 - (i * 5) % 50, 118)
+                pygame.draw.circle(screen, skin,
+                                   (int(sx), int(sy - 16 + bob)), 6)
 
     def draw_foreground(self, screen, offset=(0, 0)):
         ox, oy = int(offset[0]), int(offset[1])
@@ -352,20 +495,35 @@ class GrandSlamArena(BaseArena):
                 pygame.draw.line(screen, (255, 190, 90), (fx, fy),
                                  (fx, fy - h * 0.55), 1)
 
-        # Yleisön huudot
+        # Yleisön huudot: oikeat puhekuplat katsojien yläpuolella
+        # (pyöristetty kupla + häntä alas kohti huutajaa)
         try:
             from ui_kit import font_small
             for text, x, y, ttl, col in self.crowd_bubbles:
                 sx, sy = x - ox, y - oy
-                if -220 < sx < screen.get_width() + 40 and -40 < sy < screen.get_height() + 40:
-                    alpha_col = col if ttl > 30 else (140, 140, 140)
-                    surf = font_small.render(text, True, alpha_col)
-                    bg = pygame.Surface((surf.get_width() + 10,
-                                         surf.get_height() + 4),
-                                        pygame.SRCALPHA)
-                    bg.fill((12, 12, 16, 150))
-                    screen.blit(bg, (sx - 5, sy - 2))
-                    screen.blit(surf, (sx, sy))
+                if not (-260 < sx < screen.get_width() + 60
+                        and -60 < sy < screen.get_height() + 60):
+                    continue
+                fade = ttl <= 30
+                txt_col = (90, 90, 96) if fade else (24, 20, 16)
+                surf = font_small.render(text, True, txt_col)
+                bw, bh = surf.get_width() + 20, surf.get_height() + 12
+                bubble = pygame.Rect(int(sx - bw // 2), int(sy - bh - 14),
+                                     bw, bh)
+                body = (216, 216, 220) if fade else (244, 240, 228)
+                edge = (150, 150, 155) if fade else col
+                pygame.draw.rect(screen, body, bubble, border_radius=10)
+                pygame.draw.rect(screen, edge, bubble, 2, border_radius=10)
+                # Häntä alas kohti huutajaa
+                pygame.draw.polygon(screen, body,
+                                    [(sx - 7, bubble.bottom - 2),
+                                     (sx + 7, bubble.bottom - 2),
+                                     (sx, sy - 2)])
+                pygame.draw.line(screen, edge, (sx - 7, bubble.bottom - 1),
+                                 (sx, sy - 2), 2)
+                pygame.draw.line(screen, edge, (sx + 7, bubble.bottom - 1),
+                                 (sx, sy - 2), 2)
+                screen.blit(surf, (bubble.x + 10, bubble.y + 6))
         except Exception:
             pass
 

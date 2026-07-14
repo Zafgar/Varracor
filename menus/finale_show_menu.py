@@ -30,6 +30,12 @@ class FinaleShowMenu(BaseMenu):
         self.series = get_series(manager)
         self.timer = 0
         self.arena = manager.current_arena
+        # Areena saa manager-viitteen reunahuutelua varten (yleisö
+        # kommentoi sarjatilannetta kun pelaaja tulee laidalle)
+        try:
+            self.arena.manager = manager
+        except Exception:
+            pass
 
         # Kierroksen juju käyttöön areenalle
         rnd = int(self.series.get("round", 1))
@@ -37,16 +43,46 @@ class FinaleShowMenu(BaseMenu):
             self.arena.set_twist(rnd)
 
         mode = self.series.get("mode", "intro")
-        self.phase = {"intro": "announce", "round": "round_talk",
+        # Bram kävelee ensin sisään (intro + kierrospuheet), sitten juonto
+        self.phase = {"intro": "bram_walk", "round": "bram_walk",
                       "champion": "champion"}[mode]
+        self._talk_phase = "announce" if mode == "intro" else "round_talk"
         self.script_idx = 0
         self.script = self._build_script(mode)
 
-        # Kamera haltuun cinemaattisen ajaksi. Juonnon aikana näytetään
-        # yläkatsomo + GRAND SLAM -banneri; kävelyyn keskitetään monttuun.
+        # Juontaja: sama Bram kuin liigatiskillä - portrait-kansiot ja
+        # ääniraidat DwarfLeagueManagerilta, kenttäsprite kyläläisenä
+        self._announcer = None
+        self._bram_unit = None
+        self._portrait_cache = {}
+        try:
+            from npc.dwarf_league_manager import DwarfLeagueManager
+            self._announcer = DwarfLeagueManager()
+        except Exception:
+            pass
+        try:
+            from units.villager import Villager
+            self._bram_unit = Villager("Bram Mudhand", "Dwarf", 0, 0)
+        except Exception:
+            pass
+
+        # Bramin kävelyreitti: yläkatsomon takaa alas montun reunalle
+        pit_top = getattr(self.arena, "height", SCREEN_HEIGHT) // 4
+        try:
+            from arenas.tier_1.grand_slam_arena import PIT
+            pit_top = PIT.y
+        except Exception:
+            pass
+        cx = getattr(self.arena, "width", SCREEN_WIDTH) // 2
+        self._bram_start = (cx, 40)
+        self._bram_end = (cx, max(80, pit_top - 54))
+        self._bram_pos = list(self._bram_start)
+        self.bram_t = 0.0
+
+        # Kamera haltuun cinemaattisen ajaksi
         self._old_camera_locked = getattr(manager, "camera_locked", True)
         manager.camera_locked = False
-        if self.phase == "announce":
+        if self.phase == "bram_walk":
             self._aim_camera_at_stands()
         else:
             self._center_camera()
@@ -74,6 +110,8 @@ class FinaleShowMenu(BaseMenu):
         return mine, enemy
 
     def _build_script(self, mode):
+        """Juonto rivinä (emotion, teksti) - emotion valitsee Bramin
+        elekuvan (portraits) ja ääniraidan (voices) kuten ChatMenussa."""
         mine, enemy = self._team_names()
         rnd = int(self.series.get("round", 1))
         twist_name, twist_desc = ROUND_TWISTS.get(rnd, ROUND_TWISTS[3])
@@ -81,24 +119,73 @@ class FinaleShowMenu(BaseMenu):
             style = getattr(self.manager.current_enemy_team, "style", "")
             style_line = f" They fight {style.lower()}!" if style else ""
             return [
-                "MUCKFORD! Quiet down, you beautiful mudlarks!",
-                "The ledger is CLOSED. The season is DECIDED. "
-                "Tonight - the GRAND SLAM FINAL!",
-                f"From the east gate... {enemy.upper()}!{style_line}",
-                f"And from the west gate... our own mud-blooded upstarts... "
-                f"{mine.upper()}!",
-                "BEST OF THREE FALLS! First to two victories takes the "
-                "Tier 1 Charter and marches to Rattlebridge!",
-                "Fighters - TO YOUR GATES!",
+                ("frustrated", "MUCKFORD! Quiet down, you beautiful "
+                               "mudlarks!"),
+                ("serious", "The ledger is CLOSED. The season is DECIDED. "
+                            "Tonight - the GRAND SLAM FINAL!"),
+                ("serious", f"From the east gate... {enemy.upper()}!"
+                            f"{style_line}"),
+                ("encouraging", f"And from the west gate... our own "
+                                f"mud-blooded upstarts... {mine.upper()}!"),
+                ("encouraging", "BEST OF THREE FALLS! First to two "
+                                "victories takes the Tier 1 Charter and "
+                                "marches to Rattlebridge!"),
+                ("serious", "Fighters - TO YOUR GATES!"),
             ]
         if mode == "round":
             score = f"{self.series['wins']} - {self.series['losses']}"
+            lead_emotion = ("encouraging"
+                            if self.series["wins"] > self.series["losses"]
+                            else "serious")
             return [
-                f"The score stands {score}! Round {rnd} - {twist_name}!",
-                twist_desc,
+                (lead_emotion, f"The score stands {score}! "
+                               f"Round {rnd} - {twist_name}!"),
+                ("thinking", twist_desc),
             ]
         # champion
         return []
+
+    def _play_line_voice(self):
+        """Soittaa nykyisen rivin ääniraidan (elekuvan mukaan). Puuttuva
+        tiedosto ohitetaan hiljaa - repossa ei ole ääniassetteja."""
+        if not self._announcer or self.script_idx >= len(self.script):
+            return
+        import os
+        emotion, _txt = self.script[self.script_idx]
+        try:
+            path = self._announcer.get_voice_path(emotion)
+            if path and os.path.exists(path):
+                sfx = pygame.mixer.Sound(path)
+                sfx.set_volume(0.9)
+                sfx.play()
+        except Exception:
+            pass
+
+    def _portrait_for(self, emotion):
+        """Bramin iso elekuva oikeaan laitaan (ChatMenu-tyyli). Ensin
+        portrait-tiedosto; puuttuessa skaalataan kenttäsprite isoksi."""
+        if emotion in self._portrait_cache:
+            return self._portrait_cache[emotion]
+        import os
+        img = None
+        try:
+            path = (self._announcer.get_portrait_path(emotion)
+                    if self._announcer else None)
+            if path and os.path.exists(path):
+                raw = pygame.image.load(path).convert_alpha()
+                th = int(SCREEN_HEIGHT * 0.82)
+                tw = int(th * raw.get_width() / raw.get_height())
+                img = pygame.transform.smoothscale(raw, (tw, th))
+        except Exception:
+            img = None
+        if img is None and self._bram_unit is not None and \
+                getattr(self._bram_unit, "image", None):
+            raw = self._bram_unit.image
+            th = int(SCREEN_HEIGHT * 0.55)
+            tw = max(1, int(th * raw.get_width() / raw.get_height()))
+            img = pygame.transform.scale(raw, (tw, th))  # pikselilook
+        self._portrait_cache[emotion] = img
+        return img
 
     # ------------------------------------------------------------------
     def _center_camera(self):
@@ -166,6 +253,8 @@ class FinaleShowMenu(BaseMenu):
                     self._center_camera()
                 else:
                     self._start_splash()
+            else:
+                self._play_line_voice()
         elif self.phase == "champion":
             # Juhlista seremoniaan (farewell + palkinnot)
             self.manager.camera_locked = self._old_camera_locked
@@ -186,6 +275,8 @@ class FinaleShowMenu(BaseMenu):
         if clicked or keyed:
             if self.phase == "walkin":
                 self.walk_t = 1.0  # skippaa kävelyn loppuun
+            elif self.phase == "bram_walk":
+                self.bram_t = 1.0  # skippaa Bramin saapumisen
             else:
                 self._advance()
 
@@ -201,7 +292,28 @@ class FinaleShowMenu(BaseMenu):
             pass
         self.manager.vfx.update()
 
-        if self.phase == "announce":
+        if self.phase == "bram_walk":
+            # Bram saapuu yläkatsomon takaa montun reunalle; kamera seuraa
+            self.bram_t = min(1.0, self.bram_t + 1.0 / 160.0)
+            ease = 1 - (1 - self.bram_t) ** 2
+            bx = self._bram_start[0] + \
+                (self._bram_end[0] - self._bram_start[0]) * ease
+            by = self._bram_start[1] + \
+                (self._bram_end[1] - self._bram_start[1]) * ease
+            self._bram_pos = [bx, by]
+            if self._bram_unit is not None:
+                self._bram_unit.animation_state = \
+                    "run" if self.bram_t < 1.0 else "idle"
+            self.manager.camera_x = max(0, int(bx - SCREEN_WIDTH // 2))
+            self.manager.camera_y = max(0, int(by - SCREEN_HEIGHT * 0.42))
+            if self.bram_t >= 1.0:
+                self.phase = self._talk_phase
+                self.script_idx = 0
+                self._play_line_voice()
+                sound_system.play_sound(
+                    f"cheering_{random.randint(1, 4)}", volume=0.5)
+
+        elif self.phase == "announce":
             # Hidas panorointi katsomon yli juonnon aikana
             arena_w = getattr(self.arena, "width", SCREEN_WIDTH)
             base = max(0, arena_w // 2 - SCREEN_WIDTH // 2)
@@ -234,10 +346,37 @@ class FinaleShowMenu(BaseMenu):
                     p["y"] = random.uniform(-60, -10)
 
     # ------------------------------------------------------------------
+    def _draw_bram_on_field(self, screen):
+        """Bramin kenttäsprite kävelemässä/seisomassa montun reunalla."""
+        if self._bram_unit is None or \
+                getattr(self._bram_unit, "image", None) is None:
+            return
+        ox = int(self.manager.camera_x)
+        oy = int(self.manager.camera_y)
+        img = self._bram_unit.image
+        bob = math.sin(self.timer * 0.25) * 2 if self.phase == "bram_walk" \
+            else 0
+        x = int(self._bram_pos[0] - img.get_width() // 2 - ox)
+        y = int(self._bram_pos[1] - img.get_height() + bob - oy)
+        screen.blit(img, (x, y))
+        # Nimikyltti kävelyn aikana
+        if self.phase == "bram_walk":
+            tag = font_small.render("Bram 'Mudhand' Carrow", True,
+                                    (238, 218, 160))
+            bg = pygame.Surface((tag.get_width() + 10,
+                                 tag.get_height() + 4), pygame.SRCALPHA)
+            bg.fill((12, 12, 16, 170))
+            screen.blit(bg, (x + img.get_width() // 2 -
+                             tag.get_width() // 2 - 5, y - 26))
+            screen.blit(tag, (x + img.get_width() // 2 -
+                              tag.get_width() // 2, y - 24))
+
     def draw(self, screen):
         # Stadion + joukkueet
         self.manager.draw_game(screen)
 
+        if self.phase in ("bram_walk", "announce", "round_talk"):
+            self._draw_bram_on_field(screen)
         if self.phase in ("announce", "round_talk"):
             self._draw_announcer(screen)
         elif self.phase == "walkin":
@@ -249,18 +388,33 @@ class FinaleShowMenu(BaseMenu):
         self.draw_editor(screen)
 
     def _draw_announcer(self, screen):
+        """ChatMenu-tyylinen juontopaneeli: iso elekuva oikealla,
+        tekstilaatikko vasemmalla alhaalla, nimikilpi ja jatkovihje."""
         if self.script_idx >= len(self.script):
             return
-        panel = pygame.Rect(SCREEN_WIDTH // 2 - 560, SCREEN_HEIGHT - 300,
-                            1120, 210)
+        emotion, text = self.script[self.script_idx]
+
+        # Iso portrait oikeaan alakulmaan (kuten ChatMenussa)
+        portrait = self._portrait_for(emotion)
+        if portrait is not None:
+            screen.blit(portrait,
+                        (SCREEN_WIDTH - portrait.get_width(),
+                         SCREEN_HEIGHT - portrait.get_height()))
+
+        panel = pygame.Rect(30, SCREEN_HEIGHT - 300, 1150, 260)
         surf = pygame.Surface(panel.size, pygame.SRCALPHA)
         surf.fill((14, 14, 20, 235))
         screen.blit(surf, panel.topleft)
         pygame.draw.rect(screen, (196, 158, 82), panel, 3, border_radius=14)
-        draw_text("BRAM MUDHAND - Master of Ceremonies", font_main,
-                  GOLD_COLOR, screen, panel.x + 30, panel.y + 20)
+        # Nimikilpi paneelin yläreunaan
+        name_tag = pygame.Rect(panel.x + 20, panel.y - 24, 520, 44)
+        pygame.draw.rect(screen, (34, 28, 22), name_tag, border_radius=10)
+        pygame.draw.rect(screen, GOLD_COLOR, name_tag, 2, border_radius=10)
+        draw_text("BRAM 'MUDHAND' CARROW - Master of Ceremonies",
+                  font_small, GOLD_COLOR, screen, name_tag.x + 14,
+                  name_tag.y + 12)
         # rivitys
-        words = self.script[self.script_idx].split()
+        words = text.split()
         lines, cur = [], ""
         for w in words:
             t = w if not cur else f"{cur} {w}"
@@ -271,8 +425,8 @@ class FinaleShowMenu(BaseMenu):
                 cur = w
         if cur:
             lines.append(cur)
-        y = panel.y + 66
-        for line in lines[:3]:
+        y = panel.y + 48
+        for line in lines[:4]:
             draw_text(line, font_header, WHITE, screen, panel.x + 30, y)
             y += 40
         draw_text(f"[E] continue   ({self.script_idx + 1}/{len(self.script)})",

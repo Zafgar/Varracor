@@ -1607,8 +1607,13 @@ class GameManager:
             self.season_wins = 0
             self.season_losses = 0
 
-        self.last_fighters = []
-        self.active_player_units.empty()
+        # BUGIKORJAUS (pelitesti 13): Grand Slam -sarjan välissä rosteria
+        # EI saa tyhjentää - handle_promotion_result käynnistää seuraavan
+        # kierroksen last_fighters-listalla. Tyhjennys aiheutti sen että
+        # 2. matsiin ei spawnannut ketään ja tuli automaattinen DEFEAT.
+        if getattr(self, "match_mode", "") != "PROMOTION":
+            self.last_fighters = []
+            self.active_player_units.empty()
         self.refresh_hub()
 
         # --- AUTOSAVE ---

@@ -100,12 +100,18 @@ def test_finale_show_phases_intro_to_battle():
     m = _promotion_manager()
     from menus.finale_show_menu import FinaleShowMenu
     show = FinaleShowMenu(m)
-    assert show.phase == "announce"
-    assert any("GRAND SLAM" in line for line in show.script)
+    # Bram kävelee ensin sisään yläkatsomosta
+    assert show.phase == "bram_walk"
+    assert any("GRAND SLAM" in text for _emo, text in show.script)
     surf = pygame.Surface((1920, 1080))
     show.update(); show.draw(surf)
-    # Klikkaile juonto läpi
     ev = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e)
+    # Skippaa kävely -> juonto alkaa
+    show.handle_event(ev)
+    show.update()
+    assert show.phase == "announce"
+    show.draw(surf)
+    # Klikkaile juonto läpi
     for _ in range(len(show.script)):
         show.handle_event(ev)
     assert show.phase == "walkin"
