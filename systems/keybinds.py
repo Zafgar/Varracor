@@ -39,6 +39,9 @@ DEFAULTS = {
     "spell_5":        [pygame.K_5],
     "spell_6":        [pygame.K_6],
     "usable_2":       [pygame.K_8],
+    # Commander shoutit (avataan COMMAND-taitopuusta)
+    "shout_rally":    [pygame.K_g],
+    "shout_charge":   [pygame.K_h],
 }
 
 # Näytettävät nimet Controls-valikkoon (järjestys = näyttöjärjestys)
@@ -58,6 +61,8 @@ LABELS = [
     ("spell_3",        "Spell Slot 3"),
     ("spell_5",        "Spell Slot 5"),
     ("spell_6",        "Spell Slot 6"),
+    ("shout_rally",    "Shout: Rally Cry"),
+    ("shout_charge",   "Shout: Charge Order"),
     ("usable_1",       "Usable Item 1"),
     ("usable_2",       "Usable Item 2"),
 ]

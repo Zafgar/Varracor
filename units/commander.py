@@ -4,7 +4,8 @@ import os
 import random
 from gladiator import Gladiator
 from settings import GREEN, CHEAT_MODE, SCREEN_WIDTH, SCREEN_HEIGHT
-from skills.commander_skills_data import COMMANDER_SKILL_TREE
+from skills.commander_skills_data import (COMMANDER_SKILL_TREE,
+                                          COMMANDER_COMMAND_TREE)
 from ui_kit import draw_text, font_small, font_main, draw_item_slot_background, GOLD_COLOR, WHITE, draw_icon, draw_panel, draw_item_tooltip, GRAY
 from sound_manager import sound_system
 
@@ -312,14 +313,31 @@ class Commander(Gladiator):
         self.fishing = 0
         self.insight = 0
 
+        # Johtamispuun kertymät (COMMAND-välilehti)
+        self.team_capacity = 6      # johtajuuden sallima roosterin koko
+        self.shouts = set()         # avatut taisteluhuudot ("rally"/"charge")
+        self.drillmaster = 0        # voitoista tuplamoraali tiimille
+        self.iron_presence = 0      # tappioista puolet moraalisakosta
+
         _LIFE_INT_EFFECTS = ("mining_yield", "wood_yield", "harvest_yield",
                              "husbandry", "haggler", "fishing", "insight")
         _LIFE_FLOAT_EFFECTS = ("mining_speed", "chop_speed", "harvest_quality")
 
+        _ALL_TREES = {**COMMANDER_SKILL_TREE, **COMMANDER_COMMAND_TREE}
         for s_id in self.unlocked_skills:
-            if s_id in COMMANDER_SKILL_TREE:
-                data = COMMANDER_SKILL_TREE[s_id]
+            if s_id in _ALL_TREES:
+                data = _ALL_TREES[s_id]
                 effects = data.get("effects", {})
+
+                if "team_cap" in effects:
+                    self.team_capacity = max(self.team_capacity,
+                                             int(effects["team_cap"]))
+                if "shout" in effects:
+                    self.shouts.add(str(effects["shout"]))
+                if "drillmaster" in effects:
+                    self.drillmaster = 1
+                if "iron_presence" in effects:
+                    self.iron_presence = 1
 
                 if "str" in effects: self.strength += effects["str"]
                 if "dex" in effects: self.dexterity += effects["dex"]
@@ -594,6 +612,40 @@ class Commander(Gladiator):
             # Piirto (draw_on_screen) hoitaa kuvan sijoittelun rectin midbottomin perusteella.
             pass
 
+    def _update_shouts(self, keys, manager):
+        """Taisteluhuudot: asettaa tiimikäskyn (manager.team_order) jota
+        omien gladiaattorien AI seuraa 5 sekuntia. 10 s cooldown."""
+        if manager is None:
+            return
+        from systems import keybinds
+        # Käskyn kesto kuluu täällä (commander ajetaan joka frame)
+        timer = int(getattr(manager, "team_order_timer", 0))
+        if timer > 0:
+            manager.team_order_timer = timer - 1
+            if manager.team_order_timer == 0:
+                manager.team_order = None
+        cd = int(getattr(self, "shout_cooldown", 0))
+        if cd > 0:
+            self.shout_cooldown = cd - 1
+            return
+        shouts = getattr(self, "shouts", set())
+        for action, ability, banner in (
+                ("shout_rally", "rally", "RALLY TO ME!"),
+                ("shout_charge", "charge", "CHAAARGE!")):
+            if ability in shouts and keybinds.pressed(keys, action):
+                manager.team_order = {"type": ability}
+                manager.team_order_timer = 300   # 5 s
+                self.shout_cooldown = 600        # 10 s
+                try:
+                    manager.vfx.show_damage(self.rect.centerx,
+                                            self.rect.top - 50, banner,
+                                            color=(255, 210, 90))
+                    from sound_manager import sound_system
+                    sound_system.play_sound("battle_start")
+                except Exception:
+                    pass
+                break
+
     def run_combat_ai(self, all_units, obstacles=None, manager=None):
         """
         Commanderin oma 'AI' on pelaajan syöte (WASD + Hiiri).
@@ -650,6 +702,9 @@ class Commander(Gladiator):
             self.set_blocking(False)
 
         from systems import keybinds
+
+        # COMMANDER SHOUTIT (Rally [G] / Charge [H], avataan COMMAND-puusta)
+        self._update_shouts(keys, manager)
 
         # SPRINT (aktivoituu vasta liikkeessä - ks. LIIKKUMINEN alempana;
         # BUGIKORJAUS: paikallaan seisova ei enää polta staminaa shiftillä)

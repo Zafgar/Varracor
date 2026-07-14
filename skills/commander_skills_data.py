@@ -1,8 +1,74 @@
 # skills/commander_skills_data.py
 
-# Määritellään Commanderin oma puu.
+# Määritellään Commanderin omat puut.
 # Koordinaatit (pos) ovat (x, y) suhteessa keskipisteeseen (0,0).
 # Negatiivinen Y on ylöspäin.
+
+# --- COMMAND TREE (johtaminen) ---
+# Pelaajapalaute: commander-pisteiden pitää olla JOHTAMISvalintoja
+# (tiimin koko, taisteluhuudot, läsnäolo) - ei crafting/combat-syvyyttä.
+# Elämäntaitobonukset elävät omalla TRADECRAFT-välilehdellään alla.
+COMMANDER_COMMAND_TREE = {
+    "leader_1": {
+        "name": "Recruiter I",
+        "desc": "A larger banner draws more blades: team capacity 8 "
+                "(barracks bunks still required).",
+        "pos": (0, 0),
+        "cost": 2,
+        "min_level": 3,
+        "requires": [],
+        "effects": {"team_cap": 8}
+    },
+    "leader_2": {
+        "name": "Recruiter II",
+        "desc": "Your name alone fills the roster: team capacity 10.",
+        "pos": (0, -110),
+        "cost": 3,
+        "min_level": 7,
+        "requires": ["leader_1"],
+        "effects": {"team_cap": 10}
+    },
+    "shout_rally": {
+        "name": "Rally Cry",
+        "desc": "Battle shout [G]: your fighters break off and regroup "
+                "on you for 5 seconds.",
+        "pos": (-170, 0),
+        "cost": 1,
+        "min_level": 2,
+        "requires": [],
+        "effects": {"shout": "rally"}
+    },
+    "shout_charge": {
+        "name": "Charge Order",
+        "desc": "Battle shout [H]: your fighters sprint at the nearest "
+                "enemy and attack with everything for 5 seconds.",
+        "pos": (-170, -110),
+        "cost": 2,
+        "min_level": 4,
+        "requires": ["shout_rally"],
+        "effects": {"shout": "charge"}
+    },
+    "drillmaster": {
+        "name": "Drillmaster",
+        "desc": "Victories mean more under your drills: team gains double "
+                "morale from won matches.",
+        "pos": (170, 0),
+        "cost": 2,
+        "min_level": 3,
+        "requires": [],
+        "effects": {"drillmaster": 1}
+    },
+    "iron_presence": {
+        "name": "Iron Presence",
+        "desc": "Defeats sting less with you at the front: team loses "
+                "only half morale from lost matches.",
+        "pos": (170, -110),
+        "cost": 2,
+        "min_level": 5,
+        "requires": ["drillmaster"],
+        "effects": {"iron_presence": 1}
+    },
+}
 
 COMMANDER_SKILL_TREE = {
     # --- PICKAXE BRANCH (Left) ---

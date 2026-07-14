@@ -1389,6 +1389,58 @@ class Gladiator(pygame.sprite.Sprite):
     # =========================================================
     # UPDATE & AOE
     # =========================================================
+    def _follow_team_order(self, order_type, all_units, obstacles, manager):
+        """Commanderin huudon toteutus: 'rally' = ryhmity komentajan luo,
+        'charge' = sprinttaa lähimmän vihollisen kimppuun. Palauttaa True
+        jos käsky ohjasi tätä framea (normaali AI ohitetaan)."""
+        ai = self.ai_controller
+        pc = getattr(manager, "player_character", None)
+        if ai is None or not hasattr(ai, "_move_towards"):
+            return False
+
+        if order_type == "rally":
+            if pc is None:
+                return False
+            dx = pc.rect.centerx - self.rect.centerx
+            dy = pc.rect.centery - self.rect.centery
+            dist = math.hypot(dx, dy)
+            if dist > 110:
+                self.set_sprinting(self.current_stamina > 10)
+                ai._move_towards(dx, dy, dist, obstacles, all_units, manager)
+            else:
+                self.set_sprinting(False)
+                self.animation_state = "idle"
+            return True
+
+        if order_type == "charge":
+            enemy = None
+            best = 1e9
+            for u in all_units:
+                if u is self or getattr(u, "is_dead", True):
+                    continue
+                if getattr(u, "is_structure", False):
+                    continue
+                if u.team_color == self.team_color:
+                    continue
+                d = math.hypot(u.rect.centerx - self.rect.centerx,
+                               u.rect.centery - self.rect.centery)
+                if d < best:
+                    best, enemy = d, u
+            if enemy is None:
+                return False
+            reach = max(60, int(getattr(self, "attack_range", 60)))
+            if best > reach:
+                self.set_sprinting(self.current_stamina > 10)
+                dx = enemy.rect.centerx - self.rect.centerx
+                dy = enemy.rect.centery - self.rect.centery
+                ai._move_towards(dx, dy, best, obstacles, all_units, manager)
+            else:
+                self.set_sprinting(False)
+                self.perform_attack(target=enemy, manager=manager)
+            return True
+
+        return False
+
     def run_combat_ai(self, all_units, obstacles=None, manager=None):
         if self.is_dead or self.stun_timer > 0:
             return
@@ -1404,6 +1456,18 @@ class Gladiator(pygame.sprite.Sprite):
                 if item and hasattr(item, "on_update"):
                     item.on_update(self, all_units, manager)
         # -----------------------------------
+
+        # --- COMMANDER SHOUT: tiimikäsky ohittaa normaalin AI:n hetkeksi ---
+        if manager is not None and self.ai_controller and \
+                int(getattr(manager, "team_order_timer", 0)) > 0:
+            pc = getattr(manager, "player_character", None)
+            if pc is not None and self is not pc and \
+                    self.team_color == pc.team_color and \
+                    self in getattr(manager, "my_team", ()):
+                order = getattr(manager, "team_order", None) or {}
+                if self._follow_team_order(order.get("type"), all_units,
+                                           obstacles, manager):
+                    return
 
         if self.ai_controller:
             # HUOM: Ei except TypeError -fallbackia! Se piilotti aidot

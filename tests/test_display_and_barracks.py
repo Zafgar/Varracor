@@ -134,8 +134,13 @@ def test_bunk_cap_blocks_hiring():
     assert m.hire_unit_by_reference(rec, 10) is False
     assert "bunk" in m.hire_block_message.lower()
     assert rec not in m.my_team
-    # Kehitys tasolle 2 avaa lisäpunkat
+    # Kehitys tasolle 2 avaa lisäpunkat - MUTTA myös johtajuuden
+    # (COMMAND-puun Recruiter) pitää sallia isompi rooster
     m.barracks_level = 2
+    assert not m.has_free_bunk(), "johtajuus (6) rajaa yhä"
+    pc = m.player_character
+    pc.unlocked_skills.add("leader_1")
+    pc.calculate_final_stats()
     assert m.has_free_bunk()
     assert m.hire_unit_by_reference(rec, 10) is True
 

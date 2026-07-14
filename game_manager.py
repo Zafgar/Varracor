@@ -1275,10 +1275,14 @@ class GameManager:
         self.match_over = True
         self.match_result = "VICTORY" if win else "DEFEAT"
 
-        # Moraali: voitot nostavat, tappiot painavat koko tiimiä
+        # Moraali: voitot nostavat, tappiot painavat koko tiimiä.
+        # Drillmaster tuplaa voittobonuksen, Iron Presence puolittaa sakon.
+        pc = self.player_character
+        win_gain = 8 if getattr(pc, "drillmaster", 0) else 4
+        loss_hit = -3 if getattr(pc, "iron_presence", 0) else -6
         for u in self.my_team:
             if hasattr(u, "adjust_morale"):
-                u.adjust_morale(4 if win else -6)
+                u.adjust_morale(win_gain if win else loss_hit)
 
         # Arena Hallin vedonlyönti ratkeaa liigamatsissa
         bet = getattr(self, "active_bet", None)
@@ -1653,14 +1657,30 @@ class GameManager:
         from citys.mucford.barracks_interior_arena import BUNKS_PER_LEVEL
         return BUNKS_PER_LEVEL.get(int(getattr(self, "barracks_level", 1)), 6)
 
+    def team_capacity(self):
+        """Roosterin katto: tarvitaan SEKÄ punkat (barracksin taso) ETTÄ
+        johtajuus (COMMAND-puun Recruiter-noodit, oletus 6)."""
+        pc = self.player_character
+        leadership = int(getattr(pc, "team_capacity", 6)) if pc else 6
+        return min(self.barracks_bunk_count(), leadership)
+
     def has_free_bunk(self):
-        """Commander vie yhden punkan; loput ovat gladiaattoreille."""
-        return 1 + len(self.my_team) < self.barracks_bunk_count()
+        """Commander vie yhden paikan; loput ovat gladiaattoreille."""
+        return 1 + len(self.my_team) < self.team_capacity()
+
+    def _roster_block_reason(self):
+        """Kertoo kumpi raja estää palkkauksen: punkat vai johtajuus."""
+        pc = self.player_character
+        leadership = int(getattr(pc, "team_capacity", 6)) if pc else 6
+        if self.barracks_bunk_count() <= leadership:
+            return ("No free bunks in the barracks - "
+                    "upgrade it to house more fighters.")
+        return ("Your leadership caps the roster - unlock Recruiter "
+                "in the COMMAND skill tree.")
 
     def hire_recruit(self, index):
         if not self.has_free_bunk():
-            self.hire_block_message = ("No free bunks in the barracks - "
-                                       "upgrade it to house more fighters.")
+            self.hire_block_message = self._roster_block_reason()
             self._toast_timer = 240
             return False
         if index < len(self.recruit_options) and self.recruit_options[index]:
@@ -1677,8 +1697,7 @@ class GameManager:
     def hire_unit_by_reference(self, unit, cost):
         """Palkkaa yksikön suoraan objektiviittauksella (Dialogista)."""
         if not self.has_free_bunk():
-            self.hire_block_message = ("No free bunks in the barracks - "
-                                       "upgrade it to house more fighters.")
+            self.hire_block_message = self._roster_block_reason()
             self._toast_timer = 240
             return False
         if self.gold >= cost:

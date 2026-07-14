@@ -601,7 +601,15 @@ class BaseAI:
 
     def _move_towards(self, dx, dy, dist, obstacles, all_units, manager=None):
         if dist == 0: return
-        
+
+        # SPRINTTI: NPC:t eivät aiemmin juosseet KOSKAAN (pelaajapalaute:
+        # "säästelevät staminaa"). Pitkä väli kohteeseen + staminaa yli
+        # 45 % -> juokse kiinni. Lähellä kävellään, jotta staminaa jää
+        # itse taisteluun.
+        if dist > 220 and \
+                self.unit.current_stamina > self.unit.max_stamina * 0.45:
+            self.unit.set_sprinting(True)
+
         # Normalisoitu suunta kohteeseen
         ndx = dx / dist
         ndy = dy / dist

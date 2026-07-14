@@ -4,7 +4,8 @@ from settings import *
 from ui_kit import UIButton, draw_text, font_title, font_main, font_small, draw_panel, GOLD_COLOR, WHITE, RED, GRAY
 from menus.base_menu import BaseMenu
 from sound_manager import sound_system
-from skills.commander_skills_data import COMMANDER_SKILL_TREE
+from skills.commander_skills_data import (COMMANDER_SKILL_TREE,
+                                          COMMANDER_COMMAND_TREE)
 
 class CommanderSkillMenu(BaseMenu):
     def __init__(self, manager):
@@ -23,6 +24,14 @@ class CommanderSkillMenu(BaseMenu):
         self.drag_total = 0
 
         self.NODE_R = 30
+
+        # Välilehdet: COMMAND = johtaminen (tiimikoko, huudot, läsnäolo),
+        # TRADECRAFT = elämäntaitobonukset. Pelaajapalaute: johtamis-
+        # valinnat eivät saa hukkua crafting-noodien sekaan.
+        self.tabs = [("COMMAND", COMMANDER_COMMAND_TREE),
+                     ("TRADECRAFT", COMMANDER_SKILL_TREE)]
+        self.active_tab = "COMMAND"
+        self.tab_rects = []
 
     def handle_event(self, event):
         mouse_pos = pygame.mouse.get_pos()
@@ -55,13 +64,25 @@ class CommanderSkillMenu(BaseMenu):
                 self.drag_total += abs(dx) + abs(dy)
                 self.last_mouse_pos = mouse_pos
 
+    def _tree(self):
+        for name, tree in self.tabs:
+            if name == self.active_tab:
+                return tree
+        return COMMANDER_COMMAND_TREE
+
     def _handle_click(self, pos):
+        # Välilehden vaihto
+        for rect, name in self.tab_rects:
+            if rect.collidepoint(pos):
+                self.active_tab = name
+                sound_system.play_sound("click")
+                return
         node_id = self._pick_node(pos)
         if node_id:
             self._try_unlock(node_id)
 
     def _try_unlock(self, s_id):
-        data = COMMANDER_SKILL_TREE[s_id]
+        data = self._tree()[s_id]
         
         # 1. Onko jo auki?
         if s_id in self.unit.unlocked_skills:
@@ -79,7 +100,7 @@ class CommanderSkillMenu(BaseMenu):
         for r in reqs:
             if r not in self.unit.unlocked_skills:
                 sound_system.play_sound("error")
-                print(f"Requires {COMMANDER_SKILL_TREE[r]['name']}")
+                print(f"Requires {self._tree()[r]['name']}")
                 return
 
         # 4. Level check
@@ -100,7 +121,7 @@ class CommanderSkillMenu(BaseMenu):
 
     def _pick_node(self, pos):
         mx, my = pos
-        for s_id, data in COMMANDER_SKILL_TREE.items():
+        for s_id, data in self._tree().items():
             px, py = data.get("pos", (0, 0))
             cx, cy = self._world_to_screen(px, py)
             if (mx - cx)**2 + (my - cy)**2 <= self.NODE_R**2:
@@ -114,21 +135,52 @@ class CommanderSkillMenu(BaseMenu):
         # Header
         _t = font_title.render("COMMANDER SKILLS", True, GOLD_COLOR)
         self.draw_header_bar(screen, _t, y=10)
-        draw_text(f"Skill Points: {self.unit.skill_points}", font_main, WHITE, screen, SCREEN_WIDTH//2 - 80, 80)
-        # Työnjako: Paths avaa työkalut/loitsupaikat tekemällä, tämä puu
-        # ostaa pysyviä bonuksia pistein
-        draw_text("Tool tiers & spell slots unlock via Commander PATHS (by doing). "
-                  "These skills buy permanent bonuses on top.",
-                  font_small, GRAY, screen, SCREEN_WIDTH//2 - 330, 108)
+        # Taso + XP-eteneminen näkyviin (pelaajapalaute: "XP ei mene
+        # mihinkään" - meni kyllä, mutta kertymä ei näkynyt missään)
+        from progression.xp_table import xp_for_level
+        lvl = int(self.unit.level)
+        cur = int(self.unit.xp) - xp_for_level(lvl)
+        need = max(1, xp_for_level(lvl + 1) - xp_for_level(lvl))
+        draw_text(f"Level {lvl}   XP {cur}/{need}   "
+                  f"Skill Points: {self.unit.skill_points}",
+                  font_main, WHITE, screen, SCREEN_WIDTH//2 - 220, 80)
+        bar = pygame.Rect(SCREEN_WIDTH//2 - 220, 106, 440, 10)
+        pygame.draw.rect(screen, (40, 40, 50), bar, border_radius=5)
+        fill = bar.copy(); fill.w = int(bar.w * min(1.0, cur / need))
+        if fill.w > 0:
+            pygame.draw.rect(screen, (190, 150, 255), fill, border_radius=5)
+        pygame.draw.rect(screen, (120, 120, 140), bar, 1, border_radius=5)
+
+        # Välilehdet
+        self.tab_rects = []
+        tx = SCREEN_WIDTH//2 - 220
+        for name, _tree in self.tabs:
+            w = font_main.size(name)[0] + 36
+            rect = pygame.Rect(tx, 128, w, 38)
+            active = name == self.active_tab
+            pygame.draw.rect(screen, (70, 60, 30) if active else (40, 40, 52),
+                             rect, border_radius=7)
+            pygame.draw.rect(screen, GOLD_COLOR if active else (100, 100, 115),
+                             rect, 2, border_radius=7)
+            draw_text(name, font_main, WHITE if active else (180, 180, 190),
+                      screen, rect.x + 18, rect.y + 8)
+            self.tab_rects.append((rect, name))
+            tx += w + 12
+        hint = ("Leadership: roster size, battle shouts, presence."
+                if self.active_tab == "COMMAND" else
+                "Life-skill perks. Tool tiers & spell slots unlock via "
+                "Commander PATHS (by doing).")
+        draw_text(hint, font_small, GRAY, screen, tx + 16, 138)
 
         # Draw Connections
-        for s_id, data in COMMANDER_SKILL_TREE.items():
+        tree = self._tree()
+        for s_id, data in tree.items():
             px, py = data.get("pos", (0, 0))
             start = self._world_to_screen(px, py)
             
             for req_id in data.get("requires", []):
-                if req_id in COMMANDER_SKILL_TREE:
-                    r_pos = COMMANDER_SKILL_TREE[req_id]["pos"]
+                if req_id in tree:
+                    r_pos = tree[req_id]["pos"]
                     end = self._world_to_screen(r_pos[0], r_pos[1])
                     
                     col = (100, 100, 100)
@@ -141,7 +193,7 @@ class CommanderSkillMenu(BaseMenu):
         mouse_pos = pygame.mouse.get_pos()
         hover_id = self._pick_node(mouse_pos)
 
-        for s_id, data in COMMANDER_SKILL_TREE.items():
+        for s_id, data in tree.items():
             px, py = data.get("pos", (0, 0))
             cx, cy = self._world_to_screen(px, py)
             
@@ -164,7 +216,7 @@ class CommanderSkillMenu(BaseMenu):
             pygame.draw.circle(screen, WHITE, (cx, cy), self.NODE_R, 2)
             
             # Icon / Text inside node
-            short = "P" if "mining" in s_id else "L"
+            short = data.get("name", "?")[0]
             draw_text(short, font_main, (0,0,0), screen, cx - 8, cy - 12)
 
         # Tooltip
@@ -175,7 +227,7 @@ class CommanderSkillMenu(BaseMenu):
         self.btn_back.draw(screen)
 
     def _draw_tooltip(self, screen, s_id, pos):
-        data = COMMANDER_SKILL_TREE[s_id]
+        data = self._tree()[s_id]
         mx, my = pos
         x, y = mx + 20, my + 20
         
