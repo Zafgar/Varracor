@@ -108,6 +108,17 @@ class ScrapringArena(BaseArena):
             pygame.Rect(int(SCREEN_WIDTH * 0.84) - pw, cy - ph // 2, pw, ph),
         ]
 
+        # --- Scrap-kasat (SUOJAT: estävät myös ammukset) ---
+        # Hazard-areenakin tarvitsee katveita, jotta ranged ei dominoi.
+        self.scrap_cover = [
+            pygame.Rect(int(SCREEN_WIDTH * 0.42), int(SCREEN_HEIGHT * 0.30), 110, 64),
+            pygame.Rect(int(SCREEN_WIDTH * 0.52), int(SCREEN_HEIGHT * 0.62), 110, 64),
+            pygame.Rect(int(SCREEN_WIDTH * 0.14), int(SCREEN_HEIGHT * 0.24), 80, 60),
+            pygame.Rect(int(SCREEN_WIDTH * 0.82), int(SCREEN_HEIGHT * 0.70), 80, 60),
+        ]
+        for r in self.scrap_cover:
+            self.obstacles.add(ArenaObstacle(r.x, r.y, r.w, r.h, "wall"))
+
         self._build_walls()
 
     def _build_walls(self):
@@ -236,6 +247,18 @@ class ScrapringArena(BaseArena):
 
     def draw_foreground(self, screen):
         super().draw_foreground(screen)
+        # Scrap-kasat (suojat): ruosteinen romuröykkiö
+        for r in getattr(self, "scrap_cover", []):
+            pygame.draw.rect(screen, (26, 24, 22), r.move(3, 4), border_radius=8)
+            pygame.draw.rect(screen, (86, 72, 58), r, border_radius=8)
+            pygame.draw.rect(screen, (48, 42, 38), r, 3, border_radius=8)
+            rng = random.Random(r.x)
+            for _ in range(5):
+                px = rng.randint(r.x + 8, r.right - 20)
+                py = rng.randint(r.y + 6, r.bottom - 16)
+                pygame.draw.rect(screen, rng.choice(((108, 84, 52), (70, 64, 60), (120, 96, 64))),
+                                 (px, py, rng.randint(10, 20), rng.randint(6, 12)),
+                                 border_radius=3)
         # Steam-venttiilit
         for s in self.steam_vents:
             base = (70, 70, 78)

@@ -45,6 +45,12 @@ except ImportError:
     print("Notice: SpikeArena not found, using BasicArena.")
     SpikeArena = BasicArena
 
+try:
+    from arenas.tier_3.ember_quarry import EmberQuarry
+except ImportError:
+    print("Notice: EmberQuarry not found, using BasicArena.")
+    EmberQuarry = BasicArena
+
 
 # Sijaintikohtaiset tunnusareenat (lore-signature). Näillä on oma
 # mekaniikkansa, joka ajetaan sijainnin liigassa tierin sijaan.
@@ -63,20 +69,22 @@ def get_arena_for(tier, location_id=None):
     return get_random_arena(tier)
 
 
+# Areenapoolit: vähintään 3 areenaa joka tasolla.
+# Tier 0 (engine 1): puhtaita suoja-areenoita ilman erikoismekaniikkoja.
+# Tier 2+: mukana kevyet, telegraafatut ympäristövaarat.
+TIER_POOLS = {
+    1: [BasicArena, RotatingColosseum, OasisRuins],
+    2: [BasicArena, StormArena, ScrapringArena],
+    3: [StormArena, SpikeArena, EmberQuarry],
+}
+
+
 def get_random_arena(tier):
     """Palauttaa areenan tason (Tier) perusteella"""
-
-    # Tier 1 (League 1-2)
     if tier <= 1:
-        ArenaClass = random.choice([BasicArena, RotatingColosseum, OasisRuins])
-        return ArenaClass()
-
-    # Tier 2 (League 3-4)
+        pool = TIER_POOLS[1]
     elif tier == 2:
-        ArenaClass = random.choice([BasicArena, StormArena])
-        return ArenaClass()
-
-    # Tier 3+ (League 5+)
+        pool = TIER_POOLS[2]
     else:
-        ArenaClass = random.choice([StormArena, SpikeArena])
-        return ArenaClass()
+        pool = TIER_POOLS[3]
+    return random.choice(pool)()
