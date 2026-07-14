@@ -241,6 +241,14 @@ class BarracksInteriorMenu(GameplayScreen):
             u.current_mana = getattr(u, "max_mana", 0)
             if hasattr(u, "adjust_morale") and u is not self.manager.player_character:
                 u.adjust_morale(3)
+        # Lepo parantaa väsymyksen heti ja muut tilat -1 pv (pelitesti 18)
+        try:
+            from systems import conditions as _cond
+            for u in self.manager.my_team:
+                _cond.remove_condition(u, "fatigue")
+            _cond.check_day_rollover(self.manager)
+        except Exception:
+            pass
         self.banner = "You rest until morning. The team feels refreshed."
         self.banner_timer = 300
         sound_system.play_sound("win")

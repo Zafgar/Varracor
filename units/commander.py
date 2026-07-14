@@ -953,7 +953,8 @@ class Commander(Gladiator):
             return
         name = info[0]
         w, h = screen.get_size()
-        x, y, size = 24, h - 96, 64
+        # Pelitesti 18: nostettu ylemmäs - jäi stamina-/HP-paneelin taakse
+        x, y, size = 24, h - 240, 64
         ready = self.racial_cooldown <= 0
         active = (self.is_invisible or self.stoneform_timer > 0
                   or self.speed_buff_timer > 0)

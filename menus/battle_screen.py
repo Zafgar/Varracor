@@ -61,10 +61,79 @@ class BattleScreen(GameplayScreen):
         if not self.manager.paused and not self.manager.match_over:
             self.manager.update_match()
 
+    def _draw_sponsor_flags(self, screen):
+        """Sponsorilippu kummankin joukkueen päädyssä (pelitesti 18).
+        Pelaajan pääty (vasen) liehuttaa allekirjoitetun sponsorin väriä
+        ja nimeä; vastustajan pääty saa tiiminsä väristä viiriä."""
+        m = self.manager
+        if m.mode != "League" or not m.current_arena:
+            return
+        import math as _math
+        arena = m.current_arena
+        w = getattr(arena, "width", SCREEN_WIDTH)
+        h = getattr(arena, "height", SCREEN_HEIGHT)
+        ox, oy = int(m.camera_x), int(m.camera_y)
+        t = pygame.time.get_ticks() * 0.004
+
+        # Pelaajan sponsori
+        p_name, p_col = "UNSPONSORED", (120, 120, 128)
+        sp_id = getattr(m, "tier0_sponsor", None)
+        if sp_id:
+            try:
+                from sponsors.sponsor_data import SPONSORS
+                data = SPONSORS.get(sp_id)
+                if data:
+                    p_name, p_col = data["name"], data["color"]
+            except Exception:
+                pass
+        # Vastustajan viiri: väri tiimin nimestä
+        e_team = getattr(m, "current_enemy_team", None)
+        e_name = getattr(e_team, "name", "Rivals")
+        seed = sum(ord(c) for c in e_name)
+        e_col = (90 + seed * 7 % 130, 70 + seed * 13 % 120,
+                 70 + seed * 29 % 130)
+
+        for side, (fx, fy, name, col) in enumerate((
+                (170, h // 2 - 160, p_name, p_col),
+                (w - 170, h // 2 - 160, e_name, e_col))):
+            sx, sy = fx - ox, fy - oy
+            if not (-140 < sx < SCREEN_WIDTH + 140):
+                continue
+            # Tanko
+            pygame.draw.line(screen, (70, 58, 44), (sx, sy + 190),
+                             (sx, sy), 6)
+            pygame.draw.circle(screen, (200, 180, 120), (sx, sy - 4), 5)
+            # Liehuva lippu (aaltoileva polygoni)
+            direction = 1 if side == 0 else -1
+            pts_top = []
+            pts_bot = []
+            for k in range(7):
+                px = sx + direction * k * 14
+                wave = _math.sin(t + k * 0.8) * (2 + k)
+                pts_top.append((px, sy + 6 + wave))
+                pts_bot.append((px, sy + 52 + wave * 0.7))
+            pts = pts_top + pts_bot[::-1]
+            pygame.draw.polygon(screen, col, pts)
+            pygame.draw.polygon(screen, (30, 26, 24), pts, 2)
+            # Nimi lipun alla
+            tag = font_small.render(name[:22], True, (235, 228, 205))
+            bg = pygame.Surface((tag.get_width() + 10,
+                                 tag.get_height() + 4), pygame.SRCALPHA)
+            bg.fill((12, 12, 16, 170))
+            tx = sx - tag.get_width() // 2 + direction * 40
+            screen.blit(bg, (tx - 5, sy + 200))
+            screen.blit(tag, (tx, sy + 202))
+
     def draw(self, screen):
         # 1. Piirretään koko pelitilanne Managerin kautta
         # (Tämä piirtää areenan, hahmot JA VFX:n)
         self.manager.draw_game(screen)
+
+        # 1.5 Sponsoriliput joukkueiden päädyissä (liigamatsit)
+        try:
+            self._draw_sponsor_flags(screen)
+        except Exception:
+            pass
 
         # 1.6 Loot Popup (jos auki)
         if self.show_loot:

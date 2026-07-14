@@ -160,6 +160,9 @@ class GameManager:
         self.last_city_pos = None
         # Kaivoksen avain: Marda antaa kun velka on maksettu
         self.mine_key_owned = False
+        # Tier 0 -sponsorisopimus (SponsorMenu) + varastolahjoituslaskuri
+        self.tier0_sponsor = None
+        self.storage_donations = 0
         # Quest journal -paneeli pelinäkymässä (J tai klikkaus piilottaa)
         self.show_quest_journal = True
         self._journal_toggle_rect = None
@@ -762,6 +765,14 @@ class GameManager:
 
         self.last_fighters = list(fighters)
 
+        # Sairaana/vammautuneena areenalle? Kuolemanriski lukitaan nyt
+        # (pelitesti 18) ja realisoituu matsin jälkeen.
+        try:
+            from systems import conditions as _cond
+            _cond.mark_prebattle_risks(self, fighters)
+        except Exception:
+            pass
+
         for f in fighters:
             if f:
                 self.active_player_units.add(f)
@@ -1310,6 +1321,33 @@ class GameManager:
         for u in self.my_team:
             if hasattr(u, "adjust_morale"):
                 u.adjust_morale(win_gain if win else loss_hit)
+
+        # Sairaudet/vammat matsin jäljiltä (pelitesti 18): kaatuneet ja
+        # kolhitut voivat vammautua; sairaana kentälle laitettu voi kuolla
+        try:
+            from systems import conditions as _cond
+            _msgs = _cond.apply_battle_aftermath(
+                self, list(getattr(self, "last_fighters", []) or []), win)
+            if _msgs:
+                self.hire_block_message = "  |  ".join(_msgs[:2])
+                self._toast_timer = 420
+        except Exception:
+            pass
+
+        # Tier 0 -sponsorin voittobonus (allekirjoitettu sopimus)
+        if win and self.mode == "League" and \
+                getattr(self, "tier0_sponsor", None):
+            try:
+                from sponsors.sponsor_data import SPONSORS
+                _sp = SPONSORS.get(self.tier0_sponsor)
+                if _sp:
+                    bonus = 15
+                    self.gold += bonus
+                    self.hire_block_message = (
+                        f"{_sp['name']} win bonus: +{bonus} SP")
+                    self._toast_timer = 300
+            except Exception:
+                pass
 
         # Arena Hallin vedonlyönti ratkeaa liigamatsissa
         bet = getattr(self, "active_bet", None)

@@ -874,6 +874,55 @@ class NoticeBoard(Prop):
             self.image = surf
 
 
+class HerbalistTent(Prop):
+    """Saggan rohtoteltta (pelitesti 18): Muckfordin ainoa parantaja.
+    Teltan luona Sagga hoitaa sotureiden sairaudet ja vammat maksusta
+    ja myy rohtoja."""
+
+    def __init__(self, x, y):
+        w, h = 170, 140
+        coll_rect = pygame.Rect(x + 14, y + h - 52, w - 28, 40)
+        super().__init__(x, y, w, h,
+                         img_path="assets/tiles/muckford/herbalist_tent.png",
+                         color=(96, 84, 66), collision_rect=coll_rect)
+        self.is_structure = True
+        self.name = "Herbalist's Tent"
+        self.interaction_range = 110
+        self.interaction_label = "Herbalist"
+        self._draw_procedural(w, h)
+
+    def _draw_procedural(self, w, h):
+        if not self.image or self.image.get_at((0, 0)) == (96, 84, 66, 255):
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            canvas = (128, 108, 78)
+            canvas_dark = (100, 84, 60)
+            # Telttakangas (kolmio) + keskisauma
+            pygame.draw.polygon(surf, canvas,
+                                [(w // 2, 8), (w - 6, h - 16), (6, h - 16)])
+            pygame.draw.polygon(surf, canvas_dark,
+                                [(w // 2, 8), (w - 6, h - 16),
+                                 (w // 2 + 20, h - 16)])
+            pygame.draw.polygon(surf, (66, 54, 40),
+                                [(w // 2, 8), (w - 6, h - 16), (6, h - 16)],
+                                3)
+            # Oviaukko
+            pygame.draw.polygon(surf, (36, 30, 26),
+                                [(w // 2, 34), (w // 2 + 24, h - 16),
+                                 (w // 2 - 24, h - 16)])
+            # Yrttikimput narussa
+            pygame.draw.line(surf, (70, 58, 42), (14, 46), (w - 14, 46), 2)
+            for hx, col in ((30, (96, 150, 90)), (58, (150, 170, 90)),
+                            (108, (110, 160, 120)), (138, (170, 140, 90))):
+                pygame.draw.line(surf, (70, 58, 42), (hx, 46), (hx, 56), 1)
+                pygame.draw.circle(surf, col, (hx, 62), 7)
+                pygame.draw.circle(surf, (50, 70, 45), (hx, 62), 7, 1)
+            # Pata teltansuulla
+            pygame.draw.ellipse(surf, (52, 52, 58), (18, h - 36, 34, 22))
+            pygame.draw.ellipse(surf, (30, 30, 34), (18, h - 36, 34, 22), 2)
+            pygame.draw.circle(surf, (140, 210, 150), (35, h - 28), 4)
+            self.image = surf
+
+
 class RoadSignpost(Prop):
     """Tienviitta kadun päässä: E avaa maailmankartan reitit.
     Muckfordista lähtee teitä moneen suuntaan - viitta tekee sen

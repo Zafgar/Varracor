@@ -834,6 +834,21 @@ class Gladiator(pygame.sprite.Sprite):
 
         self.attack_speed = int(max(20, base_atk_spd * float(self.cooldown_multiplier)))
 
+        # Sairaudet/vammat (pelitesti 18): nopeus, stamina ja max-HP
+        # kärsivät kunnes tila paranee (Commander on immuuni tiloille)
+        if getattr(self, "conditions", None):
+            try:
+                from systems import conditions as _cond
+                _m = _cond.modifiers(self)
+                self.walk_speed = max(0.2, self.walk_speed
+                                      * _m["speed_mult"])
+                self.speed = self.walk_speed
+                self.max_stamina = max(10, int(self.max_stamina
+                                               * _m["stamina_mult"]))
+                self.max_hp = max(10, int(self.max_hp * _m["hp_mult"]))
+            except Exception:
+                pass
+
         # Clamp
         self.current_hp = min(self.current_hp, self.max_hp)
         self.current_stamina = min(self.current_stamina, self.max_stamina)
@@ -1135,6 +1150,13 @@ class Gladiator(pygame.sprite.Sprite):
             dmg *= self.weapon_affinities.get(getattr(w, "weapon_group", ""), 1.0)
             # Moraali: 0.9x (0) ... 1.0x (50) ... 1.1x (100)
             dmg *= 0.9 + 0.2 * (getattr(self, "morale", 50) / 100.0)
+            # Sairaudet/vammat heikentävät iskua (pelitesti 18)
+            if getattr(self, "conditions", None):
+                try:
+                    from systems import conditions as _cond
+                    dmg *= _cond.modifiers(self)["damage_mult"]
+                except Exception:
+                    pass
 
             is_crit = False
             if random.random() < self.crit_chance:

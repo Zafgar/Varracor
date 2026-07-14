@@ -192,6 +192,13 @@ class Arena:
         self._add_prop(RoadSignpost(140, street_y - 190))
         self._add_prop(RoadSignpost(w - 240, street_y - 190))
 
+        # Saggan rohtoteltta (pelitesti 18): Muckfordin parantaja kadun
+        # laidassa sepän suunnalla - hoitaa sairaudet ja myy rohtoja
+        from assets.tiles.muckford_objects import HerbalistTent
+        tent = HerbalistTent(w - 520, street_top - 200)
+        self._clear_overlapping(tent)
+        self._add_prop(tent)
+
         # 4. STREET PROPS
         # Katuvalot
         for x in range(200, w - 200, 500):

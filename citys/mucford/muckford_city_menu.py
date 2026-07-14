@@ -798,6 +798,25 @@ class MuckfordCityMenu(BaseMenu):
         self.woodsman_alder = alder
         self.npcs.append(alder)
 
+        # Sagga the Herbwife - rohtoteltan parantaja (pelitesti 18)
+        self.herbalist_tent = None
+        from assets.tiles.muckford_objects import HerbalistTent
+        for prop in self.arena.props:
+            if isinstance(prop, HerbalistTent):
+                self.herbalist_tent = prop
+                break
+        self.sagga = None
+        if self.herbalist_tent is not None:
+            sagga = Villager("Sagga the Herbwife", "Human",
+                             self.herbalist_tent.rect.centerx + 70,
+                             self.herbalist_tent.rect.bottom + 10,
+                             team_color=GREEN)
+            sagga.name = "Sagga the Herbwife"
+            sagga.ai_controller = None
+            sagga.animation_state = "idle"
+            self.sagga = sagga
+            self.npcs.append(sagga)
+
         # Krads Missing Crate -questin laatikko (luodaan kun quest aktiivinen)
         self._quest_crate = None
 
@@ -1194,6 +1213,11 @@ class MuckfordCityMenu(BaseMenu):
                             self.next_state = "dialogue_active"
                             return
 
+                        # Sagga - parantajan hoitodialogi (pelitesti 18)
+                        if npc is getattr(self, "sagga", None):
+                            self._open_sagga_dialogue()
+                            return
+
                         # Farmer Gus interaction
                         if npc == self.farmer_gus or npc.name == "Farmer Gus":
                             self.manager.open_patron_dialogue(npc, return_state="muckford_city")
@@ -1449,6 +1473,12 @@ class MuckfordCityMenu(BaseMenu):
             self._update_raids()
             self._update_market_life()
             self._update_quest_crate()
+            # Sairaudet/vammat tikittävät päivän vaihtuessa (pelitesti 18)
+            try:
+                from systems import conditions as _cond
+                _cond.check_day_rollover(self.manager)
+            except Exception:
+                pass
 
         # Pelaajan kaatuminen kaupungissa (esim. raidissa): raahataan turvaan
         if self.player.is_dead:
@@ -1840,6 +1870,77 @@ class MuckfordCityMenu(BaseMenu):
                 pygame.draw.line(screen, col, (sx + 6, sy - wing),
                                  (sx, sy), 2)
                 pygame.draw.circle(screen, col, (sx, sy), 2)
+
+    # ------------------------------------------------------------------
+    # Sagga the Herbwife (pelitesti 18): hoidot ja rohdot
+    # ------------------------------------------------------------------
+    def _open_sagga_dialogue(self):
+        from systems import conditions as _cond
+        from ui_kit import format_money
+        m = self.manager
+        cost = _cond.total_treatment_cost(m)
+        sick = sum(1 for u in m.my_team if _cond.get_conditions(u))
+        options = []
+        if cost > 0:
+            options.append({
+                "text": f"Treat my fighters ({sick} ailing, "
+                        f"{format_money(cost)})",
+                "action": "sagga_treat_all"})
+        else:
+            options.append({"text": "The crew is healthy. Good herbs.",
+                            "action": "close_dialogue"})
+        options.append({"text": "Buy Weak Health Potion "
+                                f"({format_money(30)})",
+                        "action": "sagga_potion"})
+        options.append({"text": "Just passing through.",
+                        "action": "close_dialogue"})
+        m.dialogue_action_handler = self._on_sagga_action
+        m.start_dialogue(
+            self.sagga,
+            "Sagga stirs a bubbling pot without looking up. \"Fevers, "
+            "fractures, festering cuts - the Yard sends them all to my "
+            "tent eventually. Coin first, miracles after.\"",
+            options=options)
+
+    def _on_sagga_action(self, action):
+        from systems import conditions as _cond
+        m = self.manager
+        m.dialogue_action_handler = None
+        if action == "sagga_treat_all":
+            msgs = _cond.treat_all(m)
+            for i, msg in enumerate(msgs[:3]):
+                m.vfx.show_damage(self.sagga.rect.centerx,
+                                  self.sagga.rect.top - 30 - i * 24,
+                                  msg, color=(150, 230, 160))
+            # Statsit uusiksi hoidon jälkeen (debuffit pois)
+            for u in m.my_team:
+                try:
+                    u.calculate_final_stats()
+                except Exception:
+                    pass
+            sound_system.play_sound("recruit")
+        elif action == "sagga_potion":
+            if m.gold < 30:
+                m.vfx.show_damage(self.player.rect.centerx,
+                                  self.player.rect.top - 30,
+                                  "Not enough coin.", color=(255, 150, 120))
+                sound_system.play_sound("error")
+            else:
+                try:
+                    from items.item_registry import create_item
+                    potion = create_item("WeakHealthPotion")
+                    if potion is not None:
+                        m.gold -= 30
+                        m.equipment_bag.append(potion)
+                        m.vfx.show_damage(self.player.rect.centerx,
+                                          self.player.rect.top - 30,
+                                          "Weak Health Potion bought.",
+                                          color=(150, 230, 160))
+                        sound_system.play_sound("coin")
+                except Exception:
+                    pass
+        m.active_dialogue = None
+        m.dialogue_cooldown = 20
 
     def _start_bard_performance(self, stage):
         """Iltashow: oikea bardihahmo (sama sprite/musiikki kuin tavernassa,
@@ -2763,6 +2864,9 @@ class MuckfordCityMenu(BaseMenu):
         for npc in self.npcs:
             if npc.rect.inflate(40, 40).collidepoint(world_pos):
                  if self._check_range(self.player.rect, npc.rect):
+                     if npc is getattr(self, "sagga", None):
+                         self._open_sagga_dialogue()
+                         return True
                      self.manager.open_patron_dialogue(npc, return_state="muckford_city")
                      self.next_state = "dialogue_active"
                  return True

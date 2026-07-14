@@ -86,6 +86,8 @@ def _serialize_unit(u):
         "training_count": int(getattr(u, "training_count", 0)),
         "morale": int(getattr(u, "morale", 50)),
         "last_social_day": int(getattr(u, "last_social_day", -1)),
+        "conditions": [dict(c) for c in
+                       (getattr(u, "conditions", None) or [])],
         "stats": dict(getattr(u, "stats", {})),
         "equipment": eq,
     }
@@ -140,6 +142,11 @@ def _apply_unit_state(unit, data):
     unit.training_count = data.get("training_count", 0)
     unit.morale = int(data.get("morale", 50))
     unit.last_social_day = int(data.get("last_social_day", -1))
+    try:
+        from systems import conditions as _cond
+        _cond.from_list(unit, data.get("conditions"))
+    except Exception:
+        unit.conditions = []
     if data.get("stats"):
         unit.stats = dict(data["stats"])
 
@@ -355,6 +362,9 @@ def save_game(manager, filepath=None, save_name=""):
             "innkeeper_debt": int(getattr(manager, "innkeeper_debt", 0)),
             "next_raid_day": int(getattr(manager, "next_raid_day", 0)),
             "mine_key_owned": bool(getattr(manager, "mine_key_owned", False)),
+            "tier0_sponsor": getattr(manager, "tier0_sponsor", None),
+            "storage_donations": int(getattr(manager,
+                                             "storage_donations", 0)),
             "barracks_level": int(getattr(manager, "barracks_level", 1)),
             "active_bet": getattr(manager, "active_bet", None),
             "open_bets": list(getattr(manager, "open_bets", []) or []),
@@ -471,6 +481,14 @@ def load_game(manager, filepath=None):
         if data.get("next_raid_day"):
             manager.next_raid_day = int(data["next_raid_day"])
         manager.mine_key_owned = bool(data.get("mine_key_owned", False))
+        manager.tier0_sponsor = data.get("tier0_sponsor") or None
+        manager.storage_donations = int(data.get("storage_donations", 0))
+        # Siivous: vanha bugi tuotti "Unknown"-materiaalia - pudotetaan
+        for _bag in (manager.inventory, manager.city_storage):
+            try:
+                _bag.pop("Unknown", None)
+            except Exception:
+                pass
 
         # --- Liiga ---
         manager.league_engine.tier = data.get("league_tier", 1)

@@ -18,6 +18,7 @@ class SponsorMenu(BaseMenu):
         
         self.selected_id = "shanty" # Oletusvalinta
         self.sponsor_buttons = []
+        self.feedback = ""
         self._init_list()
         
         # Sopimusnappi (Placeholder logiikka)
@@ -47,11 +48,23 @@ class SponsorMenu(BaseMenu):
                     sound_system.play_sound('click')
                     return
             
-            # Sign contract (Placeholder)
-            if self.btn_sign.rect.collidepoint(mouse_pos):
-                # Tähän tulee myöhemmin logiikka sopimuksen tallentamiseen
-                sound_system.play_sound('error') # "Not implemented yet" ääni tai click
-                print(f"Contract requested with {self.selected_id}")
+            # Sign contract (pelitesti 18: oikea allekirjoitus)
+            if self.btn_sign.rect.collidepoint(mouse_pos) and \
+                    self.btn_sign.enabled:
+                current = getattr(self.manager, "tier0_sponsor", None)
+                if current == self.selected_id:
+                    # Sopimuksen purku
+                    self.manager.tier0_sponsor = None
+                    self.feedback = "Contract terminated."
+                    sound_system.play_sound('click')
+                else:
+                    self.manager.tier0_sponsor = self.selected_id
+                    data = SPONSORS[self.selected_id]
+                    self.feedback = (f"Signed with {data['name']}! Their "
+                                     f"banner flies at your arena end; "
+                                     f"league wins pay a bonus.")
+                    sound_system.play_sound('win')
+                return
 
     def draw(self, screen):
         self.draw_themed_background(screen, mood="city")
@@ -118,7 +131,15 @@ class SponsorMenu(BaseMenu):
             player_rep = self.manager.reputation
             req_rep = data.get("req_rep", 0)
             
-            if player_rep >= req_rep:
+            active_id = getattr(self.manager, "tier0_sponsor", None)
+            if active_id == self.selected_id:
+                self.btn_sign.text = "TERMINATE"
+                self.btn_sign.base_color = (140, 80, 60)
+                self.btn_sign.enabled = True
+                draw_text("ACTIVE CONTRACT", font_main, GREEN, screen,
+                          self.details_rect.x + 40,
+                          self.details_rect.bottom - 130)
+            elif player_rep >= req_rep:
                 self.btn_sign.text = "SIGN CONTRACT"
                 self.btn_sign.base_color = GREEN
                 self.btn_sign.enabled = True
@@ -126,9 +147,14 @@ class SponsorMenu(BaseMenu):
                 self.btn_sign.text = f"REQ: {req_rep} REP"
                 self.btn_sign.base_color = (100, 50, 50)
                 self.btn_sign.enabled = False
-                
+
             self.btn_sign.check_hover(mouse_pos)
             self.btn_sign.draw(screen)
+
+            if self.feedback:
+                draw_text(self.feedback[:90], font_small, GOLD_COLOR, screen,
+                          self.details_rect.x + 40,
+                          self.details_rect.bottom - 30)
 
     def _draw_multiline_text(self, surface, text, x, y, font, color, max_width):
         words = text.split(' ')

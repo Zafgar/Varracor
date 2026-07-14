@@ -122,9 +122,53 @@ class PrepareMenu(BaseMenu):
                 else:
                     self.next_state = "battle"
 
+    def _draw_condition_icons(self, screen, unit, x, y):
+        """Pienet tila-ikonit rosterikorttiin. Kerää hover-tiedot."""
+        try:
+            from systems import conditions as _cond
+            infos = _cond.describe(unit)
+        except Exception:
+            return
+        if not infos:
+            return
+        if not hasattr(self, "_cond_hover_rects"):
+            self._cond_hover_rects = []
+        for i, (title, desc, eff, color, icon) in enumerate(infos[:3]):
+            rect = pygame.Rect(x + i * 26, y, 22, 22)
+            pygame.draw.rect(screen, (25, 22, 20), rect, border_radius=5)
+            pygame.draw.rect(screen, color, rect, 2, border_radius=5)
+            surf = font_small.render(icon, True, color)
+            screen.blit(surf, surf.get_rect(center=rect.center))
+            self._cond_hover_rects.append((rect, title, desc, eff, color))
+
+    def _draw_condition_tooltip(self, screen):
+        rects = getattr(self, "_cond_hover_rects", [])
+        mx, my = pygame.mouse.get_pos()
+        for rect, title, desc, eff, color in rects:
+            if not rect.collidepoint((mx, my)):
+                continue
+            lines = [desc] + ([eff] if eff else [])
+            w = max(font_main.size(title)[0],
+                    *(font_small.size(t)[0] for t in lines)) + 26
+            h = 36 + len(lines) * 22
+            bx = min(mx + 14, SCREEN_WIDTH - w - 8)
+            by = my - h - 8
+            pygame.draw.rect(screen, (18, 16, 20), (bx, by, w, h),
+                             border_radius=8)
+            pygame.draw.rect(screen, color, (bx, by, w, h), 2,
+                             border_radius=8)
+            draw_text(title, font_main, color, screen, bx + 12, by + 6)
+            yy = by + 34
+            for line in lines:
+                col = (255, 140, 120) if "DEATH" in line else (205, 205, 210)
+                draw_text(line, font_small, col, screen, bx + 12, yy)
+                yy += 22
+            break
+
     def draw(self, screen):
         # 1. Tausta (Tumma)
         self.draw_themed_background(screen, "forge")
+        self._cond_hover_rects = []
         
         # Otsikko
         title_text = f"PREPARE FOR BATTLE ({len(self.selected_units)}/{self.team_limit})"
@@ -190,6 +234,14 @@ class PrepareMenu(BaseMenu):
             weapon = unit.equipment.get("main_hand") if hasattr(unit, "equipment") else None
             w_name = getattr(weapon, "name", None) or "Fists"
             draw_text(f"W: {w_name}", font_small, (150, 150, 100), screen, cx + 150, cy + 12)
+
+            # Sairaudet/vammat (pelitesti 18): ikonit kortilla + hover
+            # kertoo vaikutukset ja kuolemanriskin
+            self._draw_condition_icons(screen, unit, cx + card_w - 90,
+                                       cy + 58)
+
+        # Hover-tooltip conditioneille (piirretään kaiken päälle)
+        self._draw_condition_tooltip(screen)
 
         # --- RIGHT SIDE: ENEMY TEAM ---
         enemy_x = SCREEN_WIDTH - 370
