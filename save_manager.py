@@ -84,6 +84,8 @@ def _serialize_unit(u):
         "base_attributes": dict(getattr(u, "base_attributes", {})),
         "cost": int(getattr(u, "cost", 0)),
         "training_count": int(getattr(u, "training_count", 0)),
+        "morale": int(getattr(u, "morale", 50)),
+        "last_social_day": int(getattr(u, "last_social_day", -1)),
         "stats": dict(getattr(u, "stats", {})),
         "equipment": eq,
     }
@@ -136,6 +138,8 @@ def _apply_unit_state(unit, data):
         unit.base_attributes = dict(data["base_attributes"])
     unit.cost = data.get("cost", unit.cost)
     unit.training_count = data.get("training_count", 0)
+    unit.morale = int(data.get("morale", 50))
+    unit.last_social_day = int(data.get("last_social_day", -1))
     if data.get("stats"):
         unit.stats = dict(data["stats"])
 
@@ -335,6 +339,7 @@ def save_game(manager, filepath=None, save_name=""):
             "innkeeper_debt": int(getattr(manager, "innkeeper_debt", 0)),
             "next_raid_day": int(getattr(manager, "next_raid_day", 0)),
             "mine_key_owned": bool(getattr(manager, "mine_key_owned", False)),
+            "barracks_level": int(getattr(manager, "barracks_level", 1)),
         }
 
         target = filepath or SAVE_FILE
@@ -409,6 +414,7 @@ def load_game(manager, filepath=None):
 
         # --- Questit ---
         manager.has_smith = bool(data.get("has_smith", False))
+        manager.barracks_level = int(data.get("barracks_level", 1))
         if getattr(manager, "village_tasks", None) and data.get("village_tasks"):
             manager.village_tasks.from_dict(data["village_tasks"])
 

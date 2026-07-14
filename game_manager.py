@@ -141,6 +141,9 @@ class GameManager:
 
         # --- INNKEEPER DEBT (alkutarina: yöt tajuttomana Sunk Caskissa) ---
         self.innkeeper_debt = 0
+        # Barracksin taso (1-3): määrää punkkien määrän ja tiimin koon
+        self.barracks_level = 1
+        self.hire_block_message = ""
         # Kaivoksen avain: Marda antaa kun velka on maksettu
         self.mine_key_owned = False
 
@@ -1270,6 +1273,11 @@ class GameManager:
         self.match_over = True
         self.match_result = "VICTORY" if win else "DEFEAT"
 
+        # Moraali: voitot nostavat, tappiot painavat koko tiimiä
+        for u in self.my_team:
+            if hasattr(u, "adjust_morale"):
+                u.adjust_morale(4 if win else -6)
+
         # Path of the Arena: XP tapoista + voitosta jos sankari taisteli
         try:
             from systems import commander_progression as _prog
@@ -1624,7 +1632,20 @@ class GameManager:
 
             self.recruit_options.append(u)
 
+    def barracks_bunk_count(self):
+        from citys.mucford.barracks_interior_arena import BUNKS_PER_LEVEL
+        return BUNKS_PER_LEVEL.get(int(getattr(self, "barracks_level", 1)), 6)
+
+    def has_free_bunk(self):
+        """Commander vie yhden punkan; loput ovat gladiaattoreille."""
+        return 1 + len(self.my_team) < self.barracks_bunk_count()
+
     def hire_recruit(self, index):
+        if not self.has_free_bunk():
+            self.hire_block_message = ("No free bunks in the barracks - "
+                                       "upgrade it to house more fighters.")
+            self._toast_timer = 240
+            return False
         if index < len(self.recruit_options) and self.recruit_options[index]:
             rec = self.recruit_options[index]
             if self.gold >= rec.cost:
@@ -1638,6 +1659,11 @@ class GameManager:
         
     def hire_unit_by_reference(self, unit, cost):
         """Palkkaa yksikön suoraan objektiviittauksella (Dialogista)."""
+        if not self.has_free_bunk():
+            self.hire_block_message = ("No free bunks in the barracks - "
+                                       "upgrade it to house more fighters.")
+            self._toast_timer = 240
+            return False
         if self.gold >= cost:
             self.gold -= cost
             self.my_team.add(unit)
@@ -2485,7 +2511,20 @@ class GameManager:
 
     def draw_ui_overlay(self, screen, current_state_key):
         """Piirtää HUDin ja Pause-valikon."""
-        
+
+        # 0. Yleinen ilmoitus (esim. palkkaus estyi: punkat täynnä)
+        if getattr(self, "hire_block_message", "") and \
+                getattr(self, "_toast_timer", 0) > 0:
+            self._toast_timer -= 1
+            surf = font_small.render(self.hire_block_message, True, (255, 200, 150))
+            box = pygame.Rect(SCREEN_WIDTH // 2 - surf.get_width() // 2 - 18,
+                              88, surf.get_width() + 36, 44)
+            pygame.draw.rect(screen, (26, 22, 20), box, border_radius=9)
+            pygame.draw.rect(screen, (200, 140, 90), box, 2, border_radius=9)
+            screen.blit(surf, (box.x + 18, box.y + 11))
+            if self._toast_timer <= 0:
+                self.hire_block_message = ""
+
         # 1. COMMANDER HUD (Vain pelitiloissa)
         gameplay_states = ["muckford_city", "tavern_sunk_cask", "blacksmith_interior", "battle", "game"]
         if current_state_key in gameplay_states and self.player_character and not self.paused and not self.active_dialogue and not self.is_in_dialogue:

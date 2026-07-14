@@ -68,6 +68,12 @@ class Gladiator(pygame.sprite.Sprite):
         self._move_rem_x = 0.0
         self._move_rem_y = 0.0
 
+        # --- MORALE (0-100, neutraali 50) ---
+        # Nousee yhteisestä ajasta barracksissa ja voitoista, laskee
+        # tappioista. Vaikuttaa vahinkoon: 0.9x (0) ... 1.1x (100).
+        self.morale = 50
+        self.last_social_day = -1  # world_clock.day jolloin viimeksi juteltu
+
         # --- STAMINA SYSTEM ---
         self.max_stamina = 100
         self.current_stamina = 100
@@ -1121,6 +1127,8 @@ class Gladiator(pygame.sprite.Sprite):
                 dmg = w.calculate_damage(stats)
             # Ase-affiniteetti (rotu/perkki)
             dmg *= self.weapon_affinities.get(getattr(w, "weapon_group", ""), 1.0)
+            # Moraali: 0.9x (0) ... 1.0x (50) ... 1.1x (100)
+            dmg *= 0.9 + 0.2 * (getattr(self, "morale", 50) / 100.0)
 
             is_crit = False
             if random.random() < self.crit_chance:
@@ -1195,6 +1203,10 @@ class Gladiator(pygame.sprite.Sprite):
         diff = int(self.current_hp - old)
         if diff > 0 and manager:
             manager.vfx.show_damage(self.rect.centerx, self.rect.top, diff, type="heal")
+
+    def adjust_morale(self, delta):
+        """Moraali pysyy välillä 0-100."""
+        self.morale = max(0, min(100, int(getattr(self, "morale", 50) + delta)))
 
     def take_damage(self, amount, damage_type="Physical", attacker=None, manager=None):
         if self.is_dead:

@@ -279,11 +279,20 @@ class SoundManager:
 
     def save_options(self):
         import json
+        # Säilytä muut options.json-avaimet (keybinds, display, ...)
+        data = {}
+        try:
+            if os.path.exists(OPTIONS_FILE):
+                with open(OPTIONS_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f) or {}
+        except Exception:
+            data = {}
+        data["music_volume"] = self.music_volume
+        data["sfx_volume"] = self.sfx_volume
         try:
             os.makedirs(os.path.dirname(OPTIONS_FILE), exist_ok=True)
             with open(OPTIONS_FILE, "w", encoding="utf-8") as f:
-                json.dump({"music_volume": self.music_volume,
-                           "sfx_volume": self.sfx_volume}, f, indent=2)
+                json.dump(data, f, indent=2)
         except Exception as e:
             print(f"[Options] Save failed: {e}")
 

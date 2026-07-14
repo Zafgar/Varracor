@@ -55,6 +55,7 @@ from citys.mucford.blacksmith_menu import BlacksmithMenu
 from citys.mucford.forest_road_menu import ForestRoadMenu
 from citys.mucford.mine_road_menu import MineRoadMenu
 from citys.mucford.mine_cave_menu import MineCaveMenu
+from citys.mucford.barracks_interior_menu import BarracksInteriorMenu
 from citys.mucford.forest_excursion import ForestExcursionMenu
 from citys.rattlebridge.rattlebridge_city_menu import RattlebridgeCityMenu
 from citys.rattlebridge.the_span_menu import TheSpanMenu
@@ -71,8 +72,17 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
 pygame.display.set_caption("AutoArena: Gladiator Tycoon")
 clock = pygame.time.Clock()
 
+# Tallennetut näyttöasetukset (fullscreen/borderless/resoluutio)
+try:
+    from systems import display_settings
+    display_settings.load_and_apply()
+    screen = pygame.display.get_surface() or screen
+except Exception as _exc:
+    print(f"[Display] Startup apply failed: {_exc}")
+
 
 def main():
+    global screen
     manager = GameManager()
 
     try:
@@ -128,6 +138,7 @@ def main():
         "test_arena": TestMenu(manager),
         "options": OptionsMenu(manager),
         "barracks": BarracksMenu(manager),
+        "barracks_interior": None,
         "notice_board": NoticeBoardMenu(manager),
         "forest_excursion": None,
         "market": MarketMenu(manager),
@@ -163,6 +174,7 @@ def main():
         "test_arena": TestMenu,
         "options": OptionsMenu,
         "barracks": BarracksMenu,
+        "barracks_interior": BarracksInteriorMenu,
         "notice_board": NoticeBoardMenu,
         "forest_excursion": ForestExcursionMenu,
         "market": MarketMenu,
@@ -206,11 +218,13 @@ def main():
     CREATE_IF_MISSING = {
         "muckford_city", "blacksmith_interior", "forest_road", "mine_road",
         "mine_cave", "forest_excursion", "rattlebridge_city",
+        "barracks_interior",
     }
 
     CALL_ON_ENTER = {
         "muckford_city", "blacksmith_interior", "forest_road", "mine_road",
         "mine_cave", "test_arena", "crown_knives", "forest_excursion",
+        "barracks_interior",
         "world_map", "regional_staging", "rattlebridge_city",
         "rattlebridge_span", "rattlebridge_hospital",
         "rattlebridge_scrapring", "rattlebridge_contracts",
@@ -334,6 +348,8 @@ def main():
             if update_response and isinstance(update_response, str):
                 current_menu.next_state = update_response
 
+        # Näyttötilan vaihto (options) voi luoda uuden display-pinnan
+        screen = pygame.display.get_surface() or screen
         current_menu.draw(screen)
         manager.draw_ui_overlay(screen, current_state_key)
 

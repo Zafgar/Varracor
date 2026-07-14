@@ -969,7 +969,7 @@ class MuckfordCityMenu(BaseMenu):
                         sound_system.play_sound('click')
                         return
 
-                # Team Barracks -> tiimitila
+                # Team Barracks -> käveltävä sisätila (punkat, tiimi, kehitys)
                 barracks = getattr(self, "barracks", None)
                 if barracks:
                     door_x = barracks.rect.centerx
@@ -977,7 +977,7 @@ class MuckfordCityMenu(BaseMenu):
                     if math.hypot(self.player.rect.centerx - door_x,
                                   self.player.rect.bottom - door_y) < 110:
                         self.manager.barracks_return_state = "muckford_city"
-                        self.next_state = "barracks"
+                        self.next_state = "barracks_interior"
                         sound_system.play_sound('click')
                         return
 

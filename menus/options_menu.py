@@ -6,6 +6,7 @@ from ui_kit import (draw_text, font_main, font_title, font_small, UIButton,
                     COLOR_TRIM)
 from sound_manager import sound_system
 from systems import keybinds
+from systems import display_settings
 
 
 class Slider:
@@ -80,6 +81,12 @@ class OptionsMenu(BaseMenu):
         self.btn_reset = UIButton(col_x + 130, SCREEN_HEIGHT - 240, 240, 55,
                                   "RESET KEYS", None, (200, 140, 90))
 
+        # Vasen palsta, alaosa: näyttöasetukset
+        self.mode_rects = []       # (rect, mode)
+        self.res_prev_rect = None
+        self.res_next_rect = None
+        self.display_feedback = ""
+
         # Oikea palsta: kontrollit
         self.bind_rows = []        # (rect, action)
         self.awaiting_bind = None  # toiminto jota sidotaan
@@ -128,6 +135,36 @@ class OptionsMenu(BaseMenu):
             sound_system.play_sound("click")
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # Näyttötila-napit
+            for rect, mode in self.mode_rects:
+                if rect.collidepoint(event.pos):
+                    if mode != display_settings.get_mode():
+                        ok = display_settings.apply(mode=mode)
+                        display_settings.save()
+                        self.display_feedback = (
+                            f"{display_settings.MODE_LABELS[mode]} applied."
+                            if ok else "Could not switch mode.")
+                        sound_system.play_sound("click")
+                    return
+            # Resoluution selaus < >
+            step = 0
+            if self.res_prev_rect and self.res_prev_rect.collidepoint(event.pos):
+                step = -1
+            elif self.res_next_rect and self.res_next_rect.collidepoint(event.pos):
+                step = 1
+            if step:
+                choices = display_settings.available_resolutions()
+                sizes = [s for _lbl, s in choices]
+                try:
+                    idx = sizes.index(display_settings.get_resolution())
+                except ValueError:
+                    idx = 0
+                new_size = sizes[(idx + step) % len(sizes)]
+                display_settings.apply(resolution=new_size)
+                display_settings.save()
+                self.display_feedback = f"Resolution: {display_settings.resolution_label()}"
+                sound_system.play_sound("click")
+                return
             for rect, action in self.bind_rows:
                 if rect.collidepoint(event.pos):
                     self.awaiting_bind = action
@@ -161,6 +198,60 @@ class OptionsMenu(BaseMenu):
                   left.y + 20)
         self.music_slider.draw(screen)
         self.sfx_slider.draw(screen)
+
+        # --- DISPLAY: ikkunatila + resoluutio ---
+        draw_text("DISPLAY", font_main, GOLD_COLOR, screen, left.x + 30,
+                  left.y + 420)
+        self.mode_rects = []
+        mouse = pygame.mouse.get_pos()
+        active_mode = display_settings.get_mode()
+        bx = left.x + 30
+        by = left.y + 462
+        for mode in display_settings.MODES:
+            label = display_settings.MODE_LABELS[mode]
+            w = font_small.size(label)[0] + 32
+            rect = pygame.Rect(bx, by, w, 40)
+            selected = (mode == active_mode)
+            hover = rect.collidepoint(mouse)
+            if selected:
+                pygame.draw.rect(screen, (70, 60, 30), rect, border_radius=7)
+                pygame.draw.rect(screen, GOLD_COLOR, rect, 2, border_radius=7)
+            else:
+                pygame.draw.rect(screen, (40, 40, 52) if not hover else (50, 50, 66),
+                                 rect, border_radius=7)
+                pygame.draw.rect(screen, COLOR_TRIM if hover else (100, 100, 115),
+                                 rect, 1, border_radius=7)
+            draw_text(label, font_small, WHITE if selected else (190, 190, 200),
+                      screen, rect.x + 16, rect.y + 10)
+            self.mode_rects.append((rect, mode))
+            bx += w + 12
+
+        # Resoluutiorivi: < AUTO (2560x1440) >
+        ry = by + 58
+        draw_text("RESOLUTION", font_small, GRAY, screen, left.x + 30, ry)
+        row = pygame.Rect(left.x + 30, ry + 26, 400, 40)
+        pygame.draw.rect(screen, (32, 32, 42), row, border_radius=7)
+        pygame.draw.rect(screen, (100, 100, 115), row, 1, border_radius=7)
+        self.res_prev_rect = pygame.Rect(row.x, row.y, 44, row.h)
+        self.res_next_rect = pygame.Rect(row.right - 44, row.y, 44, row.h)
+        for r, ch in ((self.res_prev_rect, "<"), (self.res_next_rect, ">")):
+            hov = r.collidepoint(mouse)
+            pygame.draw.rect(screen, (56, 50, 34) if hov else (44, 44, 56), r,
+                             border_radius=7)
+            surf = font_main.render(ch, True, GOLD_COLOR if hov else WHITE)
+            screen.blit(surf, surf.get_rect(center=r.center))
+        lbl = display_settings.resolution_label()
+        surf = font_small.render(lbl, True, WHITE)
+        screen.blit(surf, surf.get_rect(center=row.center))
+        note = ("Window size (borderless/fullscreen use desktop size)"
+                if active_mode == "windowed"
+                else "Resolution applies in WINDOWED mode")
+        draw_text(note, font_small, (130, 130, 145), screen,
+                  left.x + 30, row.bottom + 8)
+        if self.display_feedback:
+            draw_text(self.display_feedback, font_small, (170, 230, 170),
+                      screen, left.x + 30, row.bottom + 34)
+
         self.btn_reset.draw(screen)
         self.btn_back.draw(screen)
         draw_text("ESC to go back", font_small, GRAY, screen,

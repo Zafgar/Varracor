@@ -148,7 +148,7 @@ def test_poi_icons(manager):
 
 
 def test_barracks_in_city_and_enter(manager):
-    """Team Barracks on kartalla ja E avaa tiimitilan."""
+    """Team Barracks on kartalla ja E avaa käveltävän sisätilan."""
     import pygame
     from citys.mucford.muckford_city_menu import MuckfordCityMenu
     from assets.tiles.muckford_objects import TeamBarracks
@@ -160,7 +160,7 @@ def test_barracks_in_city_and_enter(manager):
 
     city.player.rect.center = (barr.rect.centerx, barr.rect.bottom + 40)
     city.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_e))
-    assert city.next_state == "barracks"
+    assert city.next_state == "barracks_interior"
 
 
 def test_barracks_menu_roster_and_equip(manager):

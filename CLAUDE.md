@@ -103,6 +103,20 @@ tiedostot kuuluu pudottaa.
 - **Talouslore**: lore/world_data.py ECONOMY (valuutat SP/GP/PL/HC 100x-
   kertoimin, elinkustannukset, alueviennit, sponsorit/palkkiot/Oath of Debt).
 
+- **Barracksin sisätila** (citys/mucford/barracks_interior_*.py, tila
+  "barracks_interior") — E barracksin ovella kaupungissa. Gladiaattorit
+  oleilevat sisällä (kevyt POI-wander), juttelu (RosterNPC-dialogi) antaa
+  +8 moraalia kerran/pv, punkassa nukkuminen aamuun palauttaa tiimin.
+  Tasot 1-3 (BUNKS_PER_LEVEL 6/8/10) rajaavat tiimikoon (Commander vie
+  punkan; game_manager.has_free_bunk estää palkkauksen). Kehitys
+  suunnitelmataululta (UPGRADE_COSTS: kultaa + Swamp Wood/Stone/Iron Bar).
+  Moraali (gladiator.morale 0-100, neutraali 50) kertoo vahinkoa 0.9-1.1x;
+  voitto +4, tappio -6; tallentuu saveen (barracks_level + morale).
+- **Näyttöasetukset** (systems/display_settings.py) — windowed/borderless/
+  fullscreen + resoluutio (AUTO tunnistaa työpöydän); looginen renderöinti
+  aina 1920x1080 SCALED. Options-valikon DISPLAY-osio; tallentuu
+  saves/options.json "display"-avaimeen, sovelletaan käynnistyksessä.
+
 - **Mudwater Pond + kalastus** — koodipiirretty vesi (assets/tiles/water.py:
   WaterBody = välimuistitettu pohja + animoidut aallot/kimallus/väreet/
   ajopilkut; carve_water/carve_pond upottaa areenaan, rebuild_water_blockers

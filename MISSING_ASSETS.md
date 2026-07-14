@@ -3,9 +3,9 @@
 Generoitu komennolla `python tools/asset_scan.py` — aja uudelleen
 aina kun lisäät tiedostoja, niin lista pysyy ajan tasalla.
 
-- Koodissa viitattuja tiedostoja: **200**
+- Koodissa viitattuja tiedostoja: **206**
 - Löytyy levyltä: **0**
-- Puuttuu: **200**
+- Puuttuu: **206**
 
 Laita tiedosto täsmälleen alla olevaan polkuun (suhteessa pelin
 juurikansioon), niin peli löytää sen automaattisesti — koodia ei
@@ -184,10 +184,16 @@ tarvitse muuttaa. Peli toimii myös ilman näitä (procedural fallback).
 | `assets/sounds/sword_swing.wav` | ääni | sound_manager.py |
 | `assets/sounds/win_fanfare.wav` | ääni | sound_manager.py |
 
-## assets/tiles/ (5 kpl)
+## assets/tiles/ (11 kpl)
 
 | Tiedosto | Tyyppi | Käytetään tiedostossa |
 |---|---|---|
+| `assets/tiles/barracks/desk.png` | kuva | citys/mucford/barracks_interior_arena.py |
+| `assets/tiles/barracks/hearth.png` | kuva | citys/mucford/barracks_interior_arena.py |
+| `assets/tiles/barracks/long_table.png` | kuva | citys/mucford/barracks_interior_arena.py |
+| `assets/tiles/barracks/plans_board.png` | kuva | citys/mucford/barracks_interior_arena.py |
+| `assets/tiles/barracks/training_dummy.png` | kuva | citys/mucford/barracks_interior_arena.py |
+| `assets/tiles/barracks/trophy_shelf.png` | kuva | citys/mucford/barracks_interior_arena.py |
 | `assets/tiles/farm/manure.png` | kuva | units/villager.py |
 | `assets/tiles/floors/muckford_forest.png` | kuva | citys/mucford/forest_road_arena.py |
 | `assets/tiles/floors/road_brick_horizontal.png` | kuva | citys/mucford/forest_road_arena.py |
@@ -373,6 +379,7 @@ Katso viittaava koodi nähdäksesi mitä nimiä odotetaan:
 - `assets/sfx/sounds/reaction_{i}.wav` — sound_manager.py
 - `assets/sfx/sounds/sneeze_{i}.wav` — sound_manager.py
 - `assets/sfx/talking/talking_loop_{i}.wav` — sound_manager.py
+- `assets/tiles/barracks/bunk_q{quality}.png` — citys/mucford/barracks_interior_arena.py
 - `assets/tiles/farm/crops/{slug}_stage_{stage}.png` — citys/mucford/farming_content.py
 - `assets/tiles/gambling/` — minigames/crown_knives.py, sound_manager.py
 - `assets/tiles/gamling/` — minigames/crown_knives.py, sound_manager.py
