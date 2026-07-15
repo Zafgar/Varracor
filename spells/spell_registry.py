@@ -47,6 +47,25 @@ try:
 except ImportError:
     SeamCut = None
 
+# --- SCHOOL SPELLS (Necromancy / Holy / Druidism) ---
+# Erikoiskoulujen loitsut: eivät kuulu Prismin (Pure) satunnaispooliin, vaan
+# ostetaan kyseisen koulun kautta kun Commander on avannut sen. Käyttö vaatii
+# hahmolta oikean suunnan taitopuussa (tuleva kytkentä).
+try:
+    from spells.necro.raise_skeleton import RaiseSkeleton
+except ImportError:
+    RaiseSkeleton = None
+
+try:
+    from spells.holy.smite import Smite
+except ImportError:
+    Smite = None
+
+try:
+    from spells.druid.regrowth import Regrowth
+except ImportError:
+    Regrowth = None
+
 # --- REGISTRY LIST ---
 # Tähän kerätään kaikki luokat, jotka ovat onnistuneesti latautuneet
 ALL_SPELLS = []
@@ -66,6 +85,17 @@ if SunRay: ALL_SPELLS.append(SunRay)
 COMMANDER_SPELLS = []
 if VortexWarp: COMMANDER_SPELLS.append(VortexWarp)
 if SeamCut: COMMANDER_SPELLS.append(SeamCut)
+
+# Koulukohtaiset loitsut (ostetaan koulusta, ei Prismin satunnaispoolista)
+SCHOOL_SPELLS = {"necromancy": [], "holy": [], "druidism": []}
+if RaiseSkeleton: SCHOOL_SPELLS["necromancy"].append(RaiseSkeleton)
+if Smite: SCHOOL_SPELLS["holy"].append(Smite)
+if Regrowth: SCHOOL_SPELLS["druidism"].append(Regrowth)
+
+
+def get_school_spells(school):
+    """Palauttaa koulun loitsuluokat (uudet instanssit luodaan tarvittaessa)."""
+    return list(SCHOOL_SPELLS.get(school, []))
 
 
 def get_spell_shop_items(count=3):

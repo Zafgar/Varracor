@@ -1688,6 +1688,9 @@ class Gladiator(pygame.sprite.Sprite):
                 self.take_damage(effect["dmg"], "Fire", manager=manager)
             elif effect["type"] == "Poison" and effect["timer"] % 60 == 0:
                 self.take_damage(effect["dmg"], "Poison", manager=manager)
+            elif effect["type"] == "Regen" and effect["timer"] % 60 == 0:
+                # Druidin Regrowth: parannus joka sekunti (heal-over-time)
+                self.heal(effect["dmg"], manager=manager)
             if effect["timer"] <= 0:
                 self.status_effects.remove(effect)
 
