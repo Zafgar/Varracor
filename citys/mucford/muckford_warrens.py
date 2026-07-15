@@ -26,31 +26,62 @@ from units.villager import Villager
 from vfx import VFXManager
 
 
-WARRENS_WIDTH = 3600
-WARRENS_HEIGHT = 2400
+WARRENS_WIDTH = 4600
+WARRENS_HEIGHT = 2800
 WARRENS_SEED = 91377
-TRACE_COUNT = 4
-CACHE_COUNT = 4
-NEST_COUNT = 4
-RATCATCHER_COUNT = 3
 
+# --- Rat Kingin nimi ja lore (pelitesti 26) ---
+# Rat King on itse Vortex Abyssal -alueen asukki. Hän yrittää kerätä
+# tarpeeksi abyssal-voimaa vallatakseen Muckfordin ja levitäkseen
+# laajemmalle. "Mestari" vaatii että nämä valtakunnat maksavat - miksi,
+# sitä ei kerrota.
+RAT_KING_NAME = "Skrivvax, the Gnawing Crown"
+
+# Vaihekohtaiset tavoitemäärät
+CULL_TARGET = 12       # vaihe 1: montako perusrottaa kaadettava
+INVASION_TARGET = 10   # vaihe 2: invaasioaallon rotat ennen sulkua
+CAMP_TARGET = 8        # vaihe 4: rottaleirin vartijat
+
+# Uusi 8-vaiheinen questlinja (Rat King on vasta lopussa)
 WARRENS_OBJECTIVES = {
-    0: "Speak with Hamo or Old Rinna Net at the cellar hatch.",
-    1: "Trace the four violet-eyed rat trails through the old sewers.",
-    2: "Recover the four stolen Muckford food caches.",
-    3: "Destroy the four Vortex-waste nests.",
-    4: "Find and rescue the three missing Muckford Ratcatchers.",
-    5: "Pull both sluice levers, forge a Cistern Gate Crank at the smithy, "
-       "and crank open the Royal Cistern gate.",
-    6: "Report the Rat King's death to Hamo or Old Rinna Net.",
-    7: "The Warrens are secured. Rat raids against Muckford have ended.",
+    0: "Climb down and speak with Hamo at the cellar hatch.",
+    1: "Cull the sewer rats gnawing at Muckford's foundations "
+       f"(0/{CULL_TARGET}).",
+    2: "A rat invasion pours from a breach - clear the wave and seal "
+       "the breach tunnel.",
+    3: "Turn the flood valve to drain the sunken passage ahead.",
+    4: "Storm the rats' camp and read what they left behind.",
+    5: "The tremor cracked the old passage - bridge the broken floor "
+       "with planks.",
+    6: "Reach the flooded workshop, raise the Frog Smith's gate-ram, "
+       "and open the way to the deep cistern.",
+    7: f"Descend into the Abyssal Cistern and end {RAT_KING_NAME}.",
+    8: "The Warrens are secured. Rat raids against Muckford have ended.",
 }
 
-RATCATCHERS = (
-    ("ratcatcher_tessa", "Tessa Trapwire", "Human", 1480, 430),
-    ("ratcatcher_brin", "Brin Sootsnare", "Goblin", 2220, 1830),
-    ("ratcatcher_dorrik", "Dorrik Two-Nails", "Dwarf", 2780, 690),
+# Kerättävät resurssit turvallisilta kammioilta (aktivoituvat kun
+# invaasio on suljettu, vaihe 3+). Yrttejä, sieniä ja outoja juttuja
+# reseptejä varten.
+GATHER_NODES = (
+    ("gather_moss_1", "moss", 980, 470), ("gather_moss_2", "moss", 1720, 1720),
+    ("gather_cap_1", "cap", 1180, 1660), ("gather_cap_2", "cap", 2050, 560),
+    ("gather_root_1", "root", 760, 1560), ("gather_root_2", "root", 1560, 940),
+    ("gather_odd_1", "oddity", 2260, 1640), ("gather_odd_2", "oddity", 900, 900),
 )
+GATHER_KINDS = {
+    "moss": ("Sewer Moss", (86, 150, 96), "Damp luminous sewer moss."),
+    "cap": ("Glowcap Mushroom", (150, 120, 200), "A softly glowing fungus."),
+    "root": ("Rustroot Herb", (176, 120, 70), "A bitter iron-tinged herb."),
+    "oddity": ("Bogwater Curio", (120, 170, 190), "Something strange the "
+               "rats hoarded."),
+}
+
+# Vaihe 5: lankkusillan rakennusmateriaali
+BRIDGE_MATERIAL = "Rough Timber"
+BRIDGE_WOOD = 4
+# Vaihe 6: sammakkosepän portti-ramin resepti (kytkee keräilyn mukaan)
+DEVICE_RECIPE = {"Iron Ingot": 4, "Scrap Iron": 6, "Bogwater Curio": 2}
+DEVICE_RECIPE_TEXT = "4 Iron Ingot, 6 Scrap Iron and 2 Bogwater Curio"
 
 
 def _safe_sound(name: str) -> None:
@@ -65,47 +96,64 @@ def warrens_state(manager) -> dict:
     state = global_data.setdefault("muckford_warrens", {})
     state.setdefault("visits", 0)
     state.setdefault("quest_stage", 0)
-    state.setdefault("traced_signs", [])
-    state.setdefault("recovered_caches", [])
-    state.setdefault("destroyed_nests", [])
-    state.setdefault("rescued_ratcatchers", [])
+    # Vaihe 1: rottakaadot
+    state.setdefault("rats_culled", 0)
+    state.setdefault("cull_reward_claimed", False)
+    # Vaihe 2: invaasion sulku
+    state.setdefault("invasion_kills", 0)
+    state.setdefault("breach_sealed", False)
+    state.setdefault("area_safe", False)          # keräys aukeaa
+    # Vaihe 3: tulvaventtiili
+    state.setdefault("valve_turned", False)
+    # Vaihe 4: rottaleiri + lore
+    state.setdefault("camp_kills", 0)
+    state.setdefault("lore_read", False)
+    state.setdefault("tremor_triggered", False)
+    # Vaihe 5: lankkusilta
+    state.setdefault("bridge_built", False)
+    # Vaihe 6: sammakkosepän portti-ramin rakennus
+    state.setdefault("smith_met", False)
+    state.setdefault("smith_recruited", False)
+    state.setdefault("device_built", False)
+    # Vaihe 7-8: boss + raportti
     state.setdefault("boss_unlocked", False)
     state.setdefault("boss_defeated", False)
     state.setdefault("boss_reward_claimed", False)
+    state.setdefault("boss_intro_seen", False)
     state.setdefault("report_reward_claimed", False)
     state.setdefault("city_raids_ended", False)
     state.setdefault("completed", False)
     state.setdefault("waste_exposure", 0)
-    state.setdefault("deep_drain_open", False)
-    # Pelitesti 24: sulkuluku-vivut (avaavat sulut + antavat rattaita) ja
-    # sepän takoman kammen kytkentä Royal Cistern -portille
-    state.setdefault("pulled_levers", [])
-    state.setdefault("gate_cranked", False)
-    state.setdefault("boss_intro_seen", False)
+    # Kerätyt solmut (id-lista)
+    state.setdefault("gathered_nodes", [])
     return state
 
 
 def sync_warrens_story(manager) -> bool:
+    """Etenee vaiheesta seuraavaan kun ehdot täyttyvät. Palauttaa True jos
+    vaihe muuttui."""
     state = warrens_state(manager)
     changed = False
     while True:
         stage = int(state.get("quest_stage", 0))
-        if stage == 1 and len(set(state.get("traced_signs", ()))) >= TRACE_COUNT:
+        if stage == 1 and int(state.get("rats_culled", 0)) >= CULL_TARGET:
             state["quest_stage"] = 2
-        elif stage == 2 and len(set(state.get("recovered_caches", ()))) >= CACHE_COUNT:
+        elif stage == 2 and state.get("breach_sealed"):
             state["quest_stage"] = 3
-        elif stage == 3 and len(set(state.get("destroyed_nests", ()))) >= NEST_COUNT:
+            state["area_safe"] = True    # keräys aukeaa
+        elif stage == 3 and state.get("valve_turned"):
             state["quest_stage"] = 4
-            state["deep_drain_open"] = True
-        elif stage == 4 and len(set(state.get("rescued_ratcatchers", ()))) >= RATCATCHER_COUNT:
+        elif stage == 4 and state.get("lore_read"):
             state["quest_stage"] = 5
-            # Boss avautuu vasta kun Royal Cistern -portti on kammetty
-            # auki sepän takomalla Cistern Gate Crankilla (pelitesti 24)
-        elif state.get("boss_defeated") and stage < 6:
+            state["tremor_triggered"] = True
+        elif stage == 5 and state.get("bridge_built"):
             state["quest_stage"] = 6
-            state["city_raids_ended"] = True
-        elif state.get("completed") and stage < 7:
+        elif stage == 6 and state.get("device_built"):
             state["quest_stage"] = 7
+            state["boss_unlocked"] = True
+        elif stage == 7 and state.get("boss_defeated"):
+            state["quest_stage"] = 8
+            state["city_raids_ended"] = True
         else:
             break
         changed = True
@@ -114,8 +162,14 @@ def sync_warrens_story(manager) -> bool:
 
 def warrens_objective(manager) -> str:
     sync_warrens_story(manager)
-    stage = int(warrens_state(manager).get("quest_stage", 0))
-    return WARRENS_OBJECTIVES.get(stage, WARRENS_OBJECTIVES[7])
+    state = warrens_state(manager)
+    stage = int(state.get("quest_stage", 0))
+    if stage == 1:
+        return WARRENS_OBJECTIVES[1].replace(
+            f"(0/{CULL_TARGET})",
+            f"({min(int(state.get('rats_culled', 0)), CULL_TARGET)}/"
+            f"{CULL_TARGET})")
+    return WARRENS_OBJECTIVES.get(stage, WARRENS_OBJECTIVES[8])
 
 
 class RectObstacle:
@@ -207,62 +261,57 @@ class CitySewerHatch(Prop):
         self.image = image
 
 
-class TrailMark(Prop):
-    def __init__(self, mark_id: str, x: int, y: int, traced=False):
-        super().__init__(x, y, 72, 62, color=(0, 0, 0))
-        self.mark_id = str(mark_id)
-        self.traced = bool(traced)
-        self.rect = pygame.Rect(x + 8, y + 28, 56, 28)
+class GatherNode(Prop):
+    """Kerättävä yrtti/sieni/outo juttu turvallisilta viemärikammioilta
+    (pelitesti 26). E poimii kun alue on turvattu (invaasio suljettu).
+    Antaa reseptimateriaaleja."""
+
+    def __init__(self, node_id: str, kind: str, x: int, y: int, gathered=False):
+        super().__init__(x, y, 60, 60, color=(0, 0, 0))
+        self.node_id = str(node_id)
+        self.kind = str(kind)
+        self.gathered = bool(gathered)
+        self.rect = pygame.Rect(x + 12, y + 34, 36, 22)
         self.image_pos = (x, y)
         self.has_shadow = False
         self.blocks_projectiles = False
         self.is_structure = False
+        self._sway = random.uniform(0, 6.28)
         self._redraw()
 
+    @property
+    def resource_name(self):
+        return GATHER_KINDS.get(self.kind, ("Curio",))[0]
+
     def _redraw(self):
-        image = pygame.Surface((72, 62), pygame.SRCALPHA)
-        if self.traced:
-            pygame.draw.line(image, (84, 130, 94), (11, 45), (61, 45), 4)
-            pygame.draw.circle(image, (84, 130, 94), (36, 35), 9, 3)
-        else:
-            for x, y, angle in ((16, 42, -1), (31, 30, 1), (47, 44, -1), (57, 25, 1)):
-                pygame.draw.ellipse(image, (173, 79, 202), (x, y, 11, 7))
-                pygame.draw.circle(image, (219, 127, 234), (x + 6, y + 3), 2)
+        image = pygame.Surface((60, 60), pygame.SRCALPHA)
+        col = GATHER_KINDS.get(self.kind, ("", (150, 150, 150)))[1]
+        if self.gathered:
+            pygame.draw.line(image, (60, 58, 52), (18, 52), (42, 52), 3)
+        elif self.kind == "cap":  # sieni: lakit
+            for cx, cy, r in ((22, 40, 10), (36, 44, 7), (30, 32, 8)):
+                pygame.draw.rect(image, (150, 130, 110), (cx - 2, cy, 4, 12))
+                pygame.draw.ellipse(image, col, (cx - r, cy - r + 2, r * 2, r + 4))
+                pygame.draw.circle(image, (230, 220, 245), (cx - 3, cy - 2), 2)
+        elif self.kind == "moss":  # sammal: matala läiskä
+            pygame.draw.ellipse(image, col, (8, 40, 44, 16))
+            for sx in (16, 28, 40):
+                pygame.draw.circle(image, (140, 200, 150), (sx, 46), 4)
+        else:  # yrtti/outo: varret + kukat
+            for sx in (20, 30, 40):
+                pygame.draw.line(image, (90, 130, 90), (sx, 54), (sx - 2, 30), 3)
+                pygame.draw.circle(image, col, (sx - 2, 28), 5)
         self.image = image
 
 
-class FoodCache(Prop):
-    def __init__(self, cache_id: str, x: int, y: int, recovered=False):
-        super().__init__(x, y, 98, 82, color=(0, 0, 0))
-        self.cache_id = str(cache_id)
-        self.recovered = bool(recovered)
-        self.rect = pygame.Rect(x + 8, y + 39, 82, 36)
-        self.image_pos = (x, y)
-        self.blocks_projectiles = False
-        self.is_structure = False
-        self._redraw()
+class BreachTunnel(Prop):
+    """Repeämätunneli josta rotta-invaasio vyöryy (vaihe 2). E sulkee sen
+    kun aalto on lyöty."""
 
-    def _redraw(self):
-        image = pygame.Surface((98, 82), pygame.SRCALPHA)
-        if self.recovered:
-            pygame.draw.rect(image, (65, 52, 40), (8, 56, 82, 12), border_radius=4)
-            pygame.draw.line(image, (121, 91, 53), (14, 57), (84, 64), 3)
-        else:
-            pygame.draw.rect(image, (93, 64, 39), (10, 25, 78, 48), border_radius=4)
-            pygame.draw.rect(image, (152, 107, 59), (10, 25, 78, 48), 4, border_radius=4)
-            for x in (23, 45, 67):
-                pygame.draw.ellipse(image, (186, 153, 78), (x, 12, 23, 33))
-                pygame.draw.line(image, (113, 82, 43), (x + 5, 17), (x + 18, 36), 3)
-            pygame.draw.circle(image, (184, 80, 204), (81, 27), 4)
-        self.image = image
-
-
-class WasteNest(Prop):
-    def __init__(self, nest_id: str, x: int, y: int, destroyed=False):
-        super().__init__(x, y, 104, 96, color=(0, 0, 0))
-        self.nest_id = str(nest_id)
-        self.destroyed = bool(destroyed)
-        self.rect = pygame.Rect(x + 8, y + 48, 88, 38)
+    def __init__(self, x: int, y: int, sealed=False):
+        super().__init__(x, y, 150, 130, color=(0, 0, 0))
+        self.sealed = bool(sealed)
+        self.rect = pygame.Rect(x + 20, y + 60, 110, 60)
         self.image_pos = (x, y)
         self.blocks_projectiles = False
         self.is_structure = False
@@ -270,56 +319,127 @@ class WasteNest(Prop):
         self._redraw()
 
     def _redraw(self):
-        image = pygame.Surface((104, 96), pygame.SRCALPHA)
-        if self.destroyed:
-            pygame.draw.ellipse(image, (73, 50, 67, 130), (7, 70, 90, 17))
-            pygame.draw.line(image, (134, 69, 151), (18, 68), (87, 83), 3)
+        image = pygame.Surface((150, 130), pygame.SRCALPHA)
+        if self.sealed:
+            # Kivi/tiili tukittu
+            pygame.draw.ellipse(image, (52, 47, 44), (15, 40, 120, 80))
+            for ry in range(48, 112, 18):
+                off = 14 if (ry // 18) % 2 else 0
+                for rx in range(20 - off, 130, 28):
+                    pygame.draw.rect(image, (74, 66, 60), (rx, ry, 24, 15), 2)
         else:
-            pygame.draw.ellipse(image, (71, 49, 66), (5, 44, 94, 42))
-            pygame.draw.ellipse(image, (114, 56, 127), (18, 27, 68, 50))
-            for x, y, r in ((29, 41, 8), (48, 28, 10), (68, 45, 9), (53, 58, 7)):
-                pygame.draw.circle(image, (154, 70, 174), (x, y), r)
-                pygame.draw.circle(image, (217, 113, 228), (x - 2, y - 2), max(2, r - 5))
-            for x in (18, 39, 61, 83):
-                pygame.draw.line(image, (56, 45, 50), (52, 62), (x, 91), 4)
+            # Musta aukko + violettia sumua
+            pygame.draw.ellipse(image, (30, 26, 30), (12, 34, 126, 88))
+            pygame.draw.ellipse(image, (8, 6, 10), (28, 46, 94, 64))
+            for cx, cy, r in ((55, 74, 7), (82, 66, 9), (70, 90, 6)):
+                pygame.draw.circle(image, (150, 70, 170), (cx, cy), r)
         self.image = image
 
     def update(self, *args, **kwargs):
         self.pulse = (self.pulse + 1) % 120
 
 
-class SluiceLever(Prop):
-    """Iso käsikampivipu sulkujen ohjaamiseen (pelitesti 24). Vedosta
-    aukeaa sulku ja pelaaja saa ruostuneita sulkuluku-rattaita, joista
-    seppä takoo Cistern Gate Crankin. Kaksi vipua kaukana tunnelien
-    perillä - vartioituna hulk-rotilla."""
+class FloodValve(Prop):
+    """Iso tulvaventtiilipyörä (vaihe 3). E kääntää -> vesi laskee ja tie
+    aukeaa eteenpäin."""
 
-    def __init__(self, lever_id: str, x: int, y: int, pulled=False):
-        super().__init__(x, y, 66, 96, color=(0, 0, 0))
-        self.lever_id = str(lever_id)
-        self.pulled = bool(pulled)
-        self.rect = pygame.Rect(x + 14, y + 60, 40, 30)
+    def __init__(self, x: int, y: int, turned=False):
+        super().__init__(x, y, 80, 96, color=(0, 0, 0))
+        self.turned = bool(turned)
+        self.rect = pygame.Rect(x + 16, y + 54, 48, 34)
         self.image_pos = (x, y)
-        self.has_shadow = True
-        self.blocks_projectiles = False
         self.is_structure = False
+        self.blocks_projectiles = False
         self._redraw()
 
     def _redraw(self):
-        image = pygame.Surface((66, 96), pygame.SRCALPHA)
-        # Jalusta
-        pygame.draw.rect(image, (58, 54, 50), (10, 58, 46, 34), border_radius=5)
-        pygame.draw.rect(image, (86, 80, 72), (10, 58, 46, 34), 3, border_radius=5)
-        pygame.draw.circle(image, (34, 31, 29), (33, 72), 6)
-        # Varsi: vasemmalle = pulled, pystyssä = auki
-        if self.pulled:
-            pygame.draw.line(image, (120, 110, 96), (33, 72), (10, 40), 8)
-            pygame.draw.circle(image, (150, 196, 120), (10, 40), 8)
-            pygame.draw.circle(image, (92, 150, 88), (10, 40), 8, 2)
-        else:
-            pygame.draw.line(image, (120, 110, 96), (33, 72), (48, 18), 8)
-            pygame.draw.circle(image, (176, 96, 72), (48, 18), 9)
-            pygame.draw.circle(image, (214, 130, 96), (45, 15), 3)
+        image = pygame.Surface((80, 96), pygame.SRCALPHA)
+        # Putki + laippa
+        pygame.draw.rect(image, (66, 60, 54), (30, 40, 20, 52))
+        pygame.draw.rect(image, (44, 40, 36), (24, 78, 32, 14))
+        # Venttiilipyörä
+        cx, cy = 40, 34
+        wheel = (150, 196, 120) if self.turned else (176, 110, 84)
+        pygame.draw.circle(image, wheel, (cx, cy), 22, 5)
+        for a in range(0, 360, 60):
+            r = math.radians(a + (30 if self.turned else 0))
+            pygame.draw.line(image, wheel, (cx, cy),
+                             (cx + 20 * math.cos(r), cy + 20 * math.sin(r)), 4)
+        pygame.draw.circle(image, (40, 36, 32), (cx, cy), 6)
+        self.image = image
+
+
+class LoreBoard(Prop):
+    """Rottaleirin loretaulu/kirje (vaihe 4): Rat Kingin suunnitelma ja
+    Vortex Abyssal -lore. E lukee."""
+
+    def __init__(self, x: int, y: int, read=False):
+        super().__init__(x, y, 84, 104, color=(0, 0, 0))
+        self.read = bool(read)
+        self.rect = pygame.Rect(x + 14, y + 70, 56, 30)
+        self.image_pos = (x, y)
+        self.is_structure = False
+        self.blocks_projectiles = False
+        self._redraw()
+
+    def _redraw(self):
+        image = pygame.Surface((84, 104), pygame.SRCALPHA)
+        # Jalat + lankkutaulu
+        pygame.draw.line(image, (70, 52, 36), (22, 100), (22, 40), 6)
+        pygame.draw.line(image, (70, 52, 36), (62, 100), (62, 40), 6)
+        pygame.draw.rect(image, (108, 84, 54), (10, 24, 64, 44), border_radius=3)
+        pygame.draw.rect(image, (72, 56, 36), (10, 24, 64, 44), 3, border_radius=3)
+        # Naulattu kirje + violetti sinetti
+        pygame.draw.rect(image, (222, 210, 180), (20, 30, 34, 30))
+        for ly in range(35, 58, 5):
+            pygame.draw.line(image, (120, 108, 92), (24, ly), (50, ly), 1)
+        pygame.draw.circle(image, (150, 70, 170), (52, 58), 5)
+        self.image = image
+
+
+class BuildSite(Prop):
+    """Rakennuspiste (pelitesti 26): lankkusilta (vaihe 5) tai sammakko-
+    sepän portti-rami (vaihe 6). E rakentaa kun materiaalit riittävät."""
+
+    def __init__(self, site_id: str, kind: str, x: int, y: int, w: int, h: int,
+                 built=False):
+        super().__init__(x, y, w, h, color=(0, 0, 0))
+        self.site_id = str(site_id)
+        self.kind = str(kind)   # "bridge" | "device"
+        self.built = bool(built)
+        self._w, self._h = w, h
+        self.rect = pygame.Rect(x, y + h - 40, w, 40)
+        self.image_pos = (x, y)
+        self.is_structure = False
+        self.blocks_projectiles = False
+        self._redraw()
+
+    def _redraw(self):
+        W, H = self._w, self._h
+        image = pygame.Surface((W, H), pygame.SRCALPHA)
+        if self.kind == "bridge":
+            if self.built:
+                # Valmis lankkusilta
+                pygame.draw.rect(image, (108, 82, 50), (0, H - 34, W, 26))
+                for lx in range(4, W, 26):
+                    pygame.draw.rect(image, (74, 56, 34), (lx, H - 34, 20, 26), 2)
+            else:
+                # Murtunut lattia + tyhjä aukko
+                pygame.draw.rect(image, (18, 15, 18), (6, H - 30, W - 12, 24))
+                for jx in (10, W // 2, W - 20):
+                    pygame.draw.polygon(image, (40, 34, 34),
+                                        [(jx, H - 30), (jx + 10, H - 30),
+                                         (jx + 4, H - 8)])
+        else:  # device: portti-rami / metallilaite
+            if self.built:
+                pygame.draw.rect(image, (120, 120, 130), (W // 2 - 40, H - 54, 80, 46), border_radius=4)
+                pygame.draw.rect(image, (80, 80, 92), (W // 2 - 40, H - 54, 80, 46), 3, border_radius=4)
+                pygame.draw.rect(image, (150, 150, 160), (W // 2 - 8, H - 40, 60, 16))
+            else:
+                # Tyhjä työpiste: alasin + telineet
+                pygame.draw.rect(image, (60, 58, 62), (W // 2 - 26, H - 30, 52, 22), border_radius=3)
+                pygame.draw.line(image, (90, 88, 92), (W // 2 - 40, H - 8),
+                                 (W // 2 + 40, H - 8), 4)
         self.image = image
 
 
@@ -331,10 +451,13 @@ class MuckfordWarrensArena:
         self.props: List[object] = []
         self.floor_props: List[object] = []
         self.obstacles: List[object] = []
-        self.trail_marks: List[TrailMark] = []
-        self.food_caches: List[FoodCache] = []
-        self.waste_nests: List[WasteNest] = []
-        self.sluice_levers: List[SluiceLever] = []
+        # Uudet questlinjan interaktiivit (pelitesti 26)
+        self.gather_nodes: List[GatherNode] = []
+        self.breach: Optional[BreachTunnel] = None
+        self.valve: Optional[FloodValve] = None
+        self.lore_board: Optional[LoreBoard] = None
+        self.bridge_site: Optional[BuildSite] = None
+        self.device_site: Optional[BuildSite] = None
         self.bridges: List[pygame.Rect] = []
         self.tainted_channels: List[pygame.Rect] = []
         self.vfx = VFXManager()
@@ -345,7 +468,8 @@ class MuckfordWarrensArena:
         self.boss_gate: Optional[WarrensProp] = None
         self.city_exit = pygame.Rect(0, 300, 74, 500)
         self.low_fields_exit = pygame.Rect(0, self.height - 680, 74, 520)
-        self.royal_cistern = pygame.Rect(2980, 230, 520, 1900)
+        # Abyssal Cistern: bossiareena kaukana idässä (iso alue)
+        self.royal_cistern = pygame.Rect(3860, 360, 660, 2080)
         self._generate_floor()
         self._build_level()
         self.refresh_persistent(manager)
@@ -390,18 +514,19 @@ class MuckfordWarrensArena:
                 self.floor_image.blit(self.rng.choice(tiles), (tx, ty))
         # Kuivat huoltokäytävät kammioiden välillä (vaaleampi kivi)
         for a, b, wdt in (
-            ((90, 560), (self.width - 230, 560), 150),
-            ((180, 1870), (self.width - 310, 1870), 170),
-            ((820, 560), (820, 1900), 135),
-            ((1760, 520), (1760, 1930), 135),
-            ((2660, 540), (2660, 1910), 135),
+            ((90, 620), (self.width - 230, 620), 150),
+            ((180, 2150), (self.width - 310, 2150), 170),
+            ((820, 620), (820, 2200), 135),
+            ((1900, 580), (1900, 2230), 135),
+            ((3000, 600), (3000, 2210), 135),
+            ((3760, 700), (3760, 2100), 135),
         ):
             pygame.draw.line(self.floor_image, (58, 51, 47), a, b, wdt)
         # Viemärikanavat: kuljettavia mutta myrkyllisiä (wade-hazard)
         channels = (
-            pygame.Rect(470, 1060, 2970, 250),
-            pygame.Rect(1510, 250, 260, 1880),
-            pygame.Rect(2470, 300, 250, 1830),
+            pygame.Rect(470, 1240, 3600, 250),
+            pygame.Rect(1650, 300, 260, 2200),
+            pygame.Rect(2900, 340, 250, 2100),
         )
         self.tainted_channels = [pygame.Rect(rect) for rect in channels]
         for rect in channels:
@@ -428,77 +553,74 @@ class MuckfordWarrensArena:
                 RectObstacle((w, 0, 40, h)),
             ]
         )
+        # Tiiliseinät jakavat kartan kammioihin (iso viemäriverkosto)
         wall_specs = (
-            (520, 70, 130, 700), (520, 1470, 130, 830),
-            (1120, 70, 130, 560), (1120, 1550, 130, 750),
-            (2020, 70, 140, 660), (2020, 1510, 140, 790),
-            (2890, 70, 130, 720), (2890, 1540, 130, 760),
+            (560, 80, 130, 820), (560, 1720, 130, 980),
+            (1240, 80, 130, 660), (1240, 1820, 130, 900),
+            (2200, 80, 140, 780), (2200, 1780, 140, 940),
+            (3120, 80, 130, 840), (3120, 1800, 130, 920),
+            (3760, 120, 120, 760), (3760, 1900, 120, 780),
         )
         for spec in wall_specs:
             self._add(WarrensProp(*spec, "brick_wall", blocking=True), blocking=True)
         for x, y, length in (
-            (260, 330, 420), (900, 850, 480), (1910, 350, 430),
-            (2250, 2060, 510), (2830, 920, 480),
+            (280, 360, 460), (980, 940, 520), (2080, 380, 470),
+            (2480, 2340, 560), (3080, 1010, 520), (3900, 520, 420),
         ):
             self.props.append(WarrensProp(x, y, length, 44, "pipe", blocking=False))
         bridge_specs = (
-            (710, 1020, 180, 330), (1690, 980, 190, 410),
-            (2580, 990, 190, 390), (3180, 1020, 190, 330),
+            (760, 1200, 190, 370), (1820, 1150, 200, 450),
+            (2820, 1160, 200, 430), (3480, 1200, 200, 370),
         )
         for spec in bridge_specs:
             bridge = WarrensProp(*spec, "bridge", blocking=False)
             self.bridges.append(pygame.Rect(spec))
             self.props.append(bridge)
-        for x, y in ((430, 470), (970, 1770), (1870, 520), (2320, 1770), (2780, 520)):
+        for x, y in ((470, 520), (1060, 2020), (2040, 580), (2560, 2020),
+                     (3060, 580), (3620, 1700)):
             self._add(WarrensProp(x, y, 115, 85, "crate", blocking=True), blocking=True)
         self.city_drain = WarrensProp(105, 430, 130, 110, "drain", blocking=False)
         self.low_fields_drain = WarrensProp(105, self.height - 520, 130, 110, "drain", blocking=False)
         self.props.extend((self.city_drain, self.low_fields_drain))
-        self.throne = WarrensProp(3240, 1050, 190, 220, "throne", blocking=True)
+        self.throne = WarrensProp(4180, 1180, 210, 240, "throne", blocking=True)
         self._add(self.throne, blocking=True)
 
         state = warrens_state(self.manager)
-        traced = set(state.get("traced_signs", ()))
-        for mark_id, x, y in (
-            ("trail_1", 780, 760), ("trail_2", 1340, 1710),
-            ("trail_3", 2140, 760), ("trail_4", 2760, 1750),
-        ):
-            mark = TrailMark(mark_id, x, y, mark_id in traced)
-            self.trail_marks.append(mark)
-            self.props.append(mark)
 
-        recovered = set(state.get("recovered_caches", ()))
-        for cache_id, x, y in (
-            ("cache_1", 930, 390), ("cache_2", 1430, 1950),
-            ("cache_3", 2240, 420), ("cache_4", 2750, 1940),
-        ):
-            cache = FoodCache(cache_id, x, y, cache_id in recovered)
-            self.food_caches.append(cache)
-            self.props.append(cache)
+        # Kerättävät solmut (aktivoituvat kun alue on turvattu)
+        gathered = set(state.get("gathered_nodes", ()))
+        for node_id, kind, x, y in GATHER_NODES:
+            node = GatherNode(node_id, kind, x, y, node_id in gathered)
+            self.gather_nodes.append(node)
+            self.props.append(node)
 
-        destroyed = set(state.get("destroyed_nests", ()))
-        for nest_id, x, y in (
-            ("nest_1", 1260, 750), ("nest_2", 1880, 1780),
-            ("nest_3", 2350, 760), ("nest_4", 2810, 1510),
-        ):
-            nest = WasteNest(nest_id, x, y, nest_id in destroyed)
-            self.waste_nests.append(nest)
-            self.props.append(nest)
+        # Vaihe 2: invaasion repeämätunneli (pohjoiskeskusta)
+        self.breach = BreachTunnel(1980, 260, state.get("breach_sealed"))
+        self.props.append(self.breach)
 
-        # Sulkuluku-vivut kaukana tunnelien perillä (pelitesti 24)
-        pulled = set(state.get("pulled_levers", ()))
-        for lever_id, x, y in (
-            ("lever_north", 2560, 300), ("lever_south", 2560, 2010),
-        ):
-            lever = SluiceLever(lever_id, x, y, lever_id in pulled)
-            self.sluice_levers.append(lever)
-            self.props.append(lever)
+        # Vaihe 3: tulvaventtiili (keski-itä, kuivattaa etureitin)
+        self.valve = FloodValve(3240, 1360, state.get("valve_turned"))
+        self.props.append(self.valve)
+
+        # Vaihe 4: rottaleirin loretaulu (kaakkoiskammio)
+        self.lore_board = LoreBoard(2620, 2060, state.get("lore_read"))
+        self.props.append(self.lore_board)
+
+        # Vaihe 5: lankkusilta murtuneen lattian yli (itäinen kuilu)
+        self.bridge_site = BuildSite("plank_bridge", "bridge", 3520, 1580,
+                                     260, 120, state.get("bridge_built"))
+        self.props.append(self.bridge_site)
+
+        # Vaihe 6: sammakkosepän työpaja / portti-ram (itäinen työpaja)
+        self.device_site = BuildSite("gate_ram", "device", 3720, 1120,
+                                     180, 130, state.get("device_built"))
+        self.props.append(self.device_site)
 
         self.set_boss_gate(not state.get("boss_defeated"))
 
     def set_boss_gate(self, active: bool):
         if active and self.boss_gate is None:
-            self.boss_gate = WarrensProp(2960, 650, 66, 1160, "bar_gate", blocking=True)
+            self.boss_gate = WarrensProp(3800, 700, 66, 1400, "bar_gate", blocking=True)
             self._add(self.boss_gate, blocking=True)
         elif not active and self.boss_gate is not None:
             if self.boss_gate in self.props:
@@ -509,25 +631,28 @@ class MuckfordWarrensArena:
 
     def refresh_persistent(self, manager):
         state = warrens_state(manager)
-        traced = set(state.get("traced_signs", ()))
-        for mark in self.trail_marks:
-            mark.traced = mark.mark_id in traced
-            mark._redraw()
-        recovered = set(state.get("recovered_caches", ()))
-        for cache in self.food_caches:
-            cache.recovered = cache.cache_id in recovered
-            cache._redraw()
-        destroyed = set(state.get("destroyed_nests", ()))
-        for nest in self.waste_nests:
-            nest.destroyed = nest.nest_id in destroyed
-            nest._redraw()
-        pulled = set(state.get("pulled_levers", ()))
-        for lever in self.sluice_levers:
-            lever.pulled = lever.lever_id in pulled
-            lever._redraw()
-        # Portti pysyy suljettuna kunnes se on kammetty auki (tai boss
-        # kaadettu). Kampi vaatii sepän takoman Cistern Gate Crankin.
-        self.set_boss_gate(not state.get("gate_cranked")
+        gathered = set(state.get("gathered_nodes", ()))
+        for node in self.gather_nodes:
+            node.gathered = node.node_id in gathered
+            node._redraw()
+        if self.breach:
+            self.breach.sealed = bool(state.get("breach_sealed"))
+            self.breach._redraw()
+        if self.valve:
+            self.valve.turned = bool(state.get("valve_turned"))
+            self.valve._redraw()
+        if self.lore_board:
+            self.lore_board.read = bool(state.get("lore_read"))
+            self.lore_board._redraw()
+        if self.bridge_site:
+            self.bridge_site.built = bool(state.get("bridge_built"))
+            self.bridge_site._redraw()
+        if self.device_site:
+            self.device_site.built = bool(state.get("device_built"))
+            self.device_site._redraw()
+        # Suuri Abyssal Cistern -portti aukeaa vasta kun portti-ram on
+        # rakennettu (device_built) tai boss jo kaadettu.
+        self.set_boss_gate(not state.get("device_built")
                            and not state.get("boss_defeated"))
 
     def player_is_wading(self, point: Tuple[int, int]) -> bool:
@@ -685,27 +810,23 @@ class MuckfordWarrensMenu(GameplayScreen):
         self.warrens_npcs = []
         state = warrens_state(self.manager)
         stage = int(state.get("quest_stage", 0))
-        self.warrens_npcs.append(self._npc("Hamo", "Goblin", 290, 520, "hamo"))
-        self.warrens_npcs.append(self._npc("Old Rinna Net", "Human", 390, 650, "rinna"))
-        rescued = set(state.get("rescued_ratcatchers", ()))
-        if stage == 4:
-            for ratcatcher_id, name, race, x, y in RATCATCHERS:
-                if ratcatcher_id not in rescued:
-                    self.warrens_npcs.append(self._npc(name, race, x, y, f"rescue:{ratcatcher_id}"))
-        for index, ratcatcher_id in enumerate(sorted(rescued)):
-            names = {entry[0]: entry[1] for entry in RATCATCHERS}
-            races = {entry[0]: entry[2] for entry in RATCATCHERS}
-            self.warrens_npcs.append(
-                self._npc(
-                    names.get(ratcatcher_id, "Muckford Ratcatcher"),
-                    races.get(ratcatcher_id, "Human"),
-                    520 + index * 100,
-                    700,
-                    "rescued",
-                )
-            )
+        # Hamo vahtii sisäänkäyntiä koko kriisin ajan
+        self.warrens_npcs.append(self._npc("Hamo", "Goblin", 290, 560, "hamo"))
+        # Sammakko-seppä Brekka odottaa työpajallaan vaiheesta 6 (kunnes
+        # rekrytoidaan tiimiin) - pelaaja kohtaa hänet portti-ramin luona
+        if stage >= 6 and not state.get("smith_recruited"):
+            self._add_frog_smith()
         self.dynamic_props = list(self.warrens_npcs)
         self.arena.props.extend(self.dynamic_props)
+
+    def _add_frog_smith(self):
+        """Lisää sammakkosepän (Brekka) työpajalle staattisena NPC:nä.
+        Rekrytointi tapahtuu portti-rami rakennettaessa (vaihe 6)."""
+        ds = self.arena.device_site.rect if self.arena.device_site else None
+        x = (ds.centerx - 90) if ds else 3700
+        y = (ds.top - 30) if ds else 1120
+        smith = self._npc("Brekka the Frog Smith", "Frogfolk", x, y, "smith")
+        self.warrens_npcs.append(smith)
 
     def _rat(self, cls, name, x, y):
         """Luo OIKEAN rottayksikön ja liittää sen warrens-ryhmään +
@@ -717,27 +838,53 @@ class MuckfordWarrensMenu(GameplayScreen):
 
     def _spawn_population(self):
         state = warrens_state(self.manager)
-        cleared = bool(state.get("boss_defeated"))
-        # Kuhisevat tunnelit: OIKEAT Giant Ratit, Rat Riderit ja isot
-        # Brute Ratit (samat yksiköt kuin Rat King Lairissa)
-        placements = [
-            (GiantRat, 760, 470), (GiantRat, 990, 1420), (GiantRat, 1370, 820),
-            (GiantRat, 1990, 1880), (GiantRat, 2500, 520), (GiantRat, 2830, 1830),
-            (GiantRat, 1100, 410), (GiantRat, 1460, 1670), (GiantRat, 1900, 720),
-            (GiantRat, 2260, 1450), (GiantRat, 2690, 650), (GiantRat, 2870, 1710),
-            (RatRider, 1310, 1930), (RatRider, 2140, 420), (RatRider, 2750, 1420),
-            (RatRider, 1720, 1180), (RatRider, 2560, 1650),
-            (BruteRat, 1600, 870), (BruteRat, 2410, 1870), (BruteRat, 2800, 430),
-            (BruteRat, 2360, 1120), (BruteRat, 2870, 980), (BruteRat, 1980, 1160),
+        stage = int(state.get("quest_stage", 0))
+        safe = bool(state.get("area_safe"))
+        self._counters = {}
+        # Perusrottia hajallaan tunneleissa (vähemmän kun alue turvattu)
+        base = [
+            (GiantRat, 760, 520), (GiantRat, 1100, 1500), (GiantRat, 1500, 900),
+            (GiantRat, 2200, 1980), (GiantRat, 2700, 560), (GiantRat, 3060, 1960),
+            (GiantRat, 1240, 460), (GiantRat, 1620, 1780), (GiantRat, 2060, 780),
+            (GiantRat, 2500, 1560), (GiantRat, 2960, 700), (GiantRat, 3300, 1820),
+            (RatRider, 1440, 2040), (RatRider, 2360, 460), (RatRider, 3020, 1520),
+            (RatRider, 1900, 1260), (RatRider, 2820, 1760),
+            (BruteRat, 1760, 940), (BruteRat, 2640, 1980), (BruteRat, 3100, 470),
         ]
-        if cleared:
-            placements = placements[::2]
-        counters = {}
-        for cls, x, y in placements:
-            n = counters[cls] = counters.get(cls, 0) + 1
-            label = {GiantRat: "Sewer Rat", RatRider: "Rat Rider",
-                     BruteRat: "Brute Rat"}[cls]
-            self._rat(cls, f"{label} {n}", x, y)
+        if safe:
+            # Alue turvattu invaasion sulun jälkeen -> harvakseltaan rottia,
+            # keräily rauhassa
+            base = base[::3]
+        for cls, x, y in base:
+            self._spawn_rat(cls, x, y)
+        # Vaihe 2: invaasioaalto repeämästä (jos ei vielä suljettu)
+        if stage == 2 and not state.get("breach_sealed") and self.arena.breach:
+            self._spawn_invasion_wave()
+        # Vaihe 4: rottaleirin vartijat loretaulun ympärillä
+        if stage == 4 and not state.get("lore_read") and self.arena.lore_board:
+            self._spawn_camp()
+
+    def _spawn_rat(self, cls, x, y):
+        n = self._counters[cls] = self._counters.get(cls, 0) + 1
+        label = {GiantRat: "Sewer Rat", RatRider: "Rat Rider",
+                 BruteRat: "Brute Rat"}[cls]
+        return self._rat(cls, f"{label} {n}", x, y)
+
+    def _spawn_invasion_wave(self):
+        bx, by = self.arena.breach.rect.center
+        for i in range(6):
+            self._spawn_rat(GiantRat, bx + (i - 3) * 60, by + 90 + (i % 2) * 40)
+        for i in range(3):
+            self._spawn_rat(RatRider, bx + (i - 1) * 110, by + 180)
+        self._spawn_rat(BruteRat, bx, by + 250)
+
+    def _spawn_camp(self):
+        cx, cy = self.arena.lore_board.rect.center
+        for i in range(5):
+            self._spawn_rat(GiantRat, cx + (i - 2) * 90, cy - 120 - (i % 2) * 40)
+        for i in range(2):
+            self._spawn_rat(RatRider, cx + (i - 1) * 140, cy - 200)
+        self._spawn_rat(BruteRat, cx - 40, cy - 300)
 
     def _spawn_boss_if_needed(self):
         state = warrens_state(self.manager)
@@ -746,35 +893,36 @@ class MuckfordWarrensMenu(GameplayScreen):
             return
         self.arena.set_boss_gate(False)
         # OIKEA Rat King -boss (units.rat_king): sylky, summon, rage,
-        # superhyppy - sama kuin alun perin rakennettu (pelitesti 25)
-        self.boss = RatKing("The Rat King of Muckford",
+        # superhyppy - sama kuin alun perin rakennettu (pelitesti 25).
+        # Nimetty (pelitesti 26): Skrivvax, the Gnawing Crown.
+        self.boss = RatKing(RAT_KING_NAME,
                             self.arena.royal_cistern.centerx - 60,
                             self.arena.royal_cistern.centery)
         self.boss.assign_manager(self.manager)
         self.boss.team_color = ENEMY_TEAM
         self.monsters.add(self.boss)
         self.manager.enemy_team.add(self.boss)
-        # Eeppinen intro ensimmäisellä kohtaamisella (pelitesti 24)
+        # Eeppinen intro ensimmäisellä kohtaamisella: Vortex Abyssal -lore
         if not state.get("boss_intro_seen"):
             state["boss_intro_seen"] = True
             self._open_dialogue(
-                "The Rat King of Muckford",
+                RAT_KING_NAME,
                 (
-                    "SsSSo. The two-legs cranked my gate. You waded my "
-                    "tunnels, drowned my nests, stole back your rotting "
-                    "grain... and still you crawl DEEPER.",
-                    "I am no gutter vermin, Commander. I am the crown "
-                    "beneath Muckford. Every rat that ever gnawed your "
-                    "walls answered to ME.",
-                    "Come then. Bring your little soldiers. My Royal "
-                    "Cistern has room for all your bones!",
+                    "SsSSo. You bridged my broken road, raised the frog's "
+                    "iron ram, and cranked my last gate. Persistent meat.",
+                    "I am no gutter vermin, Commander. I crawled up from "
+                    "the Abyssal Vortex itself. I only need a little more "
+                    "of its power, and Muckford is the FIRST bowl I empty.",
+                    "The Master's demand is simple: these little kingdoms "
+                    "PAY. You do not get to ask why. You only get to "
+                    "DROWN. COME!",
                 ),
             )
             try:
                 self.manager.trigger_screen_shake(16)
             except Exception:
                 pass
-        self._flash("The Rat King rises from the Royal Cistern.", 320)
+        self._flash(f"{RAT_KING_NAME} rises from the Abyssal Cistern.", 320)
 
     def _near(self, rect: pygame.Rect, inflate=76) -> bool:
         return self.player.rect.colliderect(rect.inflate(inflate, inflate))
@@ -806,103 +954,105 @@ class MuckfordWarrensMenu(GameplayScreen):
         self.dialogue_index = 0
         _safe_sound("click")
 
-    def _start_story(self):
-        state = warrens_state(self.manager)
-        if int(state.get("quest_stage", 0)) == 0:
-            state["quest_stage"] = 1
-            try:
-                self.manager.record_tier0_event("flag", "muckford_warrens_started")
-            except Exception:
-                pass
-        self._open_dialogue(
-            "Hamo",
-            (
-                "Purple eyes were a warning. Now the rats are moving grain, scrap and Vortex waste like an army with quartermasters.",
-                "Old Rinna marked four trails. Trace them first. We need to know where the Rat King is feeding his soldiers.",
-                "The hatch is open at any level, Commander. That does not make the Warrens safe. These tunnels are Lv 4-6 work.",
-            ),
-        )
-
+    # ------------------------------------------------------------------
+    # Hamo + sammakko-seppä + questin edistys
+    # ------------------------------------------------------------------
     def _hamo_dialogue(self):
         state = warrens_state(self.manager)
         stage = int(state.get("quest_stage", 0))
         if stage == 0:
-            self._start_story()
-            return
-        if stage == 1:
-            pages = (f"Follow the violet tracks before they wash away. Trails traced: {len(set(state.get('traced_signs', ())))}/{TRACE_COUNT}.",)
-        elif stage == 2:
-            pages = (f"Those sacks belong above ground. Food caches recovered: {len(set(state.get('recovered_caches', ())))}/{CACHE_COUNT}.",)
-        elif stage == 3:
-            pages = (f"Burn out the purple nests. Vortex-waste nests destroyed: {len(set(state.get('destroyed_nests', ())))}/{NEST_COUNT}.",)
-        elif stage == 4:
-            pages = (f"Rinna's Ratcatchers are still alive. Rescued: {len(set(state.get('rescued_ratcatchers', ())))}/{RATCATCHER_COUNT}.",)
-        elif stage == 5:
-            pages = ("The Royal Cistern gate is open. Kill the Rat King and the surface raids end with him.",)
-        elif stage == 6:
-            self._complete_report("Hamo")
-            return
-        else:
-            pages = (
-                "No more raid schedules, no more purple eyes at the granary. Hamo calls that a profitable peace.",
-                "Rat tails still buy coin, but the Warrens no longer decide whether Muckford eats.",
-            )
-        self._open_dialogue("Hamo", pages)
-
-    def _rinna_dialogue(self):
-        state = warrens_state(self.manager)
-        stage = int(state.get("quest_stage", 0))
-        if stage == 0:
             state["quest_stage"] = 1
             try:
                 self.manager.record_tier0_event("flag", "muckford_warrens_started")
             except Exception:
                 pass
-            pages = (
-                "Name's Rinna Net. I trained every ratcatcher fool enough to climb down here twice.",
-                "Four violet trails lead away from the cellar. Trace all four, then we take back the food stores one tunnel at a time.",
-            )
-        elif stage == 1:
-            pages = ("Purple prints shine brightest where the sewer brick is dry. Mark every trail before chasing the rats.",)
-        elif stage == 2:
-            pages = ("Recover the stolen sacks. Muckford loses more people to empty bowls than to rat teeth.",)
-        elif stage == 3:
-            pages = ("Those waste nests are why the eyes glow. Break all four before searching for my crew.",)
-        elif stage == 4:
-            pages = ("Tessa, Brin and Dorrik know how to stay alive. Find them before the King moves his guard.",)
-        elif stage == 5:
-            pages = ("You hear that crown scraping brick? Royal Cistern. End it clean.",)
-        elif stage == 6:
-            self._complete_report("Old Rinna Net")
+            self._open_dialogue("Hamo", (
+                "You came down after all. Good. The rats have gone from "
+                "nuisance to ARMY - and something down there is driving them.",
+                f"Start simple: cull {CULL_TARGET} of the sewer rats "
+                "gnawing our foundations. Coin and a blade for your trouble.",
+                "The hatch opens at any level, Commander, but these tunnels "
+                "are Lv 4-6 work. Bring friends from the barracks."))
             return
-        else:
-            pages = ("My crew is alive and the city sleeps without raid bells. That is enough glory for one sewer.",)
-        self._open_dialogue("Old Rinna Net", pages)
+        pages = {
+            1: (f"Keep culling. Sewer rats put down: "
+                f"{state.get('rats_culled', 0)}/{CULL_TARGET}.",),
+            2: ("A breach tore open north of here and rats are POURING out. "
+                "Break the wave, then seal the breach tunnel.",),
+            3: ("With the breach sealed the near tunnels are safe - gather "
+                "what herbs and fungus you can. Then find the flood valve "
+                "east and drain the sunken passage.",),
+            4: ("Past the drained passage is their camp. Storm it and read "
+                "whatever the vermin left nailed up. I want to know who is "
+                "GIVING these rats orders.",),
+            5: ("That tremor... half the old passage caved in. Bridge the "
+                "broken floor with planks to press on.",),
+            6: ("The flooded workshop is just ahead. Old Brekka the frog "
+                "smith is holed up there - help raise his gate-ram and the "
+                "deep cistern opens.",),
+            7: (f"The great gate is open. {RAT_KING_NAME} waits in the "
+                "Abyssal Cistern. End it.",),
+            8: ("No more raid bells, no more glowing eyes at the granary. "
+                "Muckford eats because of you, Commander.",),
+        }.get(stage, ("The Warrens are quiet now. Rest easy.",))
+        if stage == 8:
+            self._report()
+            return
+        self._open_dialogue("Hamo", pages)
 
-    def _complete_report(self, speaker: str):
+    def _report(self):
         state = warrens_state(self.manager)
         if not state.get("report_reward_claimed"):
-            self.manager.gold += 140
-            self.manager.reputation = int(getattr(self.manager, "reputation", 0)) + 10
+            self.manager.gold += 180
+            self.manager.reputation = int(getattr(self.manager, "reputation", 0)) + 12
             self.manager.city_storage["Recovered Grain"] = int(self.manager.city_storage.get("Recovered Grain", 0)) + 8
-            self.manager.city_storage["Scrap Iron"] = int(self.manager.city_storage.get("Scrap Iron", 0)) + 4
             state["report_reward_claimed"] = True
         state["completed"] = True
         state["city_raids_ended"] = True
-        sync_warrens_story(self.manager)
         try:
             self.manager.record_tier0_event("quest", "muckford_warrens_cleared")
             self.manager.record_tier0_event("flag", "muckford_rat_raids_ended")
         except Exception:
             pass
-        self._open_dialogue(
-            speaker,
-            (
-                "The Rat King is dead. The Warrens still have teeth, but they no longer have orders.",
-                "Muckford receives the recovered grain and scrap. +140 SP, +10 reputation. Rat raids have ended permanently.",
-            ),
-        )
-        self._flash("Muckford Warrens secured. Surface rat raids ended permanently.", 420)
+        self._open_dialogue("Hamo", (
+            f"{RAT_KING_NAME} is dead and whatever 'Master' he served has "
+            "lost its crown down here. The Warrens still have teeth, but "
+            "no orders.",
+            "Muckford is yours to walk safely now - the deep tunnels make "
+            "a fine gathering ground. +180 SP, +12 reputation."))
+        self._flash("Muckford Warrens secured. Rat raids ended.", 420)
+
+    def _talk_smith(self):
+        """Sammakko-seppä Brekka: lore + vihje portti-ramin rakennuksesta."""
+        state = warrens_state(self.manager)
+        state["smith_met"] = True
+        self._open_dialogue("Brekka the Frog Smith", (
+            "Hrrk. A living face! I've been walled in here since the water "
+            "rose. That crowned rat wants my forge - not happening.",
+            "Bring me the makings and I'll raise my gate-ram against the "
+            f"deep cistern gate: {DEVICE_RECIPE_TEXT}.",
+            "Break that crown for good and I'll march with you, Commander. "
+            "A team could use a smith who swings a hammer both ways."))
+
+    def _recruit_smith(self):
+        """Rekrytoi Brekka pelaajan tiimiin (portti-ram rakennettu)."""
+        state = warrens_state(self.manager)
+        if state.get("smith_recruited"):
+            return
+        state["smith_recruited"] = True
+        try:
+            from units.frog_smith import FrogSmith
+            from settings import PLAYER_TEAM
+            smith = FrogSmith("Brekka", self.player.rect.centerx - 60,
+                              self.player.rect.centery, PLAYER_TEAM)
+            self.manager.my_team.add(smith)
+            self.manager.has_smith = True
+            _safe_sound("recruit")
+            self._flash("Brekka the Frog Smith joins your team! "
+                        "(gear repairs are cheaper now)", 360)
+        except Exception:
+            pass
+        self._refresh_npcs()
 
     def _try_npc(self) -> bool:
         for npc in self.warrens_npcs:
@@ -911,157 +1061,191 @@ class MuckfordWarrensMenu(GameplayScreen):
             role = getattr(npc, "warrens_role", "")
             if role == "hamo":
                 self._hamo_dialogue()
-            elif role == "rinna":
-                self._rinna_dialogue()
-            elif role.startswith("rescue:"):
-                ratcatcher_id = role.split(":", 1)[1]
-                state = warrens_state(self.manager)
-                rescued = state.setdefault("rescued_ratcatchers", [])
-                if ratcatcher_id not in rescued:
-                    rescued.append(ratcatcher_id)
-                    self.manager.reputation = int(getattr(self.manager, "reputation", 0)) + 1
-                    self._flash(f"Rescued {npc.name}. +1 reputation")
-                    _safe_sound("recruit")
-                    if sync_warrens_story(self.manager):
-                        self.arena.refresh_persistent(self.manager)
-                        self._flash("All Ratcatchers rescued. The Royal Cistern gate opens.", 320)
-                        self._spawn_boss_if_needed()
-                    self._refresh_npcs()
+            elif role == "smith":
+                self._talk_smith()
             else:
-                self._open_dialogue(npc.name, ("We mark every side tunnel now. No more disappearing alone into the dark.",))
+                self._open_dialogue(npc.name, ("Watch the water, friend.",))
             return True
         return False
 
-    def _try_trace(self) -> bool:
+    # ------------------------------------------------------------------
+    # Kerättävät solmut (yrtit/sienet) - aukeavat kun alue on turvattu
+    # ------------------------------------------------------------------
+    def _try_gather(self) -> bool:
         state = warrens_state(self.manager)
-        if int(state.get("quest_stage", 0)) != 1:
+        if not state.get("area_safe"):
             return False
-        for mark in self.arena.trail_marks:
-            if mark.traced or not self._near(mark.rect, 74):
+        for node in self.arena.gather_nodes:
+            if node.gathered or not self._near(node.rect, 70):
                 continue
-            traced = state.setdefault("traced_signs", [])
-            if mark.mark_id not in traced:
-                traced.append(mark.mark_id)
-            mark.traced = True
-            mark._redraw()
-            for index in range(2):
-                self._rat(
-                    GiantRat, f"Sewer Rat guard {len(traced)}-{index + 1}",
-                    mark.rect.centerx + index * 70 - 35,
-                    mark.rect.centery + 80)
-            self._flash(f"Violet trail traced: {len(set(traced))}/{TRACE_COUNT}")
-            if sync_warrens_story(self.manager):
-                self._flash("The trails converge on Muckford's stolen food stores.", 300)
+            gathered = state.setdefault("gathered_nodes", [])
+            if node.node_id not in gathered:
+                gathered.append(node.node_id)
+            node.gathered = True
+            node._redraw()
+            res = node.resource_name
+            self.manager.inventory[res] = int(
+                self.manager.inventory.get(res, 0)) + random.randint(1, 2)
+            self._flash(f"Gathered {res}.")
+            _safe_sound("mining_break")
+            try:
+                self.manager.grant_hero_xp(2, node.rect.centerx, node.rect.top)
+            except Exception:
+                pass
             return True
         return False
 
-    def _try_cache(self) -> bool:
+    # ------------------------------------------------------------------
+    # Questin interaktiivit: breach, valve, lore, bridge, device
+    # ------------------------------------------------------------------
+    def _try_breach(self) -> bool:
         state = warrens_state(self.manager)
+        breach = self.arena.breach
+        if breach is None or breach.sealed or not self._near(breach.rect, 90):
+            return False
         if int(state.get("quest_stage", 0)) != 2:
             return False
-        for cache in self.arena.food_caches:
-            if cache.recovered or not self._near(cache.rect, 78):
-                continue
-            recovered = state.setdefault("recovered_caches", [])
-            if cache.cache_id not in recovered:
-                recovered.append(cache.cache_id)
-            cache.recovered = True
-            cache._redraw()
-            self.manager.city_storage["Recovered Grain"] = int(self.manager.city_storage.get("Recovered Grain", 0)) + 2
-            self.manager.inventory["Scrap Iron"] = int(self.manager.inventory.get("Scrap Iron", 0)) + 1
-            self._flash(f"Food caches recovered: {len(set(recovered))}/{CACHE_COUNT}. +2 city grain, +1 Scrap Iron")
-            _safe_sound("recruit")
-            if sync_warrens_story(self.manager):
-                self._flash("The food stores are safe. Destroy the Vortex-waste nests.", 300)
-            return True
-        return False
-
-    def _try_nest(self) -> bool:
-        state = warrens_state(self.manager)
-        if int(state.get("quest_stage", 0)) != 3:
-            return False
-        for nest in self.arena.waste_nests:
-            if nest.destroyed or not self._near(nest.rect, 80):
-                continue
-            destroyed = state.setdefault("destroyed_nests", [])
-            if nest.nest_id not in destroyed:
-                destroyed.append(nest.nest_id)
-            nest.destroyed = True
-            nest._redraw()
-            self.manager.inventory["Vortex Residue"] = int(self.manager.inventory.get("Vortex Residue", 0)) + 1
-            self._rat(BruteRat, f"Brute Rat nest {len(destroyed)}", nest.rect.centerx, nest.rect.centery + 100)
-            self._rat(GiantRat, f"Sewer Rat nest {len(destroyed)}", nest.rect.centerx + 90, nest.rect.centery + 70)
-            self._flash(f"Waste nests destroyed: {len(set(destroyed))}/{NEST_COUNT}. +1 Vortex Residue")
-            _safe_sound("mining_break")
-            if sync_warrens_story(self.manager):
-                self._flash("Waste nests destroyed. Find Rinna's three Ratcatchers.", 320)
-                self.arena.refresh_persistent(self.manager)
-                self._refresh_npcs()
-            return True
-        return False
-
-    def _try_lever(self) -> bool:
-        """Sulkuluku-vivun veto: aukaisee sulun ja antaa 2 ruostunutta
-        sulkuluku-ratasta (Cistern Gate Crankin materiaali)."""
-        state = warrens_state(self.manager)
-        for lever in self.arena.sluice_levers:
-            if lever.pulled or not self._near(lever.rect, 74):
-                continue
-            pulled = state.setdefault("pulled_levers", [])
-            if lever.lever_id not in pulled:
-                pulled.append(lever.lever_id)
-            lever.pulled = True
-            lever._redraw()
-            self.manager.inventory["Rusted Sluice Cog"] = int(
-                self.manager.inventory.get("Rusted Sluice Cog", 0)) + 2
-            self._flash("Sluice opened. +2 Rusted Sluice Cog "
-                        f"(levers pulled: {len(set(pulled))}/2)", 260)
-            _safe_sound("mining_break")
-            # Vivun vartija: iso Brute Rat ryntää esiin
-            self._rat(BruteRat, f"Sluice Brute {len(set(pulled))}",
-                      lever.rect.centerx - 90, lever.rect.centery)
-            if len(set(pulled)) >= 2:
-                self._flash("Both sluices drained. Forge a Cistern Gate "
-                            "Crank at the Muckford smithy.", 320)
-            return True
-        return False
-
-    def _try_crank_gate(self) -> bool:
-        """Royal Cistern -portti: kammetään auki sepän takomalla Cistern
-        Gate Crankilla. Vaatii vaiheen 5 (ratcatcherit pelastettu)."""
-        gate = self.arena.boss_gate
-        state = warrens_state(self.manager)
-        if gate is None or state.get("gate_cranked"):
-            return False
-        if not self._near(gate.rect, 92):
-            return False
-        if int(state.get("quest_stage", 0)) < 5:
-            self._flash("The great gate holds. Clear the Warrens crisis "
-                        "first (rescue Rinna's Ratcatchers).", 240)
+        # Vaatii invaasioaallon kaatamisen ensin
+        if int(state.get("invasion_kills", 0)) < INVASION_TARGET:
+            left = INVASION_TARGET - int(state.get("invasion_kills", 0))
+            self._flash(f"The breach spews too many rats to seal - clear "
+                        f"the wave first ({left} left).", 220)
             _safe_sound("error")
             return True
-        if int(self.manager.inventory.get("Cistern Gate Crank", 0)) < 1:
-            missing = 2 - len(set(state.get("pulled_levers", ())))
-            if missing > 0:
-                self._flash("Locked. Pull both sluice levers, then forge a "
-                            "Cistern Gate Crank at the smithy.", 260)
-            else:
-                self._flash("Locked. Forge a Cistern Gate Crank at the "
-                            "Muckford smithy (needs Rusted Sluice Cogs).",
-                            260)
-            _safe_sound("error")
-            return True
-        # Kammetään auki: kuluta kampi, avaa portti, herätä boss
-        self.manager.inventory["Cistern Gate Crank"] -= 1
-        if self.manager.inventory["Cistern Gate Crank"] <= 0:
-            del self.manager.inventory["Cistern Gate Crank"]
-        state["gate_cranked"] = True
-        state["boss_unlocked"] = True
-        self.arena.set_boss_gate(False)
+        breach.sealed = True
+        breach._redraw()
+        state["breach_sealed"] = True
         _safe_sound("mining_break")
-        self._flash("The Cistern Gate Crank bites home. The bar-gate "
-                    "grinds open — the Royal Cistern lies beyond.", 360)
-        self._spawn_boss_if_needed()
+        if sync_warrens_story(self.manager):
+            self.arena.refresh_persistent(self.manager)
+            self._flash("Breach sealed! The near tunnels fall quiet - safe "
+                        "now to gather herbs and fungus.", 340)
+        return True
+
+    def _try_valve(self) -> bool:
+        state = warrens_state(self.manager)
+        valve = self.arena.valve
+        if valve is None or valve.turned or not self._near(valve.rect, 84):
+            return False
+        if int(state.get("quest_stage", 0)) != 3:
+            self._flash("The valve won't budge yet.", 160)
+            return True
+        valve.turned = True
+        valve._redraw()
+        state["valve_turned"] = True
+        _safe_sound("mining_break")
+        try:
+            self.manager.trigger_screen_shake(8)
+        except Exception:
+            pass
+        if sync_warrens_story(self.manager):
+            self.arena.refresh_persistent(self.manager)
+            self._flash("The valve groans and the flooded passage drains. "
+                        "The rats' camp lies beyond.", 340)
+        return True
+
+    def _try_lore(self) -> bool:
+        state = warrens_state(self.manager)
+        board = self.arena.lore_board
+        if board is None or board.read or not self._near(board.rect, 84):
+            return False
+        if int(state.get("quest_stage", 0)) != 4:
+            return True
+        if int(state.get("camp_kills", 0)) < CAMP_TARGET:
+            left = CAMP_TARGET - int(state.get("camp_kills", 0))
+            self._flash(f"The camp still crawls with guards - clear them "
+                        f"first ({left} left).", 220)
+            _safe_sound("error")
+            return True
+        board.read = True
+        board._redraw()
+        state["lore_read"] = True
+        # Lore: Rat Kingin suunnitelma, Vortex Abyssal, "Mestari vaatii
+        # että valtakunnat maksavat" - mutta ei kerrota miksi.
+        self._open_dialogue("A Rat-Scrawled Proclamation", (
+            f"'By claw of {RAT_KING_NAME}, denizen of the Abyssal Vortex: "
+            "gnaw deep, drink the seepage, GROW.'",
+            "'When the crown holds power enough, Muckford is the first "
+            "kingdom to kneel. Then the ford. Then the bridge-cities. Then "
+            "all the little kingdoms of soft meat.'",
+            "'The Master demands they PAY. We do not ask the Master why. "
+            "We only open the way.'"))
+        if sync_warrens_story(self.manager):
+            self.arena.refresh_persistent(self.manager)
+            # Tärinä + jokin murtuu -> lankkusilta-vaihe
+            try:
+                self.manager.trigger_screen_shake(20)
+            except Exception:
+                pass
+            self._flash("A deep tremor rolls through the stone - something "
+                        "far below just BROKE.", 360)
+        return True
+
+    def _try_bridge(self) -> bool:
+        state = warrens_state(self.manager)
+        site = self.arena.bridge_site
+        if site is None or site.built or not self._near(site.rect, 96):
+            return False
+        if int(state.get("quest_stage", 0)) != 5:
+            return False
+        need = BRIDGE_WOOD
+        have = int(self.manager.inventory.get(BRIDGE_MATERIAL, 0))
+        if have < need:
+            self._flash(f"Broken floor. Need {need} {BRIDGE_MATERIAL} to "
+                        f"lay a plank bridge (have {have}).", 260)
+            _safe_sound("error")
+            return True
+        self.manager.inventory[BRIDGE_MATERIAL] = have - need
+        if self.manager.inventory[BRIDGE_MATERIAL] <= 0:
+            del self.manager.inventory[BRIDGE_MATERIAL]
+        site.built = True
+        site._redraw()
+        state["bridge_built"] = True
+        _safe_sound("mining_break")
+        if sync_warrens_story(self.manager):
+            self.arena.refresh_persistent(self.manager)
+            self._refresh_npcs()   # Brekka ilmestyy työpajalle
+            self._flash("Plank bridge laid. The flooded workshop lies "
+                        "across - and someone is hammering in there.", 340)
+        return True
+
+    def _try_device(self) -> bool:
+        state = warrens_state(self.manager)
+        site = self.arena.device_site
+        if site is None or site.built or not self._near(site.rect, 96):
+            return False
+        if int(state.get("quest_stage", 0)) != 6:
+            return False
+        if not state.get("smith_met"):
+            self._flash("Talk to Brekka the Frog Smith first - it's his "
+                        "gate-ram.", 220)
+            return True
+        # Materiaalitarkistus
+        missing = [f"{n} x{c}" for n, c in DEVICE_RECIPE.items()
+                   if int(self.manager.inventory.get(n, 0)) < c]
+        if missing:
+            self._flash("Gate-ram needs: " + ", ".join(missing), 300)
+            _safe_sound("error")
+            return True
+        for n, c in DEVICE_RECIPE.items():
+            self.manager.inventory[n] -= c
+            if self.manager.inventory[n] <= 0:
+                del self.manager.inventory[n]
+        site.built = True
+        site._redraw()
+        state["device_built"] = True
+        _safe_sound("mining_break")
+        try:
+            self.manager.trigger_screen_shake(14)
+        except Exception:
+            pass
+        # Portti-ram avaa ison Abyssal Cistern -portin + rekrytoi Brekka
+        if sync_warrens_story(self.manager):
+            self.arena.set_boss_gate(False)
+            self._flash("The gate-ram slams home - the great bar-gate "
+                        "buckles open. The Abyssal Cistern gapes beyond.", 380)
+            self._recruit_smith()
+            self._spawn_boss_if_needed()
         return True
 
     def handle_event(self, event):
@@ -1080,9 +1264,10 @@ class MuckfordWarrensMenu(GameplayScreen):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_e:
             if self._try_npc():
                 return
-            if self._try_trace() or self._try_cache() or self._try_nest():
+            if self._try_gather():
                 return
-            if self._try_lever() or self._try_crank_gate():
+            if (self._try_breach() or self._try_valve() or self._try_lore()
+                    or self._try_bridge() or self._try_device()):
                 return
 
     def _transfer_loot(self):
@@ -1101,14 +1286,16 @@ class MuckfordWarrensMenu(GameplayScreen):
         if self.wade_tick % 45 != 0:
             return
         state = warrens_state(self.manager)
-        destroyed = len(set(state.get("destroyed_nests", ())))
-        exposure_gain = max(1, 5 - destroyed)
+        # Ennen invaasion sulkua vesi on myrkyllisempää; turvatulla
+        # alueella vain hidastaa (pelitesti 26)
+        safe = bool(state.get("area_safe"))
+        exposure_gain = 1 if safe else 4
         state["waste_exposure"] = min(100, int(state.get("waste_exposure", 0)) + exposure_gain)
         try:
             self.player.apply_status("Slow", 55, 0)
         except Exception:
             pass
-        if int(state.get("waste_exposure", 0)) >= 60 and destroyed < NEST_COUNT:
+        if int(state.get("waste_exposure", 0)) >= 60 and not safe:
             try:
                 self.player.take_damage(4, "Poison", manager=self.manager)
                 self.player.apply_status("Poison", 90, 2)
@@ -1138,7 +1325,7 @@ class MuckfordWarrensMenu(GameplayScreen):
         state["boss_defeated"] = True
         state["city_raids_ended"] = True
         state["boss_unlocked"] = False
-        state["quest_stage"] = 6
+        sync_warrens_story(self.manager)   # -> vaihe 8 (raportti)
         if not state.get("boss_reward_claimed"):
             self.manager.gold += 100
             self.manager.reputation = int(getattr(self.manager, "reputation", 0)) + 6
@@ -1165,8 +1352,56 @@ class MuckfordWarrensMenu(GameplayScreen):
             pass
         self.manager.next_raid_day = 10 ** 9
         self.arena.set_boss_gate(False)
-        self._flash("Rat King slain. +100 SP, +6 reputation. Report to Hamo or Rinna.", 420)
+        self._flash(f"{RAT_KING_NAME} slain! +100 SP, +6 reputation. "
+                    "Report to Hamo.", 420)
         self._refresh_npcs()
+
+    def _track_kills(self):
+        """Laskee kaatuneet rotat vaihekohtaisiin laskureihin (pelitesti
+        26): vaihe 1 cull, vaihe 2 invaasio, vaihe 4 leiri. Antaa cull-
+        palkkion (raha + XP + heikko ase) kun tavoite täyttyy."""
+        if not hasattr(self, "_counted_dead"):
+            self._counted_dead = set()
+        state = warrens_state(self.manager)
+        stage = int(state.get("quest_stage", 0))
+        for mo in self.monsters:
+            if mo is self.boss or not getattr(mo, "is_dead", False):
+                continue
+            if id(mo) in self._counted_dead:
+                continue
+            self._counted_dead.add(id(mo))
+            if stage == 1:
+                state["rats_culled"] = int(state.get("rats_culled", 0)) + 1
+            elif stage == 2:
+                state["invasion_kills"] = int(state.get("invasion_kills", 0)) + 1
+            elif stage == 4:
+                state["camp_kills"] = int(state.get("camp_kills", 0)) + 1
+        # Vaihe 1: cull-palkkio + eteneminen
+        if stage == 1 and int(state.get("rats_culled", 0)) >= CULL_TARGET \
+                and not state.get("cull_reward_claimed"):
+            state["cull_reward_claimed"] = True
+            self.manager.gold += 40
+            try:
+                self.manager.grant_hero_xp(30, self.player.rect.centerx,
+                                           self.player.rect.top)
+            except Exception:
+                pass
+            self._grant_weak_weapon()
+            if sync_warrens_story(self.manager):
+                self._flash("The rats are thinned. Hamo pays 40 SP and "
+                            "tosses you a blade - now a breach has torn "
+                            "open to the north.", 360)
+                if self.arena.breach and not self.arena.breach.sealed:
+                    self._spawn_invasion_wave()   # invaasioaalto käynnistyy
+
+    def _grant_weak_weapon(self):
+        """Antaa heikon aseen cull-palkkiona (repun equipment_bagiin)."""
+        try:
+            item = self.manager._create_loot_item("Scrap Blade")
+            if item is not None:
+                self.manager.equipment_bag.append(item)
+        except Exception:
+            pass
 
     def update(self):
         if self.dialogue_active or self.manager.paused:
@@ -1177,6 +1412,7 @@ class MuckfordWarrensMenu(GameplayScreen):
         all_units = [self.player] + self.expedition_units() + living
         self._update_gameplay(all_units)
         self._transfer_loot()
+        self._track_kills()
         self._apply_sewer_hazard()
         self._process_boss()
 
@@ -1208,44 +1444,41 @@ class MuckfordWarrensMenu(GameplayScreen):
     def _nearest_prompt(self):
         for npc in self.warrens_npcs:
             if self._near(npc.rect, 74):
-                role = str(getattr(npc, "warrens_role", ""))
-                if role.startswith("rescue:"):
-                    return npc.rect, f"Rescue {npc.name}"
                 return npc.rect, f"Talk to {npc.name}"
         state = warrens_state(self.manager)
         stage = int(state.get("quest_stage", 0))
-        if stage == 1:
-            for mark in self.arena.trail_marks:
-                if not mark.traced and self._near(mark.rect, 74):
-                    return mark.rect, "Trace violet-eyed rat trail"
-        if stage == 2:
-            for cache in self.arena.food_caches:
-                if not cache.recovered and self._near(cache.rect, 78):
-                    return cache.rect, "Recover stolen food cache"
-        if stage == 3:
-            for nest in self.arena.waste_nests:
-                if not nest.destroyed and self._near(nest.rect, 80):
-                    return nest.rect, "Destroy Vortex-waste nest"
-        # Sulkuvivut ja Royal Cistern -portti (pelitesti 24)
-        for lever in self.arena.sluice_levers:
-            if not lever.pulled and self._near(lever.rect, 74):
-                return lever.rect, "Pull the sluice lever"
-        gate = self.arena.boss_gate
-        if gate is not None and not state.get("gate_cranked") and \
-                self._near(gate.rect, 92):
-            if int(self.manager.inventory.get("Cistern Gate Crank", 0)) >= 1:
-                return gate.rect, "Fit the Cistern Gate Crank"
-            return gate.rect, "Royal Cistern gate (needs a forged crank)"
+        # Kerättävät solmut (alue turvattu)
+        if state.get("area_safe"):
+            for node in self.arena.gather_nodes:
+                if not node.gathered and self._near(node.rect, 70):
+                    return node.rect, f"Gather {node.resource_name}"
+        a = self.arena
+        if stage == 2 and a.breach and not a.breach.sealed and \
+                self._near(a.breach.rect, 90):
+            return a.breach.rect, "Seal the breach tunnel"
+        if stage == 3 and a.valve and not a.valve.turned and \
+                self._near(a.valve.rect, 84):
+            return a.valve.rect, "Turn the flood valve"
+        if stage == 4 and a.lore_board and not a.lore_board.read and \
+                self._near(a.lore_board.rect, 84):
+            return a.lore_board.rect, "Read the rats' proclamation"
+        if stage == 5 and a.bridge_site and not a.bridge_site.built and \
+                self._near(a.bridge_site.rect, 96):
+            return a.bridge_site.rect, "Build a plank bridge"
+        if stage == 6 and a.device_site and not a.device_site.built and \
+                self._near(a.device_site.rect, 96):
+            return a.device_site.rect, "Raise the Frog Smith's gate-ram"
         return None
 
     def _draw_darkness(self, screen):
         self.dark_overlay.fill((5, 4, 8, 218))
         lights = [((self.player.rect.centerx, self.player.rect.centery), 335)]
-        for x, y in ((350, 540), (910, 560), (1820, 560), (2690, 560), (3320, 1190)):
+        for x, y in ((350, 600), (960, 620), (2000, 600), (3000, 620),
+                     (3760, 900), (4180, 1300)):
             lights.append(((x, y), 150))
-        for nest in self.arena.waste_nests:
-            if not nest.destroyed:
-                lights.append((nest.rect.center, 95))
+        a = self.arena
+        if a.breach and not a.breach.sealed:
+            lights.append((a.breach.rect.center, 110))
         if self.boss is not None and not self.boss.is_dead:
             rage = 25 if getattr(self.boss, "rage_triggered", False) else 0
             lights.append((self.boss.rect.center, 205 + rage))
@@ -1303,16 +1536,20 @@ class MuckfordWarrensMenu(GameplayScreen):
         state = warrens_state(self.manager)
         draw_text("MUCKFORD WARRENS — OPEN RISK Lv 4-6", font_small, WHITE, screen, 34, 32)
         draw_text(f"CRISIS: {warrens_objective(self.manager)}", font_small, (219, 184, 121), screen, 34, 58)
-        draw_text(
-            f"Threats: {len(living)}   Trails: {len(set(state.get('traced_signs', ())))}/4   "
-            f"Caches: {len(set(state.get('recovered_caches', ())))}/4   "
-            f"Nests: {len(set(state.get('destroyed_nests', ())))}/4",
-            font_small,
-            GRAY,
-            screen,
-            34,
-            84,
-        )
+        stage = int(state.get("quest_stage", 0))
+        prog = f"Stage {min(stage, 8)}/8"
+        if stage == 1:
+            prog += f"   Rats culled: {state.get('rats_culled', 0)}/{CULL_TARGET}"
+        elif stage == 2:
+            prog += (f"   Invasion cleared: "
+                     f"{min(state.get('invasion_kills', 0), INVASION_TARGET)}"
+                     f"/{INVASION_TARGET}")
+        elif stage == 4:
+            prog += (f"   Camp guards: "
+                     f"{min(state.get('camp_kills', 0), CAMP_TARGET)}"
+                     f"/{CAMP_TARGET}")
+        draw_text(f"Threats: {len(living)}   {prog}", font_small, GRAY,
+                  screen, 34, 84)
         draw_text(
             "Upper west drain: Muckford   Lower west drain: Low Fields   Sewer water slows and carries Vortex waste.",
             font_small,
