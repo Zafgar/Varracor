@@ -186,12 +186,17 @@ tiedostot kuuluu pudottaa.
   ruokavarastoa → tuhoa 4 jäteluolaa → pelasta 3 ratcatcheria → **vedä
   2 sulkuvipua (SluiceLever → +2 Rusted Sluice Cog/vipu) + tao Cistern
   Gate Crank sepällä (loot_data BLUEPRINTS, type key_item → craft_item
-  reppuun) + kammea Royal Cistern -portti auki** → WarrensRatKing herää
+  reppuun) + kammea Royal Cistern -portti auki** → Rat King herää
   eeppisellä introdialogilla → kaato → hunt_01 valmis + raidit loppuvat.
-  Kuhisee rottia: SewerRatSwarm/VioletEyedRat/RatRider/WasteGnawer +
-  uusi HulkRat (units/muckford_warrens_monsters.py, SHAPE "hulk_rat",
-  620 HP panssarimurskaaja). Retkikunta mukaan (enable_expedition/
-  expedition_units, pelitesti 21). Portin lippu: warrens_state
+  PELITESTI 25: alue rakennettu uusiksi OIKEILLA rottayksiköillä (ei enää
+  koodipiirretty units/muckford_warrens_monsters.py — POISTETTU): lattia
+  laattapohjainen (_load_floor_tiles lataa sewer_floors/floors kuten
+  maps.rat_sewer, fallback kivilaatta); populaatio GiantRat/RatRider/
+  BruteRat (units/rat.py; BruteRat = 420 HP Giant Rat tuplakokoon);
+  boss = OIKEA units.rat_king.RatKing (sylky/summon/rage/superhyppy).
+  Rat Kingin summonit menevät enemy_teamiin → _process_boss imee ne
+  self.monstersiin; on_exit siivoaa enemy_team/all_units. Retkikunta
+  mukaan (enable_expedition/expedition_units). Portin lippu: warrens_state
   gate_cranked/boss_unlocked; set_boss_gate riippuu näistä.
 - **Rat King -areenajahti** (Griznakin urakkalista → start_boss_hunt →
   missions/boss_registry → maps/rat_sewer): VAIHTOEHTOINEN areenaversio.

@@ -1,6 +1,6 @@
 # tests/test_playtest24_fixes.py
 """Pelitestikierros 24: Muckford Warrens = eeppinen reitti Rat Kingille.
-1) Uusi HulkRat-hirviö kuhisemaan tunneleihin
+1) Iso Brute Rat -rotta kuhisemaan tunneleihin (pelitesti 25: oikea yksikkö)
 2) Sulkuluku-vivut antavat Rusted Sluice Cog -rattaita
 3) Cistern Gate Crank taotaan sepällä (avainesine reppuun, ei bagiin)
 4) Royal Cistern -portti aukeaa vain kammella; avaus herättää bossin
