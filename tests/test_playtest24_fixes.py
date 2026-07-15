@@ -45,26 +45,25 @@ def _warrens_at_stage5(m):
 
 
 # ----------------------------------------------------------------------
-# 1) HulkRat
+# 1) Brute Rat (iso rotta) - pelitesti 25: oikea rottayksikkö
 # ----------------------------------------------------------------------
 
-def test_hulk_rat_stats_and_sprite():
-    from units.muckford_warrens_monsters import HulkRat, WasteGnawer
-    hulk = HulkRat("Hulk", 0, 0, ENEMY_TEAM)
-    gnawer = WasteGnawer("G", 0, 0, ENEMY_TEAM)
-    assert hulk.max_hp > gnawer.max_hp * 1.8, "hulk on selvästi tukevampi"
-    assert hulk.image is not None and hulk.image.get_width() > 100
-    assert HulkRat.SPECIES == "Hulk Rat"
+def test_brute_rat_stats_and_sprite():
+    from units.rat import BruteRat, GiantRat
+    brute = BruteRat("Brute", 0, 0, ENEMY_TEAM)
+    giant = GiantRat("G", 0, 0, ENEMY_TEAM)
+    assert brute.max_hp > giant.max_hp * 3, "brute on selvästi tukevampi"
+    assert brute.image is not None
 
 
-def test_hulk_rats_spawn_in_warrens():
+def test_brute_rats_spawn_in_warrens():
     from citys.mucford.muckford_warrens import MuckfordWarrensMenu
-    from units.muckford_warrens_monsters import HulkRat
+    from units.rat import BruteRat
     m = _manager()
     menu = MuckfordWarrensMenu(m)
     menu.on_enter()
-    hulks = [mo for mo in menu.monsters if isinstance(mo, HulkRat)]
-    assert len(hulks) >= 3, "tunnelit kuhisevat hulk-rottia"
+    brutes = [mo for mo in menu.monsters if isinstance(mo, BruteRat)]
+    assert len(brutes) >= 3, "tunnelit kuhisevat isoja rottia"
 
 
 # ----------------------------------------------------------------------

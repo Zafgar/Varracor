@@ -58,15 +58,43 @@ class GiantRat(Gladiator):
     def update(self, obstacles=None, manager=None):
         # Päivitetään logiikka (liike, cooldownit, animation_state)
         super().update(obstacles, manager)
-        
+
         # Vaihdetaan kuva tilan mukaan
         if self.use_sprites:
             state = self.animation_state
             new_img = self.sprites.get(state)
-            
+
             # Fallback: jos "idle" puuttuu, käytä "run"
             if not new_img and state == "idle":
                 new_img = self.sprites.get("run")
-                
+
             if new_img:
                 self.image = new_img
+
+
+class BruteRat(GiantRat):
+    """Iso, sitkeä lihasrotta viemäriverkoston syvyyksiin (pelitesti 25).
+    Sama Giant Rat -grafiikka tuplakokoon skaalattuna - hidas mutta rankka
+    panssarimurskaaja."""
+
+    def __init__(self, name, x, y, team_color=(200, 50, 50)):
+        super().__init__(name, x, y, team_color)
+        self.max_hp = 420
+        self.current_hp = 420
+        self.strength = 34
+        self.dexterity = 9
+        self.speed = 0.8
+        self.attack_speed = 80
+        self.attack_range = 70
+        try:
+            for key, img in list(getattr(self, "sprites", {}).items()):
+                if img is not None:
+                    self.sprites[key] = pygame.transform.scale(
+                        img, (img.get_width() * 2, img.get_height() * 2))
+            if getattr(self, "image", None) is not None:
+                self.image = pygame.transform.scale(
+                    self.image, (self.image.get_width() * 2,
+                                 self.image.get_height() * 2))
+                self.rect = self.image.get_rect(center=self.rect.center)
+        except Exception:
+            pass

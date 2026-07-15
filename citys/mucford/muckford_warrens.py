@@ -16,14 +16,12 @@ from menus.gameplay_screen import GameplayScreen
 from settings import ENEMY_TEAM, GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
 from ui_kit import draw_text, font_main, font_small
-from units.muckford_warrens_monsters import (
-    HulkRat,
-    RatRider,
-    SewerRatSwarm,
-    VioletEyedRat,
-    WarrensRatKing,
-    WasteGnawer,
-)
+# Pelitesti 25: OIKEAT rottayksiköt (samat kuin Rat King Lair /
+# maps.rat_sewer) - ei enää koodipiirrettyjä placeholder-silhuetteja
+# (units.muckford_warrens_monsters poistettu).
+from units.rat import GiantRat, BruteRat
+from units.rat_rider import RatRider
+from units.rat_king import RatKing
 from units.villager import Villager
 from vfx import VFXManager
 
@@ -352,25 +350,54 @@ class MuckfordWarrensArena:
         self._build_level()
         self.refresh_persistent(manager)
 
+    def _load_floor_tiles(self):
+        """Lataa viemärin lattialaatat samoista lähteistä kuin Rat King
+        Lair / maps.rat_sewer (pelitesti 25). Ilman assetteja tehdään
+        laattamainen märkä kivilattia proseduraalisesti."""
+        import os
+        tiles = []
+        for folder in ("sewer_floors", "floors"):
+            base = os.path.join("assets", "tiles", folder)
+            for fname in ("dungeon_floor_1.png", "dungeon_floor_2.png"):
+                fpath = os.path.join(base, fname)
+                if os.path.exists(fpath):
+                    try:
+                        img = pygame.image.load(fpath).convert()
+                        tiles.append(pygame.transform.scale(img, (128, 128)))
+                    except Exception:
+                        pass
+            if tiles:
+                break
+        if not tiles:
+            for base_shade in (30, 34, 38):
+                t = pygame.Surface((128, 128))
+                t.fill((base_shade, base_shade - 3, base_shade - 4))
+                for _ in range(40):
+                    sx = self.rng.randint(0, 127)
+                    sy = self.rng.randint(0, 127)
+                    d = self.rng.randint(-6, 8)
+                    pygame.draw.circle(t, (base_shade + d, base_shade - 3 + d,
+                                           base_shade - 4 + d),
+                                       (sx, sy), self.rng.randint(3, 9))
+                pygame.draw.rect(t, (20, 18, 18), (0, 0, 128, 128), 2)
+                tiles.append(t)
+        return tiles
+
     def _generate_floor(self):
-        self.floor_image.fill((38, 35, 35))
-        for _ in range(1900):
-            x = self.rng.randrange(self.width)
-            y = self.rng.randrange(self.height)
-            shade = self.rng.randint(-7, 11)
-            pygame.draw.circle(
-                self.floor_image,
-                (38 + shade, 35 + shade, 35 + shade),
-                (x, y),
-                self.rng.randint(5, 31),
-            )
-        # Old cellar lanes and brick service roads.
-        pygame.draw.line(self.floor_image, (59, 52, 48), (90, 560), (3370, 560), 150)
-        pygame.draw.line(self.floor_image, (56, 49, 46), (180, 1870), (3290, 1870), 170)
-        pygame.draw.line(self.floor_image, (53, 47, 45), (820, 560), (820, 1900), 135)
-        pygame.draw.line(self.floor_image, (53, 47, 45), (1760, 520), (1760, 1930), 135)
-        pygame.draw.line(self.floor_image, (53, 47, 45), (2660, 540), (2660, 1910), 135)
-        # Sewer channels: movement is allowed, but wading applies danger.
+        tiles = self._load_floor_tiles()
+        for ty in range(0, self.height, 128):
+            for tx in range(0, self.width, 128):
+                self.floor_image.blit(self.rng.choice(tiles), (tx, ty))
+        # Kuivat huoltokäytävät kammioiden välillä (vaaleampi kivi)
+        for a, b, wdt in (
+            ((90, 560), (self.width - 230, 560), 150),
+            ((180, 1870), (self.width - 310, 1870), 170),
+            ((820, 560), (820, 1900), 135),
+            ((1760, 520), (1760, 1930), 135),
+            ((2660, 540), (2660, 1910), 135),
+        ):
+            pygame.draw.line(self.floor_image, (58, 51, 47), a, b, wdt)
+        # Viemärikanavat: kuljettavia mutta myrkyllisiä (wade-hazard)
         channels = (
             pygame.Rect(470, 1060, 2970, 250),
             pygame.Rect(1510, 250, 260, 1880),
@@ -378,11 +405,12 @@ class MuckfordWarrensArena:
         )
         self.tainted_channels = [pygame.Rect(rect) for rect in channels]
         for rect in channels:
-            pygame.draw.rect(self.floor_image, (34, 61, 54), rect, border_radius=16)
-            pygame.draw.rect(self.floor_image, (62, 79, 65), rect, 9, border_radius=16)
+            pygame.draw.rect(self.floor_image, (30, 54, 47), rect, border_radius=16)
+            pygame.draw.rect(self.floor_image, (58, 74, 61), rect, 9, border_radius=16)
             pygame.draw.line(self.floor_image, (93, 102, 76), rect.topleft, rect.topright, 4)
-            pygame.draw.line(self.floor_image, (25, 38, 36), rect.bottomleft, rect.bottomright, 6)
-        pygame.draw.ellipse(self.floor_image, (47, 39, 42), self.royal_cistern)
+            pygame.draw.line(self.floor_image, (22, 34, 32), rect.bottomleft, rect.bottomright, 6)
+        # Royal Cistern -kammio (bossiareena idässä)
+        pygame.draw.ellipse(self.floor_image, (44, 36, 40), self.royal_cistern)
         pygame.draw.ellipse(self.floor_image, (83, 57, 86), self.royal_cistern, 14)
 
     def _add(self, prop, blocking=False):
@@ -567,7 +595,7 @@ class MuckfordWarrensMenu(GameplayScreen):
         self.monsters = pygame.sprite.Group()
         self.warrens_npcs: List[Villager] = []
         self.dynamic_props: List[object] = []
-        self.boss: Optional[WarrensRatKing] = None
+        self.boss: Optional[RatKing] = None
         self.feedback = ""
         self.feedback_timer = 0
         self.warning = ""
@@ -579,6 +607,18 @@ class MuckfordWarrensMenu(GameplayScreen):
         self.dark_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         self.wade_tick = 0
         self.boss_wave_timer = 0
+
+    def on_exit(self):
+        super().on_exit()
+        # Rat King + kutsutut rotat pois managerin ryhmistä, etteivät
+        # vuoda muihin karttoihin (pelitesti 25)
+        for grp in ("enemy_team", "all_units"):
+            group = getattr(self.manager, grp, None)
+            if group is None:
+                continue
+            for mo in list(self.monsters):
+                if mo in group:
+                    group.remove(mo)
 
     def on_enter(self):
         super().on_enter()
@@ -667,27 +707,37 @@ class MuckfordWarrensMenu(GameplayScreen):
         self.dynamic_props = list(self.warrens_npcs)
         self.arena.props.extend(self.dynamic_props)
 
+    def _rat(self, cls, name, x, y):
+        """Luo OIKEAN rottayksikön ja liittää sen warrens-ryhmään +
+        managerin enemy_teamiin (Rat Kingin summon vaatii enemy_teamin)."""
+        rat = cls(name, x, y, ENEMY_TEAM)
+        rat.team_color = ENEMY_TEAM
+        self.monsters.add(rat)
+        return rat
+
     def _spawn_population(self):
         state = warrens_state(self.manager)
         cleared = bool(state.get("boss_defeated"))
+        # Kuhisevat tunnelit: OIKEAT Giant Ratit, Rat Riderit ja isot
+        # Brute Ratit (samat yksiköt kuin Rat King Lairissa)
         placements = [
-            (SewerRatSwarm, 760, 470), (SewerRatSwarm, 990, 1420),
-            (SewerRatSwarm, 1370, 820), (SewerRatSwarm, 1990, 1880),
-            (SewerRatSwarm, 2500, 520), (SewerRatSwarm, 2830, 1830),
-            (VioletEyedRat, 1100, 410), (VioletEyedRat, 1460, 1670),
-            (VioletEyedRat, 1900, 720), (VioletEyedRat, 2260, 1450),
-            (VioletEyedRat, 2690, 650), (VioletEyedRat, 2870, 1710),
+            (GiantRat, 760, 470), (GiantRat, 990, 1420), (GiantRat, 1370, 820),
+            (GiantRat, 1990, 1880), (GiantRat, 2500, 520), (GiantRat, 2830, 1830),
+            (GiantRat, 1100, 410), (GiantRat, 1460, 1670), (GiantRat, 1900, 720),
+            (GiantRat, 2260, 1450), (GiantRat, 2690, 650), (GiantRat, 2870, 1710),
             (RatRider, 1310, 1930), (RatRider, 2140, 420), (RatRider, 2750, 1420),
             (RatRider, 1720, 1180), (RatRider, 2560, 1650),
-            (WasteGnawer, 1600, 870), (WasteGnawer, 2410, 1870), (WasteGnawer, 2800, 430),
-            # Hulk-rotat vartioivat syviä tunneleita (pelitesti 24)
-            (HulkRat, 2360, 1120), (HulkRat, 2870, 980), (HulkRat, 1980, 1160),
+            (BruteRat, 1600, 870), (BruteRat, 2410, 1870), (BruteRat, 2800, 430),
+            (BruteRat, 2360, 1120), (BruteRat, 2870, 980), (BruteRat, 1980, 1160),
         ]
         if cleared:
             placements = placements[::2]
-        for index, (monster_class, x, y) in enumerate(placements):
-            monster = monster_class(f"{monster_class.SPECIES} {index + 1}", x, y, ENEMY_TEAM)
-            self.monsters.add(monster)
+        counters = {}
+        for cls, x, y in placements:
+            n = counters[cls] = counters.get(cls, 0) + 1
+            label = {GiantRat: "Sewer Rat", RatRider: "Rat Rider",
+                     BruteRat: "Brute Rat"}[cls]
+            self._rat(cls, f"{label} {n}", x, y)
 
     def _spawn_boss_if_needed(self):
         state = warrens_state(self.manager)
@@ -695,8 +745,15 @@ class MuckfordWarrensMenu(GameplayScreen):
         if not state.get("boss_unlocked") or state.get("boss_defeated"):
             return
         self.arena.set_boss_gate(False)
-        self.boss = WarrensRatKing("The Rat King of Muckford", 3280, 1200, ENEMY_TEAM)
+        # OIKEA Rat King -boss (units.rat_king): sylky, summon, rage,
+        # superhyppy - sama kuin alun perin rakennettu (pelitesti 25)
+        self.boss = RatKing("The Rat King of Muckford",
+                            self.arena.royal_cistern.centerx - 60,
+                            self.arena.royal_cistern.centery)
+        self.boss.assign_manager(self.manager)
+        self.boss.team_color = ENEMY_TEAM
         self.monsters.add(self.boss)
+        self.manager.enemy_team.add(self.boss)
         # Eeppinen intro ensimmäisellä kohtaamisella (pelitesti 24)
         if not state.get("boss_intro_seen"):
             state["boss_intro_seen"] = True
@@ -888,14 +945,10 @@ class MuckfordWarrensMenu(GameplayScreen):
             mark.traced = True
             mark._redraw()
             for index in range(2):
-                self.monsters.add(
-                    VioletEyedRat(
-                        f"Trail Guard {len(traced)}-{index + 1}",
-                        mark.rect.centerx + index * 70 - 35,
-                        mark.rect.centery + 80,
-                        ENEMY_TEAM,
-                    )
-                )
+                self._rat(
+                    GiantRat, f"Sewer Rat guard {len(traced)}-{index + 1}",
+                    mark.rect.centerx + index * 70 - 35,
+                    mark.rect.centery + 80)
             self._flash(f"Violet trail traced: {len(set(traced))}/{TRACE_COUNT}")
             if sync_warrens_story(self.manager):
                 self._flash("The trails converge on Muckford's stolen food stores.", 300)
@@ -936,8 +989,8 @@ class MuckfordWarrensMenu(GameplayScreen):
             nest.destroyed = True
             nest._redraw()
             self.manager.inventory["Vortex Residue"] = int(self.manager.inventory.get("Vortex Residue", 0)) + 1
-            self.monsters.add(WasteGnawer(f"Nest Gnawer {len(destroyed)}", nest.rect.centerx, nest.rect.centery + 100, ENEMY_TEAM))
-            self.monsters.add(SewerRatSwarm(f"Nest Swarm {len(destroyed)}", nest.rect.centerx + 90, nest.rect.centery + 70, ENEMY_TEAM))
+            self._rat(BruteRat, f"Brute Rat nest {len(destroyed)}", nest.rect.centerx, nest.rect.centery + 100)
+            self._rat(GiantRat, f"Sewer Rat nest {len(destroyed)}", nest.rect.centerx + 90, nest.rect.centery + 70)
             self._flash(f"Waste nests destroyed: {len(set(destroyed))}/{NEST_COUNT}. +1 Vortex Residue")
             _safe_sound("mining_break")
             if sync_warrens_story(self.manager):
@@ -964,10 +1017,9 @@ class MuckfordWarrensMenu(GameplayScreen):
             self._flash("Sluice opened. +2 Rusted Sluice Cog "
                         f"(levers pulled: {len(set(pulled))}/2)", 260)
             _safe_sound("mining_break")
-            # Vivun vartija: hulk-rotta ryntää esiin
-            self.monsters.add(HulkRat(f"Sluice Hulk {len(set(pulled))}",
-                                      lever.rect.centerx - 90,
-                                      lever.rect.centery, ENEMY_TEAM))
+            # Vivun vartija: iso Brute Rat ryntää esiin
+            self._rat(BruteRat, f"Sluice Brute {len(set(pulled))}",
+                      lever.rect.centerx - 90, lever.rect.centery)
             if len(set(pulled)) >= 2:
                 self._flash("Both sluices drained. Forge a Cistern Gate "
                             "Crank at the Muckford smithy.", 320)
@@ -1069,31 +1121,15 @@ class MuckfordWarrensMenu(GameplayScreen):
     def _process_boss(self):
         if self.boss is None:
             return
-        if self.boss.pending_spawn:
-            for monster in list(self.boss.pending_spawn):
-                self.monsters.add(monster)
-            self.boss.pending_spawn = []
-            self._flash("The Rat King calls another regiment from the tunnels.")
-        if self.boss.pending_screech:
-            self.boss.pending_screech = False
-            self.boss.release_royal_screech([self.player], self.manager)
-        while self.boss.pending_waste_wave > 0:
-            self.boss.pending_waste_wave -= 1
-            distance = math.hypot(
-                self.player.rect.centerx - self.boss.rect.centerx,
-                self.player.rect.centery - self.boss.rect.centery,
-            )
-            if distance < 520:
-                try:
-                    self.player.take_damage(12, "Poison", attacker=self.boss, manager=self.manager)
-                    self.player.apply_status("Poison", 120, 3)
-                except Exception:
-                    self.player.current_hp = max(1, self.player.current_hp - 12)
-            self._flash("The Royal Cistern erupts with Vortex-waste water!", 120)
-            try:
-                self.manager.vfx.create_shockwave(self.boss.rect.centerx, self.boss.rect.bottom, color=(144, 67, 166), max_radius=180)
-            except Exception:
-                pass
+        # Rat King (units.rat_king) kutsuu rottia suoraan enemy_teamiin +
+        # all_unitsiin - imetään ne warrens-ryhmään jotta taistelu-AI ja
+        # piirto toimivat yhtenäisesti (pelitesti 25)
+        for e in list(self.manager.enemy_team):
+            if e is self.boss:
+                continue
+            if e not in self.monsters:
+                self.monsters.add(e)
+            self.manager.enemy_team.remove(e)
         if not self.boss.is_dead:
             return
         state = warrens_state(self.manager)
@@ -1211,7 +1247,8 @@ class MuckfordWarrensMenu(GameplayScreen):
             if not nest.destroyed:
                 lights.append((nest.rect.center, 95))
         if self.boss is not None and not self.boss.is_dead:
-            lights.append((self.boss.rect.center, 180 + self.boss.phase * 25))
+            rage = 25 if getattr(self.boss, "rage_triggered", False) else 0
+            lights.append((self.boss.rect.center, 205 + rage))
         for (world_x, world_y), radius in lights:
             x = int(world_x - self.camera_x)
             y = int(world_y - self.camera_y)

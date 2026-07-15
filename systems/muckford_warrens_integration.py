@@ -31,10 +31,9 @@ def _patch_world_map_data() -> None:
     location["target_state"] = "regional_staging"
     location["services"] = ("rat-tail hunting", "city crisis", "salvage", "food recovery")
     location["threats"] = (
-        "Sewer Rat Swarms",
-        "Violet-Eyed Rats",
+        "Giant Rats",
         "Rat Riders",
-        "Waste Gnawers",
+        "Brute Rats",
         "Rat King",
     )
     location["materials"] = ("Rat Tail", "Rotten Flesh", "Vortex Residue", "Scrap Iron")
@@ -67,10 +66,10 @@ def _patch_world_map_data() -> None:
 
 
 def _patch_loot_tables() -> None:
-    from loot_data import LOOT_DROPS
-    from units.muckford_warrens_monsters import WARRENS_LOOT
-
-    LOOT_DROPS.update(WARRENS_LOOT)
+    # Pelitesti 25: warrens käyttää nyt OIKEITA rottayksiköitä (Giant Rat,
+    # Rat Rider, Rat King), joilla on jo omat LOOT_DROPS-taulut. Erillistä
+    # WARRENS_LOOT-taulua ei enää tarvita.
+    return
 
 
 def _patch_game_manager() -> None:

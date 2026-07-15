@@ -35,14 +35,10 @@ from settings import ENEMY_TEAM, PLAYER_TEAM
 from systems.muckford_warrens_integration import _patch_world_map_data
 from systems.tier0_world_tracker import tier0_area_advice, tier0_phase
 from units.human import Human
-from units.muckford_warrens_monsters import (
-    RatRider,
-    SewerRatSwarm,
-    VioletEyedRat,
-    WARRENS_MONSTER_CLASSES,
-    WarrensRatKing,
-    WasteGnawer,
-)
+# Pelitesti 25: warrens käyttää nyt OIKEITA rottayksiköitä
+from units.rat import GiantRat, BruteRat
+from units.rat_rider import RatRider
+from units.rat_king import RatKing
 
 
 class DummyClock:
@@ -239,60 +235,46 @@ def test_warrens_arena_contains_routes_objectives_channels_and_royal_gate():
     assert surface.get_bounding_rect().width == 1280
 
 
-def test_warrens_monsters_have_distinct_levels_generated_art_ai_and_loot():
-    assert [monster.THREAT_LEVEL for monster in WARRENS_MONSTER_CLASSES] == [4, 4, 5, 5]
-
-    for index, monster_class in enumerate(WARRENS_MONSTER_CLASSES):
-        monster = monster_class(monster_class.SPECIES, 220 + index * 100, 300, ENEMY_TEAM)
-        assert monster.level == monster_class.THREAT_LEVEL
-        assert monster.ai_controller is not None
-        assert set(monster._generated_frames) == {
-            "idle",
-            "run",
-            "attack",
-            "hurt",
-            "dead",
-        }
-        assert monster.image.get_bounding_rect().width > 18
-        assert monster_class.SPECIES in LOOT_DROPS
-
-    assert SewerRatSwarm.SPECIES != VioletEyedRat.SPECIES
-    assert RatRider.THREAT_LEVEL == WasteGnawer.THREAT_LEVEL == 5
+def test_warrens_uses_real_rat_units_with_loot():
+    # Pelitesti 25: viemäri kuhisee OIKEITA rottia (ei koodipiirrettyjä
+    # placeholder-silhuetteja). Kaikilla on valmis LOOT_DROPS-taulu.
+    for cls, x in ((GiantRat, 220), (RatRider, 320), (BruteRat, 420)):
+        rat = cls(cls.__name__, x, 300, ENEMY_TEAM)
+        assert rat.ai_controller is not None
+        assert rat.image is not None
+    # Brute on selvästi tukevampi kuin tavallinen Giant Rat
+    assert BruteRat("B", 0, 0, ENEMY_TEAM).max_hp > \
+        GiantRat("G", 0, 0, ENEMY_TEAM).max_hp * 3
+    for key in ("Giant Rat", "Rat Rider", "Rat King"):
+        assert key in LOOT_DROPS
 
 
-def test_rat_king_has_three_phases_regiments_waste_waves_and_screech():
-    manager = DummyManager()
-    boss = WarrensRatKing("The Rat King of Muckford", 700, 700, ENEMY_TEAM)
-    target = CombatTarget(boss.rect.centerx + 60, boss.rect.centery)
-
+def test_rat_king_boss_is_real_ratking_with_abilities():
+    # Pelitesti 25: bossi on OIKEA units.rat_king.RatKing (sylky, summon,
+    # rage, superhyppy) - sama kuin alun perin rakennettu, ei outo versio.
+    boss = RatKing("The Rat King of Muckford", 700, 700)
     assert boss.is_boss is True
-    assert boss.level == 6
-    assert boss.max_hp == 1120
-    assert boss.image.get_size() == (164, 126)
-    assert boss.phase == 1
-
-    boss.current_hp = int(boss.max_hp * 0.60)
-    boss._phase_two(manager)
-    assert boss.phase == 2
-    assert len(boss.pending_spawn) == 4
-    assert all(spawn.SPECIES == "Violet-Eyed Rat" for spawn in boss.pending_spawn)
-    assert boss.pending_waste_wave == 1
-
-    boss.pending_spawn = []
-    boss.current_hp = int(boss.max_hp * 0.30)
-    boss._phase_three(manager)
-    assert boss.phase == 3
-    assert len(boss.pending_spawn) == 4
-    assert {spawn.SPECIES for spawn in boss.pending_spawn} == {"Rat Rider", "Waste Gnawer"}
-    assert boss.pending_waste_wave == 3
-    assert boss.pending_screech is True
-
-    before = target.current_hp
-    assert boss.release_royal_screech([target], manager) == 1
-    assert target.current_hp < before
-    assert any(status[0] == "Slow" for status in target.statuses)
-    assert any(status[0] == "Poison" for status in target.statuses)
+    assert hasattr(boss, "perform_spit")
+    assert hasattr(boss, "summon_minions")
+    assert hasattr(boss, "activate_rage")
     assert "Rat King" in LOOT_DROPS
+
+
+def test_warrens_spawns_real_ratking_boss_and_summons_absorb():
+    manager = DummyManager()
+    state = warrens_state(manager)
+    state["quest_stage"] = 5
+    state["boss_unlocked"] = True
+    menu = MuckfordWarrensMenu(manager)
+    menu._spawn_boss_if_needed()
+    assert isinstance(menu.boss, RatKing)
+    assert menu.boss in manager.enemy_team
+    # Rat Kingin kutsumat rotat imetään warrens-ryhmään _process_bossissa
+    extra = GiantRat("Summoned", 900, 900, ENEMY_TEAM)
+    manager.enemy_team.add(extra)
+    menu._process_boss()
+    assert extra in menu.monsters
+    assert extra not in manager.enemy_team
 
 
 def test_regional_factory_returns_warrens_menu_and_stable_story_npcs():
