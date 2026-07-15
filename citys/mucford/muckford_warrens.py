@@ -62,11 +62,13 @@ WARRENS_OBJECTIVES = {
 # Kerättävät resurssit turvallisilta kammioilta (aktivoituvat kun
 # invaasio on suljettu, vaihe 3+). Yrttejä, sieniä ja outoja juttuja
 # reseptejä varten.
+# Keräyssolmut hajallaan koko laajalla kartalla (eri haaroissa, jotta
+# keräily palkitsee tunneleiden tutkimisen - pelitesti 26b)
 GATHER_NODES = (
-    ("gather_moss_1", "moss", 980, 470), ("gather_moss_2", "moss", 1720, 1720),
-    ("gather_cap_1", "cap", 1180, 1660), ("gather_cap_2", "cap", 2050, 560),
-    ("gather_root_1", "root", 760, 1560), ("gather_root_2", "root", 1560, 940),
-    ("gather_odd_1", "oddity", 2260, 1640), ("gather_odd_2", "oddity", 900, 900),
+    ("gather_moss_1", "moss", 980, 520), ("gather_moss_2", "moss", 2500, 2320),
+    ("gather_cap_1", "cap", 1560, 1680), ("gather_cap_2", "cap", 3360, 900),
+    ("gather_root_1", "root", 820, 2360), ("gather_root_2", "root", 2680, 640),
+    ("gather_odd_1", "oddity", 3520, 2000), ("gather_odd_2", "oddity", 1900, 480),
 )
 GATHER_KINDS = {
     "moss": ("Sewer Moss", (86, 150, 96), "Damp luminous sewer moss."),
@@ -594,20 +596,22 @@ class MuckfordWarrensArena:
             self.gather_nodes.append(node)
             self.props.append(node)
 
-        # Vaihe 2: invaasion repeämätunneli (pohjoiskeskusta)
-        self.breach = BreachTunnel(1980, 260, state.get("breach_sealed"))
+        # Questitehtävät ovat ERI HAAROISSA kaukana toisistaan - viemäri
+        # pakottaa pitkille matkoille (pelitesti 26b)
+        # Vaihe 2: invaasion repeämä LUOTEISTUNNELISSA
+        self.breach = BreachTunnel(1180, 300, state.get("breach_sealed"))
         self.props.append(self.breach)
 
-        # Vaihe 3: tulvaventtiili (keski-itä, kuivattaa etureitin)
-        self.valve = FloodValve(3240, 1360, state.get("valve_turned"))
+        # Vaihe 3: tulvaventtiili LOUNAISHAARASSA (kaukana etelässä)
+        self.valve = FloodValve(1240, 2360, state.get("valve_turned"))
         self.props.append(self.valve)
 
-        # Vaihe 4: rottaleirin loretaulu (kaakkoiskammio)
-        self.lore_board = LoreBoard(2620, 2060, state.get("lore_read"))
+        # Vaihe 4: rottaleirin loretaulu POHJOISKESKUSTAN kammiossa
+        self.lore_board = LoreBoard(2520, 320, state.get("lore_read"))
         self.props.append(self.lore_board)
 
-        # Vaihe 5: lankkusilta murtuneen lattian yli (itäinen kuilu)
-        self.bridge_site = BuildSite("plank_bridge", "bridge", 3520, 1580,
+        # Vaihe 5: lankkusilta murtuneen lattian yli KAAKKOISHAARASSA
+        self.bridge_site = BuildSite("plank_bridge", "bridge", 3000, 2320,
                                      260, 120, state.get("bridge_built"))
         self.props.append(self.bridge_site)
 
@@ -729,6 +733,7 @@ class MuckfordWarrensMenu(GameplayScreen):
         self.dialogue_name = ""
         self.dialogue_pages: List[str] = []
         self.dialogue_index = 0
+        self._dialogue_queue: List[tuple] = []   # ketjutetut dialogit
         self.dark_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         self.wade_tick = 0
         self.boss_wave_timer = 0
@@ -948,11 +953,60 @@ class MuckfordWarrensMenu(GameplayScreen):
         return lines
 
     def _open_dialogue(self, name: str, pages: Sequence[str]):
+        """Avaa dialogin. Jos dialogi on jo auki, ketjutetaan jonoon (näin
+        esim. loretaulu -> Griznakin reaktio -> bossin intro pelaavat
+        peräkkäin siististi, pelitesti 26b)."""
+        entry = (str(name), [str(p) for p in pages])
+        if self.dialogue_active:
+            self._dialogue_queue.append(entry)
+        else:
+            self._show_dialogue(*entry)
+
+    def _show_dialogue(self, name, pages):
         self.dialogue_active = True
-        self.dialogue_name = str(name)
-        self.dialogue_pages = [str(page) for page in pages]
+        self.dialogue_name = name
+        self.dialogue_pages = list(pages)
         self.dialogue_index = 0
         _safe_sound("click")
+
+    def _advance_dialogue_queue(self):
+        if self._dialogue_queue:
+            self._show_dialogue(*self._dialogue_queue.pop(0))
+        else:
+            self.dialogue_active = False
+
+    # ------------------------------------------------------------------
+    # Griznak kommentoi joka etenemisen ja avaa seuraavan tehtävän
+    # (pelitesti 26b): "aina kun questi etenee, Griznak käy dialogia"
+    # ------------------------------------------------------------------
+    _GRIZNAK_ADVANCE = {
+        2: ("Heh - you thinned them. But scouts say a breach tore open in "
+            "the NORTH-WEST tunnels and rats are POURING through. Get up "
+            "there, break the wave, and seal it shut."),
+        3: ("Breach sealed - the near tunnels have gone quiet. Safe to "
+            "pick herbs and fungus down here now, if you've the time. "
+            "Next: the far SOUTH-WEST passage is flooded. Find the valve "
+            "and drain it."),
+        4: ("Water's dropping. Their main camp is way up the NORTH-EAST "
+            "arm. Storm it and read whatever they nailed up - I want to "
+            "know who is giving rats ORDERS."),
+        5: ("...the Abyssal Vortex. A 'Master'. Bad, hero, that's bad. "
+            "And that tremor? The SOUTH-EAST floor caved in. Lay a plank "
+            "bridge across it and keep pushing east."),
+        6: ("Across the bridge is the old flooded workshop. Brekka the "
+            "frog smith is walled up in there - help him raise his "
+            "gate-ram and the deep cistern finally opens."),
+        7: ("The great gate's open. Skrivvax - the crowned rat himself - "
+            "waits in the Abyssal Cistern at the far EAST. This is the "
+            "job I hired you for. Go end it."),
+        8: ("It's DEAD? Hah! You actually did it, hero. Muckford's yours "
+            "to walk now. Come find my wagon topside for your due."),
+    }
+
+    def _griznak_says(self, to_stage: int):
+        lines = self._GRIZNAK_ADVANCE.get(int(to_stage))
+        if lines:
+            self._open_dialogue("Griznak the Shifty", (lines,))
 
     # ------------------------------------------------------------------
     # Hamo + sammakko-seppä + questin edistys
@@ -1118,8 +1172,8 @@ class MuckfordWarrensMenu(GameplayScreen):
         _safe_sound("mining_break")
         if sync_warrens_story(self.manager):
             self.arena.refresh_persistent(self.manager)
-            self._flash("Breach sealed! The near tunnels fall quiet - safe "
-                        "now to gather herbs and fungus.", 340)
+            self._flash("Breach sealed! The near tunnels fall quiet.", 300)
+            self._griznak_says(3)
         return True
 
     def _try_valve(self) -> bool:
@@ -1140,8 +1194,8 @@ class MuckfordWarrensMenu(GameplayScreen):
             pass
         if sync_warrens_story(self.manager):
             self.arena.refresh_persistent(self.manager)
-            self._flash("The valve groans and the flooded passage drains. "
-                        "The rats' camp lies beyond.", 340)
+            self._flash("The valve groans and the flooded passage drains.", 300)
+            self._griznak_says(4)
         return True
 
     def _try_lore(self) -> bool:
@@ -1179,6 +1233,7 @@ class MuckfordWarrensMenu(GameplayScreen):
                 pass
             self._flash("A deep tremor rolls through the stone - something "
                         "far below just BROKE.", 360)
+            self._griznak_says(5)   # ketjuun proklamaation jälkeen
         return True
 
     def _try_bridge(self) -> bool:
@@ -1207,6 +1262,7 @@ class MuckfordWarrensMenu(GameplayScreen):
             self._refresh_npcs()   # Brekka ilmestyy työpajalle
             self._flash("Plank bridge laid. The flooded workshop lies "
                         "across - and someone is hammering in there.", 340)
+            self._griznak_says(6)
         return True
 
     def _try_device(self) -> bool:
@@ -1245,19 +1301,21 @@ class MuckfordWarrensMenu(GameplayScreen):
             self._flash("The gate-ram slams home - the great bar-gate "
                         "buckles open. The Abyssal Cistern gapes beyond.", 380)
             self._recruit_smith()
-            self._spawn_boss_if_needed()
+            self._griznak_says(7)          # Griznak ensin,
+            self._spawn_boss_if_needed()   # sitten bossin intro ketjuun
         return True
 
     def handle_event(self, event):
         if self.dialogue_active:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    self._dialogue_queue.clear()
                     self.dialogue_active = False
                     return
                 if event.key in (pygame.K_e, pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
                     self.dialogue_index += 1
                     if self.dialogue_index >= len(self.dialogue_pages):
-                        self.dialogue_active = False
+                        self._advance_dialogue_queue()
                     return
             return
         super().handle_event(event)
@@ -1352,8 +1410,8 @@ class MuckfordWarrensMenu(GameplayScreen):
             pass
         self.manager.next_raid_day = 10 ** 9
         self.arena.set_boss_gate(False)
-        self._flash(f"{RAT_KING_NAME} slain! +100 SP, +6 reputation. "
-                    "Report to Hamo.", 420)
+        self._flash(f"{RAT_KING_NAME} slain! +100 SP, +6 reputation.", 420)
+        self._griznak_says(8)
         self._refresh_npcs()
 
     def _track_kills(self):
@@ -1388,9 +1446,9 @@ class MuckfordWarrensMenu(GameplayScreen):
                 pass
             self._grant_weak_weapon()
             if sync_warrens_story(self.manager):
-                self._flash("The rats are thinned. Hamo pays 40 SP and "
-                            "tosses you a blade - now a breach has torn "
-                            "open to the north.", 360)
+                self._flash("The rats are thinned. +40 SP and a spare blade.",
+                            300)
+                self._griznak_says(2)
                 if self.arena.breach and not self.arena.breach.sealed:
                     self._spawn_invasion_wave()   # invaasioaalto käynnistyy
 

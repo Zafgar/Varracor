@@ -181,6 +181,63 @@ def test_device_recruits_smith_and_opens_gate():
 # 4) Vaihe 7-8: nimetty Rat King + kaato
 # ----------------------------------------------------------------------
 
+def test_objectives_are_spread_far_apart_in_branches():
+    # Pelitesti 26b: tehtävät eri haaroissa kaukana toisistaan (pitkät
+    # matkat viemärissä)
+    m = _manager()
+    menu = _menu(m)
+    a = menu.arena
+    pts = {
+        "breach": a.breach.rect.center,
+        "valve": a.valve.rect.center,
+        "lore": a.lore_board.rect.center,
+        "bridge": a.bridge_site.rect.center,
+        "device": a.device_site.rect.center,
+    }
+    import itertools
+    import math
+    # Jokainen pari vähintään reilusti erillään (yli 1200 px)
+    for (n1, p1), (n2, p2) in itertools.combinations(pts.items(), 2):
+        d = math.hypot(p1[0] - p2[0], p1[1] - p2[1])
+        assert d > 1200, f"{n1} ja {n2} liian lähellä ({d:.0f}px)"
+
+
+def test_griznak_talks_on_every_advance():
+    # Pelitesti 26b: joka kerta kun questi etenee, Griznak käy dialogia
+    from citys.mucford.muckford_warrens import (
+        warrens_state, INVASION_TARGET)
+    m = _manager()
+    menu = _menu(m)
+    st = warrens_state(m)
+    # Vaihe 2 -> 3: repeämän sulku laukaisee Griznakin
+    st["quest_stage"] = 2
+    st["invasion_kills"] = INVASION_TARGET
+    _near(m, menu.arena.breach)
+    menu._try_breach()
+    assert menu.dialogue_active
+    assert menu.dialogue_name == "Griznak the Shifty"
+    # Griznakin repliikki ohjaa seuraavaan tehtävään (venttiili)
+    assert any("valve" in p.lower() for p in menu.dialogue_pages)
+
+
+def test_lore_chains_into_griznak_dialogue():
+    # Loretaulu -> Griznakin reaktio ketjuun (ei clobberia)
+    from citys.mucford.muckford_warrens import warrens_state, CAMP_TARGET
+    m = _manager()
+    menu = _menu(m)
+    st = warrens_state(m)
+    st["quest_stage"] = 4
+    st["camp_kills"] = CAMP_TARGET
+    _near(m, menu.arena.lore_board)
+    menu._try_lore()
+    # Ensin proklamaatio, sitten Griznak jonosta
+    assert menu.dialogue_name == "A Rat-Scrawled Proclamation"
+    menu.dialogue_index = len(menu.dialogue_pages)
+    menu._advance_dialogue_queue()
+    assert menu.dialogue_active
+    assert menu.dialogue_name == "Griznak the Shifty"
+
+
 def test_named_rat_king_and_completion():
     from citys.mucford.muckford_warrens import warrens_state, RAT_KING_NAME
     from quest_system import quest_manager
