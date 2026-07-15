@@ -20,7 +20,7 @@ class MagicSchoolMenu(BaseMenu):
                 "leader": "Grand Magister Lysandra Voss",
                 "desc": "The neutral foundation of all magic. Focuses on raw energy, wards, and scientific study of the Vortex.",
                 "color": (100, 150, 255), # Blue/White
-                "target_state": "magic_shop",
+                "target_state": "school_pure",
                 "unlocked": True
             },
             {
@@ -31,7 +31,7 @@ class MagicSchoolMenu(BaseMenu):
                 "leader": "High Hierophant Caldor Aurelian",
                 "desc": "Cleansing light and moral order. The most effective weapon against the undead and blight.",
                 "color": (255, 255, 150), # Light Yellow
-                "target_state": None, # Coming soon
+                "target_state": "school_holy",
                 "unlocked": False,
                 "req_text": "Requires: Crown Dominion Reputation"
             },
@@ -43,7 +43,7 @@ class MagicSchoolMenu(BaseMenu):
                 "leader": "Grand Mortarch Zharok the Quiet",
                 "desc": "Masters of the death threshold. They bind the restless to prevent the Vortex from using them.",
                 "color": (100, 100, 100), # Ash Grey
-                "target_state": "necro_school",
+                "target_state": "school_necro",
                 "unlocked": True,
                 # "req_text": "Requires: Kharak Reputation" # Avattu pelaajalle
             },
@@ -54,7 +54,7 @@ class MagicSchoolMenu(BaseMenu):
                 "leader": "Grand Druid Maelis Rootspeaker",
                 "desc": "Guardians of the ecosystem. They heal the land and commune with nature to fight corruption.",
                 "color": (50, 200, 100), # Green
-                "target_state": None,
+                "target_state": "school_druid",
                 "unlocked": False,
                 "req_text": "Requires: Lupine Wardens Reputation"
             },
@@ -112,7 +112,7 @@ class MagicSchoolMenu(BaseMenu):
         if event.type == pygame.MOUSEBUTTONDOWN:
             for rect, school in self.school_buttons:
                 if rect.collidepoint(mouse_pos):
-                    if school["unlocked"] and school["target_state"]:
+                    if school["target_state"]:
                         self.next_state = school["target_state"]
                         sound_system.play_sound('click')
                     else:
@@ -164,7 +164,10 @@ class MagicSchoolMenu(BaseMenu):
             
             # Status / Requirement
             if not school["unlocked"]:
-                draw_text("LOCKED", font_main, RED, screen, rect.right - 120, rect.centery - 10)
+                if school["target_state"]:
+                    draw_text("TEST >", font_main, (140, 220, 160), screen, rect.right - 120, rect.centery - 10)
+                else:
+                    draw_text("LOCKED", font_main, RED, screen, rect.right - 120, rect.centery - 10)
                 if "req_text" in school:
                     draw_text(school["req_text"], font_small, (200, 100, 100), screen, rect.right - 350, rect.y + 40)
             elif is_hover:

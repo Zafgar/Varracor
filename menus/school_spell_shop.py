@@ -232,7 +232,7 @@ def make_ashen_catalog(manager):
     return SchoolSpellShop(
         manager, "necromancy", "THE ASHEN OSSUARY",
         "Death's threshold. Buy Necromancy spells here.",
-        (150, 210, 160), back_state="necro_school")
+        (150, 210, 160), back_state="magic_school")
 
 
 def make_prism_catalog(manager):

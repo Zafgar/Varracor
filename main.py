@@ -33,6 +33,8 @@ from menus.sponsor_menu import SponsorMenu
 from menus.reputation_menu import ReputationMenu
 from menus.magic_school_menu import MagicSchoolMenu
 from menus.necro_school_menu import NecroSchoolMenu
+from menus.school_spell_shop import (make_prism_catalog, make_radiant_synod,
+                                     make_ashen_catalog, make_verdant_covenant)
 from menus.intro_screen import IntroScreen
 from menus.shop_location_menu import ShopLocationMenu
 from menus.match_loading_screen import MatchLoadingScreen
@@ -127,6 +129,10 @@ def main():
         "reputation": ReputationMenu(manager),
         "magic_school": MagicSchoolMenu(manager),
         "necro_school": NecroSchoolMenu(manager),
+        "school_pure": None,
+        "school_holy": None,
+        "school_necro": None,
+        "school_druid": None,
         "shop_locations": ShopLocationMenu(manager),
         "match_loading": MatchLoadingScreen(manager),
         "crown_knives": CrownKnivesMenu(manager),
@@ -175,6 +181,10 @@ def main():
         "reputation": ReputationMenu,
         "magic_school": MagicSchoolMenu,
         "necro_school": NecroSchoolMenu,
+        "school_pure": make_prism_catalog,
+        "school_holy": make_radiant_synod,
+        "school_necro": make_ashen_catalog,
+        "school_druid": make_verdant_covenant,
         "shop_locations": ShopLocationMenu,
         "city_storage": CityStorageMenu,
         "muckford_intro": MuckfordIntroScreen,
@@ -214,6 +224,7 @@ def main():
         "prepare", "mission_prepare", "loading", "manager_menu",
         "commander_skills", "workshop_locations", "sponsors", "reputation",
         "magic_school", "necro_school", "shop_locations", "city_storage",
+        "school_pure", "school_holy", "school_necro", "school_druid",
         "muckford_intro", "test_arena", "options", "market",
         "district_shop", "asset_studio", "paths", "finale_show", "barracks",
         "betting_office", "rift_site",

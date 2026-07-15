@@ -123,3 +123,39 @@ def test_bought_spell_is_castable():
                                          pos=shop._buy_rect.center))
     spell = m.equipment_bag[-1]
     assert hasattr(spell, "cast") and hasattr(spell, "describe")
+
+
+# ----------------------------------------------------------------------
+# Testipääsy: magic_school-valikko reitittää koulukauppoihin
+# ----------------------------------------------------------------------
+
+def test_magic_school_routes_to_catalog_shops(monkeypatch):
+    import pygame as pg
+    from menus.magic_school_menu import MagicSchoolMenu
+    m = _manager()
+    menu = MagicSchoolMenu(m)
+    routes = {}
+    for rect, school in menu.school_buttons:
+        menu.next_state = None
+        monkeypatch.setattr(pg.mouse, "get_pos", lambda r=rect: r.center)
+        menu.handle_event(pg.event.Event(pg.MOUSEBUTTONDOWN,
+                                         pos=rect.center, button=1))
+        routes[school["id"]] = menu.next_state
+    assert routes["pure"] == "school_pure"
+    assert routes["holy"] == "school_holy"      # test-pääsy vaikka lukittu
+    assert routes["necro"] == "school_necro"
+    assert routes["druid"] == "school_druid"
+
+
+def test_school_shop_factories_build_all_four():
+    from menus.school_spell_shop import (
+        make_prism_catalog, make_radiant_synod, make_ashen_catalog,
+        make_verdant_covenant)
+    m = _manager()
+    for fac, school in ((make_prism_catalog, "pure"),
+                        (make_radiant_synod, "holy"),
+                        (make_ashen_catalog, "necromancy"),
+                        (make_verdant_covenant, "druidism")):
+        shop = fac(m)
+        assert shop.spells, f"{school} tarjoaa loitsuja"
+        assert shop.back_state == "magic_school"
