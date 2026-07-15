@@ -661,6 +661,17 @@ class RattlebridgeCityMenu(BaseMenu):
             py = inner.y + int(landmark.rect.centery * sy)
             pygame.draw.circle(screen, GOLD_COLOR, (px, py), 6)
 
+        # Griznakin vankkuri kartalle (pelaajapalaute: hänen paikkansa
+        # täytyy näkyä kartalla myös tier-kaupungeissa)
+        griznak = getattr(self, "griznak", None)
+        if griznak is not None:
+            gx = inner.x + int(griznak.rect.centerx * sx)
+            gy = inner.y + int(griznak.rect.centery * sy)
+            pygame.draw.circle(screen, (210, 175, 95), (gx, gy), 7)
+            pygame.draw.circle(screen, (25, 25, 25), (gx, gy), 7, 2)
+            draw_text("Griznak", font_small, (230, 205, 150), screen,
+                      gx + 10, gy - 8)
+
         px = inner.x + int(self.player.rect.centerx * sx)
         py = inner.y + int(self.player.rect.centery * sy)
         pygame.draw.circle(screen, WHITE, (px, py), 9)

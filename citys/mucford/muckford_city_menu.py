@@ -551,6 +551,15 @@ class MuckfordCityMenu(BaseMenu):
         elif kind == "quest":      # huutomerkki
             pygame.draw.rect(screen, c, (x - 2, y - 8, 4, 9), border_radius=2)
             pygame.draw.circle(screen, c, (x, y + 6), 2)
+        elif kind == "wagon":      # Griznakin vankkuri (kuomu + pyörät)
+            pygame.draw.rect(screen, c, (x - 7, y - 3, 14, 5))
+            pygame.draw.arc(screen, c, (x - 7, y - 8, 14, 10), 0.0, 3.14, 2)
+            pygame.draw.circle(screen, c, (x - 4, y + 4), 2)
+            pygame.draw.circle(screen, c, (x + 4, y + 4), 2)
+        elif kind == "herbs":      # rohtoteltta (survin + lehti)
+            pygame.draw.arc(screen, c, (x - 6, y - 1, 12, 10), 3.3, 6.1, 2)
+            pygame.draw.line(screen, c, (x + 2, y - 6), (x - 2, y + 1), 2)
+            pygame.draw.circle(screen, (140, 210, 130), (x + 3, y - 6), 2)
         else:
             pygame.draw.circle(screen, c, (x, y), 5)
 
@@ -616,6 +625,47 @@ class MuckfordCityMenu(BaseMenu):
                 pygame.draw.rect(screen, (76, 64, 50), hr, 1, border_radius=3)
 
         # --- KOHTEET: ikoni + nimi suoraan kartalle ---
+        markers = self._city_map_markers()
+        for rect, kind, col, label in markers:
+            mx, my = to_map(rect.centerx, rect.centery)
+            self._draw_map_icon(screen, mx, my, kind, col)
+            # Nimi ikonin viereen; oikeassa laidassa teksti vasemmalle
+            lbl = font_small.render(label, True, (240, 235, 220))
+            bg = pygame.Surface((lbl.get_width() + 8, lbl.get_height() + 2),
+                                pygame.SRCALPHA)
+            bg.fill((16, 14, 20, 200))
+            lx = mx + 14
+            if lx + lbl.get_width() > panel.right - 12:
+                lx = mx - 14 - lbl.get_width()
+            screen.blit(bg, (lx - 4, my - 8))
+            screen.blit(lbl, (lx, my - 7))
+
+        # Raid-viholliset punaisina sykkivinä pisteinä
+        rat_pulse = 2 + int(2 * abs(math.sin(pygame.time.get_ticks() * 0.008)))
+        for rat in self.raid_rats:
+            if getattr(rat, "is_dead", False):
+                continue
+            rx, ry = to_map(rat.rect.centerx, rat.rect.centery)
+            pygame.draw.circle(screen, (230, 60, 50), (rx, ry), 4 + rat_pulse, 2)
+            pygame.draw.circle(screen, (255, 90, 70), (rx, ry), 3)
+        if any(not getattr(r, "is_dead", False) for r in self.raid_rats):
+            draw_text("RAID! Red marks = rats", font_small, (255, 110, 90),
+                      screen, panel.x + 24, panel.bottom - 30)
+
+        # Pelaaja (sykkivä merkki)
+        px, py = to_map(self.player.rect.centerx, self.player.rect.centery)
+        pulse = 3 + int(2 * abs(math.sin(pygame.time.get_ticks() * 0.005)))
+        pygame.draw.circle(screen, (255, 250, 220), (px, py), 6 + pulse, 2)
+        pygame.draw.circle(screen, (255, 255, 255), (px, py), 5)
+        pygame.draw.circle(screen, (60, 40, 20), (px, py), 5, 1)
+        draw_text("YOU", font_small, WHITE, screen, px + 10, py - 8)
+
+        draw_text("[M] / [ESC] close", font_small, (190, 185, 170), screen,
+                  panel.right - 170, panel.y + 18)
+
+    def _city_map_markers(self):
+        """Kokoaa kartalle piirrettävät kohdemerkinnät (rect, kind, col,
+        label). Erillinen metodi jotta testit voivat tarkistaa listan."""
         from assets.tiles.muckford_objects import TownHall, MuckfordStall, Smeltery, Well, ChickenCoop, ShantyYardGate, TeamBarracks, NoticeBoard
         from assets.tiles.farm_objects import FarmStorage, ManurePile
         markers = []
@@ -646,6 +696,19 @@ class MuckfordCityMenu(BaseMenu):
             if isinstance(prop, RoadSignpost):
                 markers.append((prop.rect, "roads", (222, 186, 92),
                                 "World Routes"))
+
+        # Griznakin vankkuri ja Saggan rohtoteltta kartalle (pelaaja-
+        # palaute: heidän paikkansa täytyy näkyä kartalla)
+        griznak = getattr(self, "griznak", None)
+        if griznak is not None:
+            markers.append((griznak.rect, "wagon", (210, 175, 95),
+                            "Griznak (contracts)"))
+        tent = getattr(self, "herbalist_tent", None)
+        sagga = getattr(self, "sagga", None)
+        if tent is not None or sagga is not None:
+            anchor = (sagga or tent).rect
+            markers.append((anchor, "herbs", (150, 210, 130),
+                            "Sagga's Herb Tent"))
 
         # Questien huutomerkit kartalle (pelaajapalaute: tehtävät näkyviin)
         if quest_manager:
@@ -684,44 +747,7 @@ class MuckfordCityMenu(BaseMenu):
                         "Mine Road" if mine_owned else "Mine (locked)"))
         markers.append((self._forest_gate_rect(), "forest",
                         (140, 200, 130), "Forest Trail"))
-
-        for rect, kind, col, label in markers:
-            mx, my = to_map(rect.centerx, rect.centery)
-            self._draw_map_icon(screen, mx, my, kind, col)
-            # Nimi ikonin viereen; oikeassa laidassa teksti vasemmalle
-            lbl = font_small.render(label, True, (240, 235, 220))
-            bg = pygame.Surface((lbl.get_width() + 8, lbl.get_height() + 2),
-                                pygame.SRCALPHA)
-            bg.fill((20, 16, 12, 165))
-            if mx > inner.right - 150:
-                lx = mx - 16 - lbl.get_width() - 8
-            else:
-                lx = mx + 16
-            screen.blit(bg, (lx - 4, my - 9))
-            screen.blit(lbl, (lx, my - 8))
-
-        # Raid-viholliset punaisina sykkivinä pisteinä
-        rat_pulse = 2 + int(2 * abs(math.sin(pygame.time.get_ticks() * 0.008)))
-        for rat in self.raid_rats:
-            if getattr(rat, "is_dead", False):
-                continue
-            rx, ry = to_map(rat.rect.centerx, rat.rect.centery)
-            pygame.draw.circle(screen, (230, 60, 50), (rx, ry), 4 + rat_pulse, 2)
-            pygame.draw.circle(screen, (255, 90, 70), (rx, ry), 3)
-        if any(not getattr(r, "is_dead", False) for r in self.raid_rats):
-            draw_text("RAID! Red marks = rats", font_small, (255, 110, 90),
-                      screen, panel.x + 24, panel.bottom - 30)
-
-        # Pelaaja (sykkivä merkki)
-        px, py = to_map(self.player.rect.centerx, self.player.rect.centery)
-        pulse = 3 + int(2 * abs(math.sin(pygame.time.get_ticks() * 0.005)))
-        pygame.draw.circle(screen, (255, 250, 220), (px, py), 6 + pulse, 2)
-        pygame.draw.circle(screen, (255, 255, 255), (px, py), 5)
-        pygame.draw.circle(screen, (60, 40, 20), (px, py), 5, 1)
-        draw_text("YOU", font_small, WHITE, screen, px + 10, py - 8)
-
-        draw_text("[M] / [ESC] close", font_small, (190, 185, 170), screen,
-                  panel.right - 170, panel.y + 18)
+        return markers
 
     def _mine_gate_rect(self):
         """Kaivostien portti kaupungin itäreunalla."""
