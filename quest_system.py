@@ -34,7 +34,16 @@ class QuestState:
     def boss_id(self): return self.definition.boss_id
     @property
     def rewards(self): return self.definition.rewards
-    
+    @property
+    def category(self): return getattr(self.definition, "category", "side")
+    @property
+    def objectives(self): return getattr(self.definition, "objectives", [])
+    @property
+    def giver(self): return getattr(self.definition, "giver", None)
+    @property
+    def required_amount(self):
+        return int(getattr(self.definition, "required_amount", 0) or 0)
+
     @property
     def completed(self): return self.status == "completed" or self.is_finished
     @completed.setter
@@ -52,9 +61,13 @@ class QuestManager:
     def __init__(self):
         self.reputation = 0
         self.quests = {} # id -> QuestState
-        
+        # Journal-seuranta (pelitesti 27): mitkä questit näkyvät HUD-
+        # seurannassa. Untracked-setti - oletuksena kaikki aktiiviset
+        # seurataan, ja pelaaja voi poistaa/lisätä seurannasta journalista.
+        self.untracked = set()
+
         # --- TAISTELUN MUISTI ---
-        self.pending_reaction = False 
+        self.pending_reaction = False
         self.last_battle_result = None # "win" tai "loss"
         
         self._load_quests()
@@ -126,7 +139,21 @@ class QuestManager:
         if quest_id in self.quests:
             self.quests[quest_id].progress = 0 # Nollaa progress
             self.quests[quest_id].status = "active"
+            self.untracked.discard(quest_id)  # uusi quest oletuksena seurannassa
             print(f"Started quest: {quest_id}")
+
+    # --- JOURNAL-SEURANTA (pelitesti 27) ---
+    def is_tracked(self, quest_id):
+        return quest_id not in self.untracked
+
+    def set_tracked(self, quest_id, tracked):
+        if tracked:
+            self.untracked.discard(quest_id)
+        else:
+            self.untracked.add(quest_id)
+
+    def toggle_tracked(self, quest_id):
+        self.set_tracked(quest_id, quest_id in self.untracked)
 
     def finish_quest(self, quest_id):
         """Kutsutaan dialogista, kun palkinnot lunastetaan"""

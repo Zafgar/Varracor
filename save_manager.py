@@ -206,6 +206,8 @@ def _serialize_quests(quest_manager):
             "is_finished": q.is_finished,
             "progress": q.progress,
         }
+    # Journal-seuranta (pelitesti 27): mitkä questit ovat pois seurannasta
+    out["_untracked"] = list(getattr(quest_manager, "untracked", set()) or [])
     return out
 
 
@@ -213,12 +215,16 @@ def _apply_quests(quest_manager, data, reputation):
     if not quest_manager:
         return
     quest_manager.reputation = reputation
+    untracked = data.get("_untracked", [])
     for qid, qdata in data.items():
+        if qid == "_untracked":
+            continue
         q = quest_manager.quests.get(qid)
         if q:
             q.status = qdata.get("status", q.status)
             q.is_finished = qdata.get("is_finished", False)
             q.progress = qdata.get("progress", 0)
+    quest_manager.untracked = set(untracked)
     quest_manager.check_unlocks()
 
 

@@ -9,7 +9,9 @@ class ManureQuest(QuestDefinition):
             description="Farmer Gus needs help cleaning up manure piles.",
             rep_req=0,
             boss_id=None, # Ei bossia, keräysquest
-            rewards={"gold": 5, "reputation": 5, "xp": 10}
+            rewards={"gold": 5, "reputation": 5, "xp": 10},
+            category="side", giver="Farmer Gus",
+            objectives=["Collect 5 manure piles from the stables"]
         )
         self.required_amount = 5
 

@@ -14,7 +14,9 @@ class TimberQuest(QuestDefinition):
                         "wood's edge.",
             rep_req=0,
             boss_id=None,
-            rewards={"gold": 10, "reputation": 3, "xp": 15}
+            rewards={"gold": 10, "reputation": 3, "xp": 15},
+            category="side", giver="Woodsman Alder",
+            objectives=["Fell 4 trees at the shanty wood's edge"]
         )
         self.required_amount = 4  # kaadettua puuta
 

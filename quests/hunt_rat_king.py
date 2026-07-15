@@ -6,10 +6,21 @@ class RatKingQuest(QuestDefinition):
         super().__init__(
             id="hunt_01",
             title="The Rat King",
-            description="A massive rat is terrorizing the sewers. Put an end to its reign.",
+            description="Something is driving the rats beneath Muckford into "
+                        "an army. Descend the Warrens, uncover who commands "
+                        "them, and end the crowned rat's reign.",
             rep_req=0,
             boss_id="boss_rat_king",
-            rewards={"gold": 500, "reputation": 100, "items": {"Rat Tail": 5}}
+            rewards={"gold": 500, "reputation": 100, "items": {"Rat Tail": 5}},
+            category="main",
+            giver="Griznak the Shifty",
+            objectives=[
+                "Cull the sewer rats gnawing at Muckford's foundations",
+                "Break the rat invasion and seal the breach tunnel",
+                "Drain the flooded passage and storm the rats' camp",
+                "Bridge the broken floor and raise the Frog Smith's gate-ram",
+                "Descend into the Abyssal Cistern and end the Rat King",
+            ],
         )
 
     def get_dialogue_for_npc(self, npc_id, status):

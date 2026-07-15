@@ -14,7 +14,9 @@ class CrateQuest(QuestDefinition):
                         "and carry it back to his stall.",
             rep_req=0,
             boss_id=None,
-            rewards={"gold": 8, "reputation": 3, "xp": 12}
+            rewards={"gold": 8, "reputation": 3, "xp": 12},
+            category="side", giver="Krad",
+            objectives=["Fetch the crate from the shanty", "Carry it back to Krad's stall"]
         )
         self.required_amount = 1
 

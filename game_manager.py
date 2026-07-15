@@ -166,6 +166,12 @@ class GameManager:
         # Quest journal -paneeli pelinäkymässä (J tai klikkaus piilottaa)
         self.show_quest_journal = True
         self._journal_toggle_rect = None
+        # Täysi RPG-questijournal (pelitesti 27): J avaa; välilehdet
+        # MAIN/SIDE/COMPLETED, tehtävätiedot ja seurannan valinta
+        self.show_full_journal = False
+        self.journal_tab = "main"
+        self.journal_selected = None
+        self._journal_ui = {}
         # Retkikunta (pelitesti 21): barracksin sotapöydältä koottu ryhmä,
         # aktiivinen kenttäkomento ja [T]-valikon tila. Rescue-data täytetään
         # kun Commander kaatuu retkellä (systems/expedition.py).
@@ -2152,18 +2158,35 @@ class GameManager:
             if dist < 100:
                  self._draw_floating_prompt(screen, tx, target.rect.top - 40, "!", offset, "Arrived")
 
-    def _draw_quest_journal(self, screen):
-        """Quest journal: aktiiviset ja palautettavat questit tehtävineen
-        ja palkintoineen pelinäkymän oikeassa laidassa. Silmänappi (tai J)
-        piilottaa paneelin - piilossa näkyy vain pieni QUESTS-nuppi."""
+    # ==================================================================
+    # QUEST JOURNAL (pelitesti 27): HUD-seuranta + täysi RPG-journal
+    # ==================================================================
+    @staticmethod
+    def _quest_reward_parts(q):
         from ui_kit import format_money
+        rw = q.rewards or {}
+        parts = []
+        if rw.get("gold"):
+            parts.append(format_money(int(rw["gold"])))
+        if rw.get("reputation"):
+            parts.append(f"+{rw['reputation']} rep")
+        if rw.get("xp"):
+            parts.append(f"{rw['xp']} XP")
+        items = rw.get("items") or {}
+        for name, cnt in items.items():
+            parts.append(f"{name} x{cnt}")
+        return parts
+
+    def _draw_quest_journal(self, screen):
+        """HUD-seurantapaneeli oikeassa laidassa: näyttää VAIN seuratut
+        aktiiviset/palautettavat questit. J avaa täyden journalin,
+        silmänappi piilottaa paneelin."""
         if quest_manager is None:
             return
-        panel_w = 380
+        panel_w = 360
         x = SCREEN_WIDTH - panel_w - 24
-        y = 170  # TEAM/NEXT-tavoitepaneelin alle
+        y = 170
 
-        # Piilotettu: pelkkä avausnuppi
         if not self.show_quest_journal:
             chip = pygame.Rect(SCREEN_WIDTH - 150, y, 126, 34)
             pygame.draw.rect(screen, (18, 18, 24), chip, border_radius=9)
@@ -2173,23 +2196,26 @@ class GameManager:
             self._journal_toggle_rect = chip
             return
 
-        active = [q for q in quest_manager.quests.values()
-                  if q.status == "active"]
-        turn_in = [q for q in quest_manager.quests.values()
-                   if q.status == "completed" and not q.is_finished]
-        rows = turn_in + active
+        # Seuratut aktiiviset + palautusvalmiit (main ensin)
+        tracked = [q for q in quest_manager.quests.values()
+                   if q.status in ("active", "completed")
+                   and not q.is_finished
+                   and quest_manager.is_tracked(q.id)]
+        tracked.sort(key=lambda q: (q.category != "main",
+                                    q.status != "completed"))
+        rows = tracked[:5]
 
-        # Korkeus sisällön mukaan (max 5 questia näkyvissä)
-        rows = rows[:5]
-        h = 54 + (len(rows) * 74 if rows else 40)
+        h = 58 + (len(rows) * 62 if rows else 40)
         panel = pygame.Rect(x, y, panel_w, h)
         surf = pygame.Surface(panel.size, pygame.SRCALPHA)
         surf.fill((14, 14, 20, 205))
         screen.blit(surf, panel.topleft)
         pygame.draw.rect(screen, (150, 130, 80), panel, 2, border_radius=10)
-        draw_text("QUEST JOURNAL", font_small, GOLD_COLOR, screen,
+        draw_text("QUEST TRACKER", font_small, GOLD_COLOR, screen,
                   panel.x + 14, panel.y + 10)
-        # Silmänappi (piilota)
+        draw_text("[J] Journal", font_small, (150, 150, 160), screen,
+                  panel.x + 150, panel.y + 12)
+        # Silmänappi (piilota tracker)
         eye = pygame.Rect(panel.right - 42, panel.y + 6, 32, 26)
         pygame.draw.rect(screen, (40, 38, 32), eye, border_radius=7)
         pygame.draw.rect(screen, (150, 130, 80), eye, 1, border_radius=7)
@@ -2198,42 +2224,304 @@ class GameManager:
         pygame.draw.circle(screen, (220, 200, 150), eye.center, 3)
         self._journal_toggle_rect = eye
 
-        yy = panel.y + 40
+        yy = panel.y + 42
         if not rows:
-            draw_text("No active quests. Check the notice", font_small,
-                      GRAY, screen, panel.x + 14, yy)
-            draw_text("board and talk to villagers.", font_small,
+            draw_text("No tracked quests.", font_small, GRAY, screen,
+                      panel.x + 14, yy)
+            draw_text("Press [J] to open the journal.", font_small,
                       GRAY, screen, panel.x + 14, yy + 20)
             return
         for q in rows:
             ready = (q.status == "completed")
-            col = (140, 230, 150) if ready else WHITE
-            title = q.title[:34]
-            draw_text(title, font_small, col, screen, panel.x + 14, yy)
-            # Edistyminen / palautuskehotus
-            req = int(getattr(q.definition, "required_amount", 0) or 0)
+            # Main-questit kullalla, side vaaleana
             if ready:
-                status = "READY - return to the quest giver!"
+                col = (140, 230, 150)
+            elif q.category == "main":
+                col = (245, 210, 120)
+            else:
+                col = WHITE
+            marker = "✦ " if q.category == "main" else "• "
+            draw_text(marker + q.title[:32], font_small, col, screen,
+                      panel.x + 14, yy)
+            req = q.required_amount
+            if ready:
+                status = "READY - return to the giver!"
             elif req > 1:
                 status = f"Progress {int(q.progress)}/{req}"
             else:
-                status = (q.description or "")[:52]
-            draw_text(status, font_small,
+                status = self._quest_current_objective(q)
+            draw_text(status[:50], font_small,
                       (150, 200, 160) if ready else (170, 170, 180),
-                      screen, panel.x + 14, yy + 22)
+                      screen, panel.x + 26, yy + 20)
+            yy += 62
+
+    def _quest_current_objective(self, q):
+        """Palauttaa questin nykyisen tavoiterivin (main-questeilla
+        vaiheittain warrens-tilan mukaan)."""
+        objs = q.objectives
+        if q.id == "hunt_01" and objs:
+            try:
+                from citys.mucford.muckford_warrens import warrens_state
+                stage = int(warrens_state(self).get("quest_stage", 0))
+            except Exception:
+                stage = 0
+            idx = min(max(stage - 1, 0), len(objs) - 1)
+            return objs[idx]
+        if objs:
+            return objs[0]
+        return (q.description or "")[:60]
+
+    # ---- Täysi RPG-journal (välilehdet, tiedot, seurannan valinta) ----
+    def _journal_quests_for_tab(self, tab):
+        if quest_manager is None:
+            return []
+        out = []
+        for q in quest_manager.quests.values():
+            if q.status == "locked":
+                continue
+            if tab == "completed":
+                if q.is_finished:
+                    out.append(q)
+            elif tab == "main":
+                if q.category == "main" and not q.is_finished:
+                    out.append(q)
+            else:  # side
+                if q.category != "main" and not q.is_finished:
+                    out.append(q)
+        # Aktiiviset/valmiit ensin, sitten saatavilla olevat
+        order = {"completed": 0, "active": 1, "available": 2}
+        out.sort(key=lambda q: order.get(q.status, 3))
+        return out
+
+    def _journal_sync_selection(self):
+        rows = self._journal_quests_for_tab(self.journal_tab)
+        ids = [q.id for q in rows]
+        if self.journal_selected not in ids:
+            self.journal_selected = ids[0] if ids else None
+
+    def _handle_full_journal_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_ESCAPE, pygame.K_j):
+                self.show_full_journal = False
+                sound_system.play_sound('click')
+                return True
+            if event.key == pygame.K_TAB:
+                order = ["main", "side", "completed"]
+                i = (order.index(self.journal_tab) + 1) % 3
+                self.journal_tab = order[i]
+                self._journal_sync_selection()
+                sound_system.play_sound('click')
+                return True
+            if event.key in (pygame.K_DOWN, pygame.K_UP):
+                rows = self._journal_quests_for_tab(self.journal_tab)
+                ids = [q.id for q in rows]
+                if ids:
+                    i = ids.index(self.journal_selected) \
+                        if self.journal_selected in ids else 0
+                    i = (i + (1 if event.key == pygame.K_DOWN else -1)) % len(ids)
+                    self.journal_selected = ids[i]
+                return True
+            if event.key in (pygame.K_t, pygame.K_RETURN, pygame.K_SPACE):
+                if self.journal_selected:
+                    quest_manager.toggle_tracked(self.journal_selected)
+                    sound_system.play_sound('click')
+                return True
+            return True
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            ui = self._journal_ui
+            for rect, tab in ui.get("tabs", []):
+                if rect.collidepoint(event.pos):
+                    self.journal_tab = tab
+                    self._journal_sync_selection()
+                    sound_system.play_sound('click')
+                    return True
+            for rect, qid in ui.get("rows", []):
+                if rect.collidepoint(event.pos):
+                    self.journal_selected = qid
+                    sound_system.play_sound('click')
+                    return True
+            track_btn = ui.get("track_btn")
+            if track_btn and track_btn.collidepoint(event.pos) \
+                    and self.journal_selected:
+                quest_manager.toggle_tracked(self.journal_selected)
+                sound_system.play_sound('click')
+                return True
+            close_btn = ui.get("close_btn")
+            if close_btn and close_btn.collidepoint(event.pos):
+                self.show_full_journal = False
+                sound_system.play_sound('click')
+                return True
+        return False
+
+    def _draw_full_journal(self, screen):
+        from ui_kit import get_fullscreen_overlay
+        self._journal_ui = {"tabs": [], "rows": [], "track_btn": None,
+                            "close_btn": None}
+        screen.blit(get_fullscreen_overlay((0, 0, 0, 200)), (0, 0))
+        pw, ph = 1160, 720
+        px = (SCREEN_WIDTH - pw) // 2
+        py = (SCREEN_HEIGHT - ph) // 2
+        panel = pygame.Rect(px, py, pw, ph)
+        pygame.draw.rect(screen, (22, 20, 26), panel, border_radius=16)
+        pygame.draw.rect(screen, GOLD_COLOR, panel, 3, border_radius=16)
+        draw_text("QUEST JOURNAL", font_title, GOLD_COLOR, screen,
+                  px + 34, py + 22)
+        # Sulkunappi
+        close_btn = pygame.Rect(panel.right - 52, py + 22, 34, 34)
+        pygame.draw.rect(screen, (60, 40, 40), close_btn, border_radius=8)
+        pygame.draw.rect(screen, (200, 120, 110), close_btn, 2, border_radius=8)
+        draw_text("X", font_main, (230, 180, 170), screen,
+                  close_btn.x + 11, close_btn.y + 5)
+        self._journal_ui["close_btn"] = close_btn
+
+        # Välilehdet
+        tab_defs = [("main", "MAIN"), ("side", "SIDE"), ("completed", "DONE")]
+        tx = px + 34
+        for key, label in tab_defs:
+            n = len(self._journal_quests_for_tab(key))
+            w = 190
+            rect = pygame.Rect(tx, py + 76, w, 42)
+            active = (self.journal_tab == key)
+            pygame.draw.rect(screen, (54, 46, 30) if active else (30, 28, 34),
+                             rect, border_radius=9)
+            pygame.draw.rect(screen, GOLD_COLOR if active else (90, 84, 70),
+                             rect, 2, border_radius=9)
+            draw_text(f"{label} ({n})", font_main,
+                      (245, 220, 150) if active else (170, 165, 155),
+                      screen, rect.x + 20, rect.y + 9)
+            self._journal_ui["tabs"].append((rect, key))
+            tx += w + 12
+
+        # Vasen lista
+        list_rect = pygame.Rect(px + 34, py + 134, 420, ph - 200)
+        pygame.draw.rect(screen, (16, 15, 20), list_rect, border_radius=10)
+        pygame.draw.rect(screen, (80, 74, 60), list_rect, 1, border_radius=10)
+        rows = self._journal_quests_for_tab(self.journal_tab)
+        if self.journal_selected not in [q.id for q in rows]:
+            self.journal_selected = rows[0].id if rows else None
+        yy = list_rect.y + 12
+        if not rows:
+            draw_text("Nothing here yet.", font_small, GRAY, screen,
+                      list_rect.x + 16, yy + 6)
+        for q in rows:
+            row = pygame.Rect(list_rect.x + 8, yy, list_rect.w - 16, 52)
+            sel = (q.id == self.journal_selected)
+            if sel:
+                pygame.draw.rect(screen, (54, 48, 32), row, border_radius=8)
+                pygame.draw.rect(screen, GOLD_COLOR, row, 2, border_radius=8)
+            ready = (q.status == "completed")
+            col = ((140, 230, 150) if ready else
+                   (245, 210, 120) if q.category == "main" else WHITE)
+            draw_text(q.title[:30], font_main, col, screen,
+                      row.x + 14, row.y + 6)
+            sub = ("READY to turn in" if ready else
+                   "Finished" if q.is_finished else
+                   q.status.capitalize())
+            draw_text(sub, font_small, (150, 150, 160), screen,
+                      row.x + 14, row.y + 30)
+            # Seuranta-merkki
+            if not q.is_finished and quest_manager.is_tracked(q.id):
+                draw_text("TRACKED", font_small, (150, 200, 160), screen,
+                          row.right - 92, row.y + 8)
+            self._journal_ui["rows"].append((row, q.id))
+            yy += 58
+
+        # Oikea: yksityiskohdat
+        det = pygame.Rect(px + 474, py + 134, pw - 474 - 34, ph - 200)
+        pygame.draw.rect(screen, (16, 15, 20), det, border_radius=10)
+        pygame.draw.rect(screen, (80, 74, 60), det, 1, border_radius=10)
+        q = quest_manager.quests.get(self.journal_selected) \
+            if self.journal_selected else None
+        if q is None:
+            draw_text("Select a quest.", font_main, GRAY, screen,
+                      det.x + 24, det.y + 24)
+        else:
+            dx, dy = det.x + 26, det.y + 22
+            badge = "MAIN QUEST" if q.category == "main" else "SIDE QUEST"
+            bcol = (245, 210, 120) if q.category == "main" else (170, 200, 230)
+            draw_text(badge, font_small, bcol, screen, dx, dy)
+            draw_text(q.title, font_title, GOLD_COLOR, screen, dx, dy + 22)
+            if q.giver:
+                draw_text(f"Given by {q.giver}", font_small, (170, 165, 155),
+                          screen, dx, dy + 62)
+            # Kuvaus (rivitys)
+            oy = dy + 92
+            for line in self._wrap_text(q.description or "", font_small,
+                                        det.w - 52)[:4]:
+                draw_text(line, font_small, (210, 205, 195), screen, dx, oy)
+                oy += 22
+            # Tavoitteet
+            oy += 12
+            draw_text("OBJECTIVES", font_small, GOLD_COLOR, screen, dx, oy)
+            oy += 26
+            objs = q.objectives
+            cur = -1
+            if q.id == "hunt_01":
+                try:
+                    from citys.mucford.muckford_warrens import warrens_state
+                    cur = int(warrens_state(self).get("quest_stage", 0)) - 1
+                except Exception:
+                    cur = -1
+            if objs:
+                for i, ob in enumerate(objs):
+                    if q.is_finished or (cur >= 0 and i < cur):
+                        mark, mcol = "[x]", (140, 210, 150)
+                    elif cur >= 0 and i == cur:
+                        mark, mcol = "[>]", (245, 220, 150)
+                    else:
+                        mark, mcol = "[ ]", (160, 160, 170)
+                    for j, line in enumerate(self._wrap_text(
+                            f"{mark} {ob}", font_small, det.w - 52)):
+                        draw_text(line, font_small, mcol, screen,
+                                  dx + (0 if j == 0 else 28), oy)
+                        oy += 22
+            else:
+                req = q.required_amount
+                txt = (f"Progress {int(q.progress)}/{req}" if req > 1
+                       else "In progress")
+                draw_text(txt, font_small, (200, 200, 210), screen, dx, oy)
+                oy += 22
             # Palkinnot
-            rw = q.rewards or {}
-            parts = []
-            if rw.get("gold"):
-                parts.append(format_money(int(rw["gold"])))
-            if rw.get("reputation"):
-                parts.append(f"+{rw['reputation']} rep")
-            if rw.get("xp"):
-                parts.append(f"{rw['xp']} XP")
-            if parts:
-                draw_text("Reward: " + "  ".join(parts), font_small,
-                          (200, 180, 120), screen, panel.x + 14, yy + 44)
-            yy += 74
+            oy += 12
+            draw_text("REWARDS", font_small, GOLD_COLOR, screen, dx, oy)
+            parts = self._quest_reward_parts(q)
+            draw_text("  ".join(parts) if parts else "-", font_small,
+                      (200, 180, 120), screen, dx + 120, oy)
+
+            # Seuranta-nappi (ei valmiille)
+            if not q.is_finished:
+                tracked = quest_manager.is_tracked(q.id)
+                btn = pygame.Rect(det.x + 26, det.bottom - 58, 250, 40)
+                pygame.draw.rect(screen, (48, 66, 48) if tracked else (44, 40, 48),
+                                 btn, border_radius=9)
+                pygame.draw.rect(screen, (130, 200, 150) if tracked
+                                 else (150, 140, 120), btn, 2, border_radius=9)
+                label = "TRACKED - click to hide" if tracked \
+                    else "TRACK this quest"
+                draw_text(label, font_main,
+                          (150, 220, 160) if tracked else (210, 200, 180),
+                          screen, btn.x + 18, btn.y + 8)
+                self._journal_ui["track_btn"] = btn
+
+        draw_text("[Tab] switch  [Up/Down] select  [T/Enter] track  "
+                  "[J/Esc] close", font_small, (150, 150, 160), screen,
+                  px + 34, panel.bottom - 32)
+
+    @staticmethod
+    def _wrap_text(text, font, width):
+        words = str(text).split()
+        lines, cur = [], ""
+        for w in words:
+            trial = w if not cur else f"{cur} {w}"
+            if font.size(trial)[0] <= width:
+                cur = trial
+            else:
+                if cur:
+                    lines.append(cur)
+                cur = w
+        if cur:
+            lines.append(cur)
+        return lines
 
     def _draw_floating_prompt(self, screen, x, y, key_text, offset, label_text=None):
         # Floating effect (Siniaalto)
@@ -2556,10 +2844,18 @@ class GameManager:
             except Exception:
                 pass
 
-        # Quest journal: J tai paneelin silmänappi näyttää/piilottaa
+        # Täysi RPG-questijournal: avoinna kaappaa syötteen (pelitesti 27)
+        if self.show_full_journal:
+            if self._handle_full_journal_event(event):
+                return True
+            return True  # journal on modaalinen
+
+        # Quest journal: J avaa täyden journalin; silmänappi piilottaa
+        # HUD-seurantapaneelin
         if current_state_key in QUEST_JOURNAL_STATES:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_j:
-                self.show_quest_journal = not self.show_quest_journal
+                self.show_full_journal = True
+                self._journal_sync_selection()
                 sound_system.play_sound('click')
                 return True
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 \
@@ -2821,9 +3117,17 @@ class GameManager:
 
         # 0.6 Quest journal -paneeli (J tai silmänappi piilottaa/näyttää)
         if current_state_key in QUEST_JOURNAL_STATES and not self.paused \
-                and not self.active_dialogue and not self.show_inventory:
+                and not self.active_dialogue and not self.show_inventory \
+                and not self.show_full_journal:
             try:
                 self._draw_quest_journal(screen)
+            except Exception:
+                pass
+
+        # 0.65 Täysi RPG-journal (modaalinen overlay, pelitesti 27)
+        if self.show_full_journal:
+            try:
+                self._draw_full_journal(screen)
             except Exception:
                 pass
 
