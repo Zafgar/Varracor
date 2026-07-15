@@ -15,6 +15,10 @@ class SunRay:
         # Aurinko/valo-teema kuuluu Radiant Synodiin (Holy), ei Pure-magiaan
         # -> siirretty pois Prismin satunnaispoolista.
         self.school = "holy"
+        # Yhteensopivuus koulukaupan listan kanssa (data-vetoiset kentät)
+        self.tier = 8
+        self.damage_type = "Holy"
+        self.archetype = "channel"
 
     def cast(self, caster, target, manager):
         # Tarkistetaan onko kohde olemassa
