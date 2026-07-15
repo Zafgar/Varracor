@@ -54,6 +54,46 @@ def opening_progress(manager) -> dict:
     }
 
 
+def arena_team_objective_states(manager) -> List[bool]:
+    """Palauttaa 'Found an Arena Team' -questin tavoitteiden valmiuden
+    (True/False) samassa järjestyksessä kuin questin objectives-lista.
+    Lasketaan elävästi opening_progressista, jotta yhtenäinen journal
+    näyttää saman edistymän kuin vanha erillinen paneeli."""
+    progress = opening_progress(manager)
+    return [
+        progress["debt"] <= 0,
+        progress["reputation"] >= REGISTRATION_REPUTATION,
+        progress["creature_wins"] >= REGISTRATION_CREATURE_WINS,
+        progress["silver"] >= REGISTRATION_FEE_SP,
+        bool(progress["team_registered"]),
+    ]
+
+
+def sync_arena_team_quest(manager) -> None:
+    """Pitää journalin 'found_arena_team'-questin tilan ajan tasalla:
+    aktivoi kun pelaaja saapuu kylään (intro valmis) ja merkitsee
+    valmiiksi kun tiimi on rekisteröity. Yhtenäistää onboarding-seurannan
+    muihin questeihin (ei enää erillistä oikean laidan paneelia)."""
+    try:
+        from quest_system import quest_manager
+    except Exception:
+        return
+    if quest_manager is None:
+        return
+    q = quest_manager.get_quest("found_arena_team")
+    if q is None:
+        return
+    state = _opening(manager)
+    if state.get("team_registered", False):
+        if not q.is_finished:
+            q.status = "completed"
+            q.is_finished = True
+        return
+    if state.get("intro_complete", False) and q.status in ("locked",
+                                                            "available"):
+        quest_manager.accept_quest("found_arena_team")
+
+
 def registration_status(manager) -> Tuple[bool, List[str]]:
     progress = opening_progress(manager)
     missing: List[str] = []

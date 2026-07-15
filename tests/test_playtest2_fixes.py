@@ -115,24 +115,26 @@ def test_only_nearest_prompt_is_drawn():
     assert len(calls) == 1, "yksi prompti löytyi"
 
 
-def test_tracker_hidden_when_map_open():
+def test_onboarding_unified_into_quest_journal():
+    # Pelitesti 30: erillinen oikean laidan "FOUND AN ARENA TEAM" -paneeli
+    # on POISTETTU. Onboarding kulkee nyt yhtenäisessä questijournalissa:
+    # areenatiimin perustus on aktiivinen main-quest kylään saavuttaessa.
+    from quest_system import quest_manager
+    from systems.muckford_opening_core import _opening
     m, menu = _city()
     calls = []
-    orig = menu._draw_muckford_opening_tracker
     menu._draw_muckford_opening_tracker = lambda s: calls.append(1)
-    try:
-        surf = pygame.Surface((1920, 1080))
-        menu.show_map = False
-        menu.draw(surf)
-        drawn_normal = len(calls)
-        menu.show_map = True
-        menu.draw(surf)
-        drawn_with_map = len(calls) - drawn_normal
-    finally:
-        menu._draw_muckford_opening_tracker = orig
-        menu.show_map = False
-    assert drawn_normal == 1, "paneeli näkyy normaalisti"
-    assert drawn_with_map == 0, "paneeli piilossa kartan aikana"
+    surf = pygame.Surface((1920, 1080))
+    # Saavu kylään (intro valmis) -> quest aktivoituu synkronoinnissa
+    _opening(m)["intro_complete"] = True
+    menu.update()
+    menu.draw(surf)
+    # Vanhaa erillistä paneelia EI enää piirretä
+    assert not calls, "erillinen onboarding-paneeli on poistettu"
+    q = quest_manager.get_quest("found_arena_team")
+    assert q is not None and q.category == "main"
+    assert q.status == "active", "onboarding-quest aktiivinen kylässä"
+    assert quest_manager.is_tracked("found_arena_team"), "seurannassa oletuksena"
 
 
 def test_city_map_draws_with_icons():

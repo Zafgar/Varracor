@@ -18,6 +18,7 @@ from systems.muckford_opening_core import (
     _sync_league_name,
     opening_progress,
     register_team,
+    sync_arena_team_quest,
 )
 
 
@@ -50,6 +51,9 @@ def _patch_muckford_city() -> None:
     def on_enter(self):
         previous_on_enter(self)
         _sync_league_name(self.manager)
+        # Yhtenäinen journal: aktivoi areenatiimin perustus-quest heti
+        # kylään saavuttaessa, jotta se näkyy questiseurannassa.
+        sync_arena_team_quest(self.manager)
         if getattr(self.manager, "team_registration_pending", False):
             self._activate_team_registration()
 
@@ -141,6 +145,9 @@ def _patch_muckford_city() -> None:
         if getattr(self.manager, "team_registration_pending", False):
             self._activate_team_registration()
             return
+
+        # Pidä yhtenäisen journalin quest-tila ajan tasalla joka framessa.
+        sync_arena_team_quest(self.manager)
 
         state = _opening(self.manager)
         if (
@@ -319,11 +326,10 @@ def _patch_muckford_city() -> None:
 
     def draw(self, screen):
         previous_draw(self, screen)
-        # Quest-paneeli ei saa peittää karttaa/dialogia/pausea
-        if not (getattr(self, "show_map", False)
-                or getattr(self, "show_pause_menu", False)
-                or getattr(self.manager, "active_dialogue", None)):
-            self._draw_muckford_opening_tracker(screen)
+        # HUOM: erillinen oikean laidan "FOUND AN ARENA TEAM" -paneeli on
+        # poistettu - onboarding-seuranta kulkee nyt yhtenäisessä
+        # questijournalissa (game_manager._draw_quest_journal). Tässä
+        # piirretään enää rekisteröinnin modaali-ikkuna.
         if self._team_registration_active:
             self._draw_team_registration(screen)
 

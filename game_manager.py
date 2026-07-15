@@ -172,6 +172,17 @@ class GameManager:
         self.journal_tab = "main"
         self.journal_selected = None
         self._journal_ui = {}
+        # HUD-trackerin siirrettävä sijainti (None = oletus, oikea laita).
+        # Pelaaja voi raahata paneelia; sijainti säilyy pelikertojen yli.
+        try:
+            from systems.ui_prefs import get_quest_tracker_pos
+            self.journal_tracker_pos = get_quest_tracker_pos()
+        except Exception:
+            self.journal_tracker_pos = None
+        self._journal_dragging = False
+        self._journal_drag_off = (0, 0)
+        self._journal_tracker_rect = None
+        self._journal_drag_handle = None
         # Retkikunta (pelitesti 21): barracksin sotapöydältä koottu ryhmä,
         # aktiivinen kenttäkomento ja [T]-valikon tila. Rescue-data täytetään
         # kun Commander kaatuu retkellä (systems/expedition.py).
@@ -2184,16 +2195,22 @@ class GameManager:
         if quest_manager is None:
             return
         panel_w = 360
-        x = SCREEN_WIDTH - panel_w - 24
-        y = 170
+        # Siirrettävä sijainti: oletus oikea laita, muuten pelaajan raahaama.
+        default_x = SCREEN_WIDTH - panel_w - 24
+        default_y = 170
+        pos = self.journal_tracker_pos
+        x = default_x if pos is None else int(pos[0])
+        y = default_y if pos is None else int(pos[1])
 
         if not self.show_quest_journal:
-            chip = pygame.Rect(SCREEN_WIDTH - 150, y, 126, 34)
+            chip = pygame.Rect(x + panel_w - 126, y, 126, 34)
             pygame.draw.rect(screen, (18, 18, 24), chip, border_radius=9)
             pygame.draw.rect(screen, (150, 130, 80), chip, 2, border_radius=9)
             draw_text("QUESTS [J]", font_small, (220, 200, 150), screen,
                       chip.x + 14, chip.y + 8)
             self._journal_toggle_rect = chip
+            self._journal_tracker_rect = None
+            self._journal_drag_handle = None
             return
 
         # Seuratut aktiiviset + palautusvalmiit (main ensin)
@@ -2206,15 +2223,26 @@ class GameManager:
         rows = tracked[:5]
 
         h = 58 + (len(rows) * 62 if rows else 40)
+        # Pidä paneeli ruudun sisällä
+        x = max(8, min(x, SCREEN_WIDTH - panel_w - 8))
+        y = max(8, min(y, SCREEN_HEIGHT - h - 8))
         panel = pygame.Rect(x, y, panel_w, h)
+        self._journal_tracker_rect = panel
+        # Raahauskahva = otsikkorivi (pois lukien silmänappi)
+        self._journal_drag_handle = pygame.Rect(panel.x, panel.y,
+                                                panel_w - 52, 36)
         surf = pygame.Surface(panel.size, pygame.SRCALPHA)
         surf.fill((14, 14, 20, 205))
         screen.blit(surf, panel.topleft)
         pygame.draw.rect(screen, (150, 130, 80), panel, 2, border_radius=10)
+        # Raahauskahvan vihje: pienet tartuntapisteet otsikon vasemmalla
+        for gx in range(panel.x + 8, panel.x + 16, 4):
+            for gy in range(panel.y + 12, panel.y + 26, 5):
+                pygame.draw.circle(screen, (110, 100, 70), (gx, gy), 1)
         draw_text("QUEST TRACKER", font_small, GOLD_COLOR, screen,
-                  panel.x + 14, panel.y + 10)
+                  panel.x + 22, panel.y + 10)
         draw_text("[J] Journal", font_small, (150, 150, 160), screen,
-                  panel.x + 150, panel.y + 12)
+                  panel.x + 158, panel.y + 12)
         # Silmänappi (piilota tracker)
         eye = pygame.Rect(panel.right - 42, panel.y + 6, 32, 26)
         pygame.draw.rect(screen, (40, 38, 32), eye, border_radius=7)
@@ -2255,10 +2283,29 @@ class GameManager:
                       screen, panel.x + 26, yy + 20)
             yy += 62
 
+    def _live_objective_states(self, q):
+        """Elävästi seurattujen questien per-tavoite valmiuslista
+        (True/False). None jos quest ei ole erikoistapaus. Yhtenäistää
+        onboarding-seurannan journaliin (esim. areenatiimin perustus)."""
+        if q.id == "found_arena_team":
+            try:
+                from systems.muckford_opening_core import (
+                    arena_team_objective_states)
+                return arena_team_objective_states(self)
+            except Exception:
+                return None
+        return None
+
     def _quest_current_objective(self, q):
         """Palauttaa questin nykyisen tavoiterivin (main-questeilla
-        vaiheittain warrens-tilan mukaan)."""
+        vaiheittain warrens-tilan tai elävän edistymän mukaan)."""
         objs = q.objectives
+        states = self._live_objective_states(q)
+        if states is not None and objs:
+            for i, done in enumerate(states):
+                if not done and i < len(objs):
+                    return objs[i]
+            return objs[-1]
         if q.id == "hunt_01" and objs:
             try:
                 from citys.mucford.muckford_warrens import warrens_state
@@ -2455,16 +2502,32 @@ class GameManager:
             draw_text("OBJECTIVES", font_small, GOLD_COLOR, screen, dx, oy)
             oy += 26
             objs = q.objectives
+            states = self._live_objective_states(q)
             cur = -1
-            if q.id == "hunt_01":
+            if states is None and q.id == "hunt_01":
                 try:
                     from citys.mucford.muckford_warrens import warrens_state
                     cur = int(warrens_state(self).get("quest_stage", 0)) - 1
                 except Exception:
                     cur = -1
+            # Elävästi seuratuilla questeilla: ensimmäinen keskeneräinen = [>]
+            first_open = -1
+            if states is not None:
+                for i, done in enumerate(states):
+                    if not done:
+                        first_open = i
+                        break
             if objs:
                 for i, ob in enumerate(objs):
-                    if q.is_finished or (cur >= 0 and i < cur):
+                    if states is not None:
+                        done_i = states[i] if i < len(states) else False
+                        if q.is_finished or done_i:
+                            mark, mcol = "[x]", (140, 210, 150)
+                        elif i == first_open:
+                            mark, mcol = "[>]", (245, 220, 150)
+                        else:
+                            mark, mcol = "[ ]", (160, 160, 170)
+                    elif q.is_finished or (cur >= 0 and i < cur):
                         mark, mcol = "[x]", (140, 210, 150)
                     elif cur >= 0 and i == cur:
                         mark, mcol = "[>]", (245, 220, 150)
@@ -2852,6 +2915,33 @@ class GameManager:
             if self._handle_full_journal_event(event):
                 return True
             return True  # journal on modaalinen
+
+        # HUD-trackerin raahaus: otsikkorivistä (pois lukien silmänappi)
+        # voi vetää paneelin haluamaansa kohtaan. Sijainti säilyy saveen.
+        if current_state_key in QUEST_JOURNAL_STATES \
+                and self.show_quest_journal and not self.show_full_journal:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 \
+                    and self._journal_drag_handle is not None \
+                    and self._journal_drag_handle.collidepoint(event.pos):
+                self._journal_dragging = True
+                r = self._journal_tracker_rect
+                self._journal_drag_off = (event.pos[0] - r.x,
+                                          event.pos[1] - r.y)
+                return True
+            if event.type == pygame.MOUSEMOTION and self._journal_dragging:
+                ox, oy = self._journal_drag_off
+                self.journal_tracker_pos = (event.pos[0] - ox,
+                                            event.pos[1] - oy)
+                return True
+            if event.type == pygame.MOUSEBUTTONUP and self._journal_dragging \
+                    and event.button == 1:
+                self._journal_dragging = False
+                try:
+                    from systems.ui_prefs import set_quest_tracker_pos
+                    set_quest_tracker_pos(self.journal_tracker_pos)
+                except Exception:
+                    pass
+                return True
 
         # Quest journal: J avaa täyden journalin; silmänappi piilottaa
         # HUD-seurantapaneelin
