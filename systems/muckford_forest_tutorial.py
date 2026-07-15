@@ -157,7 +157,19 @@ def _patch_forest_menu() -> None:
             self.player.equipment["spell3"] = RiftPulse()
             self._tutorial_spell_granted = True
 
+    # Tilat joista palataan pelkkänä valikko-overlaynä (pause -> options/
+    # keybindit, F10 asset studio). Näistä palattaessa opastusta EI nollata
+    # eikä pelaajaa teleportata tien alkuun.
+    _RESUME_FROM = {"options", "asset_studio"}
+
     def on_enter(self):
+        prev = getattr(self.manager, "previous_state_key", None)
+        if prev in _RESUME_FROM and not self._opening_tutorial_finished:
+            # Palataan kesken opastuksen valikosta: säilytä vaihe, viholliset
+            # ja pelaajan sijainti - aja vain kamera uudelleen.
+            self.player = self.manager.player_character
+            self._update_camera()
+            return
         previous_on_enter(self)
         self.player = self.manager.player_character
         self.player.rect.center = (120, self.arena.height // 2)

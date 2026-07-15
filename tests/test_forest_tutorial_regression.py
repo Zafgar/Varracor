@@ -52,3 +52,42 @@ def test_forest_road_tutorial_updates_without_crash():
         menu.update()
     assert menu.tutorial_enemies, "stage-viholliset spawnaavat"
     menu.draw(surf)
+
+
+def test_returning_from_options_does_not_restart_tutorial():
+    """Pelaajapalaute: keybind-optioiden muuttaminen aloitti opastuksen
+    alusta. Kun forest_road:in on_enter ajetaan uudelleen paluuna
+    options-tilasta, vaiheen ja pelaajan sijainnin pitää säilyä."""
+    import main  # noqa: F401
+    from game_manager import GameManager
+    from citys.mucford.forest_road_menu import ForestRoadMenu
+
+    m = GameManager()
+    menu = ForestRoadMenu(m)
+    menu.on_enter()
+
+    # Edetään opastuksessa muutama vaihe eteenpäin
+    menu.player.rect.centerx = 800
+    for _ in range(10):
+        menu.update()
+    menu._advance_stage()
+    menu._advance_stage()
+    stage_before = menu.tutorial_stage
+    assert stage_before >= 2
+    menu.player.rect.center = (3000, menu.arena.height // 2)
+    pos_before = menu.player.rect.center
+
+    # Simuloi pause -> options (keybindit) -> takaisin metsäpolulle
+    m.previous_state_key = "options"
+    menu.on_enter()
+
+    assert menu.tutorial_stage == stage_before, \
+        "opastus ei saa nollautua options-paluusta"
+    assert menu.player.rect.center == pos_before, \
+        "pelaajaa ei teleportata tien alkuun"
+
+    # Aito uusi saapuminen (esim. latausruudulta) nollaa opastuksen normaalisti
+    m.previous_state_key = "loading"
+    menu.on_enter()
+    assert menu.tutorial_stage == 0
+    assert menu.player.rect.centerx <= 200

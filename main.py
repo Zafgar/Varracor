@@ -253,7 +253,12 @@ def main():
         if new_key not in ("crown_knives", "tavern_sunk_cask"):
             manager.dialogue_action_handler = None
 
-        # Nykyinen tila talteen (esim. Asset Studio palaa tähän F10:llä)
+        # Nykyinen tila talteen (esim. Asset Studio palaa tähän F10:llä).
+        # Edellinen tila muistiin: on_enter-käsittelijät voivat erottaa
+        # aidon uuden saapumisen paluusta pelkästä valikosta (options,
+        # asset studio) - esim. metsäopastus ei saa nollautua kun palataan
+        # keybind-asetuksista.
+        manager.previous_state_key = old_key
         manager.current_state_key = new_key
 
         # Loitsuvalinta on hetkellinen taistelu-UI: nollaa aina tilaa
