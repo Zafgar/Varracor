@@ -19,8 +19,11 @@ class LifeDrainBeam(pygame.sprite.Sprite):
         # Asetukset
         self.mana_cost_per_tick = 1  # Kuluttaa 1 manaa joka tick (tai säädä alempana)
         self.damage_interval = 10    # Vahinkoa joka 10. frame
-        self.damage_amount = 5       # Vahinko per isku
-        self.heal_amount = 5         # Parannus per isku
+        # BUGIKORJAUS: skaalasi ennen kiinteällä 5:llä - nyt base + INT-kerroin
+        # kuten muutkin loitsut. Imu jää hieman vahinkoa pienemmäksi.
+        _int = int(getattr(caster, "intelligence", 0))
+        self.damage_amount = int(5 + _int * 0.3)   # Vahinko per isku
+        self.heal_amount = int(4 + _int * 0.2)     # Parannus per isku
         
         # Partikkelit (visuaalinen virtaus kohteesta taikojaan)
         self.particles = []

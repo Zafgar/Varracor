@@ -143,3 +143,42 @@ def test_rift_pulse_pushes_enemy_and_spares_allies():
     RiftPulse().cast(p, None, m)
     assert enemy.rect.centerx > ex0, "vihollinen sinkoutuu poispäin"
     assert ally.current_hp == ahp, "oma ei kärsi Rift Pulsesta"
+
+
+# ----------------------------------------------------------------------
+# INT-skaalaus: jokainen vahinko/parannus = base + INT*kerroin
+# (regressio: Life Drain ja Sun Ray skaalasivat ennen kiinteällä luvulla)
+# ----------------------------------------------------------------------
+
+def _channel_damage(spell, int_val, frames=120):
+    from units.rat import GiantRat
+    from settings import ENEMY_TEAM
+    m, p = _setup()
+    p.intelligence = int_val
+    p.max_hp = 400
+    p.current_hp = 200
+    e = GiantRat("Dummy", 640, 500, ENEMY_TEAM)
+    e.max_hp = e.current_hp = 3000
+    m.all_units.empty()
+    m.all_units.add(p)
+    m.all_units.add(e)
+    hp0 = e.current_hp
+    spell.cast(p, e, m)
+    _tick(m, frames)
+    return hp0 - e.current_hp
+
+
+def test_life_drain_scales_with_int():
+    from spells.lvl_2.life_drain import LifeDrain
+    low = _channel_damage(LifeDrain(), 10)
+    high = _channel_damage(LifeDrain(), 40)
+    assert low > 0
+    assert high > low, "Life Drain skaalaa INT:llä (ei kiinteä 5)"
+
+
+def test_sun_ray_scales_with_int():
+    from spells.lvl_8.sun_ray import SunRay
+    low = _channel_damage(SunRay(), 10)
+    high = _channel_damage(SunRay(), 40)
+    assert low > 0
+    assert high > low, "Sun Ray skaalaa INT:llä (ei kiinteä 12)"

@@ -21,7 +21,10 @@ class SunRayBeam(pygame.sprite.Sprite):
         
         # Säteen ominaisuudet
         self.beam_width = 100
-        self.damage_per_tick = 12  # Hieman pienempi per tick koska kestää kauemmin
+        # BUGIKORJAUS: skaalasi ennen kiinteällä 12:lla - nyt base + INT-kerroin
+        # kuten muut loitsut (tier 8 -> kova kerroin).
+        _int = int(getattr(caster, "intelligence", 0))
+        self.damage_per_tick = int(12 + _int * 0.5)
         self.damage_interval = 10
         self.tracking_speed = 1.5  # Kuinka nopeasti säde seuraa kohdetta
         
