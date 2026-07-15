@@ -78,7 +78,8 @@ if LightningBolt: ALL_SPELLS.append(LightningBolt)
 if Pyroblast: ALL_SPELLS.append(Pyroblast)
 if LifeDrain: ALL_SPELLS.append(LifeDrain)
 
-if SunRay: ALL_SPELLS.append(SunRay)
+# HUOM: Sun Ray EI enää Prismin (Pure) poolissa - aurinko/valo on Holy-teema.
+# Se tarjotaan Radiant Synodin (holy) kautta, ks. get_catalog_school_spells.
 
 # Commander Spells (Ei lisätä ALL_SPELLS listaan, koska niitä ei osteta kaupasta)
 # Mutta ne pitää olla saatavilla pelin logiikalle
@@ -94,8 +95,37 @@ if Regrowth: SCHOOL_SPELLS["druidism"].append(Regrowth)
 
 
 def get_school_spells(school):
-    """Palauttaa koulun loitsuluokat (uudet instanssit luodaan tarvittaessa)."""
+    """Palauttaa koulun entry-loitsuluokat (uudet instanssit luodaan
+    tarvittaessa)."""
     return list(SCHOOL_SPELLS.get(school, []))
+
+
+# --- TIER-KATALOGI (data-vetoiset loitsut, pari per tier) ---
+def get_catalog_spells():
+    """Kaikki tier-katalogin loitsut uusina TieredSpell-olioina."""
+    try:
+        from spells.catalog import all_catalog_spells
+        return all_catalog_spells()
+    except Exception:
+        return []
+
+
+def get_catalog_school_spells(school):
+    """Katalogin loitsut annetulle koululle (esim. 'holy'). Sun Ray
+    (channel) liitetään Holyyn tässä."""
+    try:
+        from spells.catalog import catalog_spells_for_school
+        out = catalog_spells_for_school(school)
+    except Exception:
+        out = []
+    if school == "holy" and SunRay is not None:
+        out.append(SunRay())
+    return out
+
+
+def get_pure_catalog_spells():
+    """Prismin (Pure) katalogiloitsut - ostettavissa heti magic shopista."""
+    return [s for s in get_catalog_spells() if getattr(s, "school", "") == "pure"]
 
 
 def get_spell_shop_items(count=3):

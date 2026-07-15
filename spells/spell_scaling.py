@@ -67,3 +67,19 @@ def scaled_damage(tier, intelligence, archetype="nuke"):
     base = tier_base(tier, archetype)
     coef = tier_int_coef(tier, archetype)
     return max(0, int(base + int(intelligence) * coef))
+
+
+# Manan kulutus per tier: kasvaa tehon myötä mutta ei räjähdä.
+TIER_MANA = {1: 12, 2: 22, 3: 34, 4: 50, 5: 70, 6: 95, 7: 125, 8: 160}
+
+# Ostohinta kaupassa (SP): nousee jyrkästi - korkea tier = iso investointi.
+TIER_PRICE = {1: 120, 2: 350, 3: 750, 4: 1500, 5: 2800, 6: 5000,
+              7: 8500, 8: 14000}
+
+
+def tier_mana(tier):
+    return int(TIER_MANA.get(int(tier), 10))
+
+
+def tier_price(tier):
+    return int(TIER_PRICE.get(int(tier), 100))

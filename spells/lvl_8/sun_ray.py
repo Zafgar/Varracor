@@ -12,6 +12,9 @@ class SunRay:
         self.rarity = "Legendary"
         self.type = "spell"
         self.slot_type = "spell" # Voi mennä mihin tahansa spell slottiin
+        # Aurinko/valo-teema kuuluu Radiant Synodiin (Holy), ei Pure-magiaan
+        # -> siirretty pois Prismin satunnaispoolista.
+        self.school = "holy"
 
     def cast(self, caster, target, manager):
         # Tarkistetaan onko kohde olemassa
