@@ -79,9 +79,15 @@ class SmiteBolt(MagicProjectile):
         if _is_undead(target):
             dmg *= 2  # pyhä valo palaa epäkuolleissa kaksinkerroin
         target.take_damage(dmg, "Holy", self.owner, self.manager)
-        self.manager.vfx.create_impact_sparks(self.rect.centerx,
-                                               self.rect.centery,
-                                               color=(255, 250, 210), count=8)
+        try:
+            from spells import spell_vfx
+            spell_vfx.impact_burst(self.manager, self.rect.centerx,
+                                   self.rect.centery, "Holy",
+                                   radius=42, sparks=12)
+        except Exception:
+            self.manager.vfx.create_impact_sparks(
+                self.rect.centerx, self.rect.centery,
+                color=(255, 250, 210), count=8)
         self.kill()
 
     def on_wall_hit(self):

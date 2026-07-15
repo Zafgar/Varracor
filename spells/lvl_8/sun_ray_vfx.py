@@ -109,7 +109,16 @@ class SunRayBeam(pygame.sprite.Sprite):
             if unit.team_color == self.caster.team_color: continue # Ei friendly fire
             
             if hit_rect.colliderect(unit.rect):
-                unit.take_damage(self.damage_per_tick, "Fire", attacker=self.caster, manager=self.manager)
+                unit.take_damage(self.damage_per_tick, "Holy", attacker=self.caster, manager=self.manager)
+                # Näyttävä pyhä osumahehku
+                try:
+                    from spells.spell_vfx import Mote
+                    self.manager.vfx.add_effect(Mote(
+                        unit.rect.centerx, unit.rect.centery,
+                        (255, 215, 110), size=6, life=18, drift=1.8,
+                        gravity=-0.12))
+                except Exception:
+                    pass
 
     def _draw_beam(self):
         self.image.fill((0,0,0,0))

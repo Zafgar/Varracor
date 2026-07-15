@@ -63,10 +63,19 @@ class LifeDrainBeam(pygame.sprite.Sprite):
             # Jos vahinkoa tehtiin, paranna taikojaa
             if dmg > 0:
                 self.caster.heal(self.heal_amount, self.manager)
-                
+
                 # Visuaalinen palaute (pieni vihreä välähdys taikojalla)
                 if self.manager.vfx:
                     self.manager.vfx.create_heal_effect(self.caster.rect.centerx, self.caster.rect.centery)
+                    # Necrotic-hehkumotet imukohdassa
+                    try:
+                        from spells.spell_vfx import Mote
+                        for _ in range(2):
+                            self.manager.vfx.add_effect(Mote(
+                                self.target.rect.centerx, self.target.rect.centery,
+                                (80, 200, 120), size=5, life=16, drift=1.4))
+                    except Exception:
+                        pass
 
         # 5. Piirrä säde
         self._draw_beam()

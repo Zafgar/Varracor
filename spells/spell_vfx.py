@@ -254,6 +254,22 @@ def aoe_burst(manager, x, y, damage_type, radius=110):
         pass
 
 
+def power_mult(tier):
+    """Tehokkuuskerroin VFX:lle: kovempi tier -> isompi efekti."""
+    return 1.0 + 0.28 * (max(1, int(tier)) - 1)   # T1=1.0 ... T8~2.96
+
+
+def burst_for_tier(manager, x, y, damage_type, tier, aoe=False, radius=None):
+    """Osumaefekti skaalattuna loitsun tierin mukaan (kovempi = näyttävämpi)."""
+    mult = power_mult(tier)
+    if aoe:
+        aoe_burst(manager, x, y, damage_type,
+                  radius if radius else int(70 * mult))
+    else:
+        impact_burst(manager, x, y, damage_type,
+                     radius=int(34 * mult), sparks=int(9 * mult))
+
+
 def cast_flash(manager, caster, damage_type):
     """Pieni hehkupurske loitsijan kohdalla loitsua heitettäessä."""
     pal = palette(damage_type)

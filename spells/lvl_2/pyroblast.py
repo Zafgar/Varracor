@@ -56,9 +56,15 @@ class Pyroblast(Spell):
 
             # Massive Explosion VFX
             if hasattr(manager, "vfx"):
-                # Iso räjähdys (jos vfx tukee skaalausta, muuten vakio)
                 manager.vfx.show_damage(target.rect.centerx, target.rect.top, dmg, type="magic", is_crit=True)
-                # Voit lisätä tänne hienomman partikkeliefektin myöhemmin
+                # Tier 2 -> iso tuliräjähdys (kerroksellinen hehku + kehät)
+                try:
+                    from spells import spell_vfx
+                    spell_vfx.burst_for_tier(manager, target.rect.centerx,
+                                             target.rect.centery, "Fire",
+                                             tier=2, aoe=True)
+                except Exception:
+                    pass
 
         # Launch Projectile
         if hasattr(manager, "vfx") and hasattr(manager.vfx, "create_fireball"):

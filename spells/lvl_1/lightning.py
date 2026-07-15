@@ -53,10 +53,18 @@ class ChainLightningProjectile(MagicProjectile):
         self.hit_list = hit_list if hit_list is not None else []
 
     def on_hit(self, target):
-        target.take_damage(self.damage, "Magic", self.owner, self.manager)
+        target.take_damage(self.damage, "Lightning", self.owner, self.manager)
         self.hit_list.append(target)
-        self.manager.vfx.create_impact_sparks(self.rect.centerx, self.rect.centery, color=self.color, count=5)
-        
+        # Näyttävä salamaosuma (hehku + kipinät)
+        try:
+            from spells import spell_vfx
+            spell_vfx.impact_burst(self.manager, self.rect.centerx,
+                                   self.rect.centery, "Lightning",
+                                   radius=34, sparks=10)
+        except Exception:
+            self.manager.vfx.create_impact_sparks(
+                self.rect.centerx, self.rect.centery, color=self.color, count=5)
+
         if self.bounces > 0:
             best_t = None
             best_d = 250 # Bounce range

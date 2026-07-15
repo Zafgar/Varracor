@@ -64,6 +64,13 @@ class ExplosiveFireball(MagicProjectile):
 
     def explode(self):
         self.manager.vfx.create_fireburst(self.rect.centerx, self.rect.centery)
+        # Näyttävä elementtiräjähdys (kerroksellinen hehku + kehät + embers)
+        try:
+            from spells import spell_vfx
+            spell_vfx.aoe_burst(self.manager, self.rect.centerx,
+                                self.rect.centery, "Fire", radius=80)
+        except Exception:
+            pass
         # AoE Damage
         owner_team = getattr(self.owner, "team_color", None)
         for u in self.manager.all_units:
