@@ -18,9 +18,9 @@ import pygame
 
 from items.base_item import Spell
 from sound_manager import sound_system
-from vfx import MagicProjectile
 from spells.spell_scaling import (
     scaled_damage, tier_base, tier_int_coef, tier_mana, tier_price)
+from spells import spell_vfx
 
 
 # Vahinkotyypin väri (VFX). Kaikki ei-fyysisiä -> ohittavat torjunnan.
@@ -160,6 +160,9 @@ class TieredSpell(Spell):
             try:
                 manager.vfx.create_heal_effect(ally.rect.centerx,
                                                ally.rect.centery)
+                spell_vfx.impact_burst(manager, ally.rect.centerx,
+                                       ally.rect.centery, "Nature",
+                                       radius=30, sparks=8)
             except Exception:
                 pass
             return True
@@ -176,7 +179,8 @@ class TieredSpell(Spell):
             return False
         caster.current_mana -= self.mana_cost
         dmg = self._amount(caster)
-        proj = _TieredProjectile(
+        spell_vfx.cast_flash(manager, caster, self.damage_type)
+        proj = spell_vfx.TieredBolt(
             caster.rect.centerx, caster.rect.centery, target_pos,
             speed=14, damage=dmg, owner=caster, manager=manager, spell=self)
         manager.vfx.add_projectile(proj)
@@ -185,11 +189,7 @@ class TieredSpell(Spell):
     def _cast_utility(self, caster, manager):
         cx, cy = caster.rect.center
         dmg = self._amount(caster)
-        try:
-            manager.vfx.create_shockwave(cx, cy, color=self.icon_color,
-                                         max_radius=self.radius, width=5)
-        except Exception:
-            pass
+        spell_vfx.pulse_ring(manager, cx, cy, self.damage_type, self.radius)
         my = getattr(caster, "team_color", None)
         for u in list(getattr(manager, "all_units", [])):
             if u is caster or getattr(u, "is_dead", False):
@@ -217,56 +217,3 @@ class TieredSpell(Spell):
             px = x + 6 + i * 6
             if px < x + size - 4:
                 pygame.draw.circle(surface, sc, (px, y + size - 6), 2)
-
-
-class _TieredProjectile(MagicProjectile):
-    def __init__(self, x, y, target_pos, speed, damage, owner, manager, spell):
-        col = spell.icon_color
-        super().__init__(x, y, target_pos, speed, damage, owner, manager,
-                         color=col, size=11)
-        self.spell = spell
-
-    def on_hit(self, target):
-        a = self.spell.archetype
-        dtype = self.spell.damage_type
-        if a == "aoe":
-            self._explode()
-            return
-        target.take_damage(self.damage, dtype, self.owner, self.manager)
-        if a == "dot":
-            st = _DOT_STATUS.get(dtype, "Burn")
-            per = max(1, int(self.damage * 0.35))
-            try:
-                target.apply_status(st, 180, per)
-            except Exception:
-                pass
-        try:
-            self.manager.vfx.create_impact_sparks(
-                self.rect.centerx, self.rect.centery, color=self.color, count=6)
-        except Exception:
-            pass
-
-    def on_wall_hit(self):
-        if self.spell.archetype == "aoe":
-            self._explode()
-        else:
-            self.kill()
-
-    def _explode(self):
-        cx, cy = self.rect.center
-        try:
-            self.manager.vfx.create_shockwave(cx, cy, color=self.color,
-                                              max_radius=self.spell.radius,
-                                              width=5)
-        except Exception:
-            pass
-        owner_team = getattr(self.owner, "team_color", None)
-        for u in list(self.manager.all_units):
-            if u is self.owner or getattr(u, "is_dead", False):
-                continue
-            if getattr(u, "team_color", None) == owner_team:
-                continue
-            if math.hypot(u.rect.centerx - cx, u.rect.centery - cy) <= self.spell.radius:
-                u.take_damage(self.damage, self.spell.damage_type,
-                              self.owner, self.manager)
-        self.kill()
