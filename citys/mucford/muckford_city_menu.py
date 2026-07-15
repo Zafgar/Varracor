@@ -290,14 +290,34 @@ class MuckfordCityMenu(BaseMenu):
             wx, wy = left - 380, base_y - 40
         else:
             wx, wy = self.arena.width // 2 - 600, self.arena.height // 2 + 200
+
+        # Este-lista: törmäysesteet SEKÄ rakennusten KOKO kuvaruudut.
+        # BUGIKORJAUS: vankkuri piirtyi talon päälle, koska talon
+        # törmäyslaatikko on vain sen jalka - vankkurin korkea kuva jäi
+        # katon päälle. Vältetään rakennusproppien näkyvä rect kokonaan.
+        blockers = [o.rect for o in self.arena.obstacles]
+        for p in self.arena.props:
+            if getattr(p, "is_structure", False):
+                blockers.append(p.rect.inflate(20, 20))
+
+        def _clear(rect):
+            return not any(rect.colliderect(b) for b in blockers)
+
         wagon = None
-        for _try in range(8):
-            cand = griznak_caravan.GriznakWagon(wx, wy)
-            if not any(cand.rect.colliderect(o.rect)
-                       for o in self.arena.obstacles):
+        # Etsi vapaa paikka: kokeile ankkuria ja ruudukkoa sen ympäriltä
+        # (alas + sivuille), jottei jäädä talon päälle.
+        offsets = [(0, 0)]
+        for dy in range(120, 720, 120):
+            offsets.append((0, dy))
+            offsets.append((-260, dy))
+            offsets.append((260, dy))
+        for ox, oy in offsets:
+            cx = max(40, min(wx + ox, self.arena.width - 280))
+            cy = max(40, min(wy + oy, self.arena.height - 210))
+            cand = griznak_caravan.GriznakWagon(cx, cy)
+            if _clear(cand.rect):
                 wagon = cand
                 break
-            wy += 120   # siirry alaspäin kunnes mahtuu
         if wagon is None:
             wagon = griznak_caravan.GriznakWagon(wx, wy)
         self.griznak_wagon = wagon

@@ -2805,6 +2805,15 @@ class GameManager:
             if self.handle_dialogue_event(event):
                 return True
 
+        # --- SAVE/LOAD-SLOTTIPANEELIN SYÖTE (pausen sisällä) ---
+        # BUGIKORJAUS: tämä on käsiteltävä ENNEN inventory/hotkey-pikanäppäimiä,
+        # muuten tallennuksen nimeä kirjoittaessa esim. 'i' avasi inventoryn
+        # taustalle. Nimen kirjoitus kaappaa kaikki näppäimet.
+        if self.paused and self.pause_panel_mode:
+            handled = self._handle_pause_panel_event(event)
+            if handled is not None:
+                return handled
+
         # Inventory Toggle
         if event.type == pygame.KEYDOWN and event.key == pygame.K_i:
             # Estä inventoryn avaus Forest Roadilla (tarina-syyt)
@@ -2826,12 +2835,6 @@ class GameManager:
                 # Delegate to Commander
                 self.player_character.handle_inventory_event(event, self)
             return True # Estä muut toiminnot kun inventory on auki
-
-        # --- SAVE/LOAD-SLOTTIPANEELIN SYÖTE (pausen sisällä) ---
-        if self.paused and self.pause_panel_mode:
-            handled = self._handle_pause_panel_event(event)
-            if handled is not None:
-                return handled
 
         # Hotbarin syöte (lukko, sivunuolet, pikatyökalut, raahaus)
         if self.player_character and not self.paused \
@@ -2884,18 +2887,13 @@ class GameManager:
                 return True
 
         if self.paused:
-            # Päivitä napit (SpriteButton käyttää update() eikä is_clicked(event))
-            # Mutta tässä loopissa meillä on event. SpriteButton.update() lukee hiiren tilan itse.
-            # Joten kutsumme update() vain kerran per frame (draw-metodissa tai update-loopissa).
-            # Tässä tapauksessa, koska olemme event-loopissa, emme voi kutsua updatea luotettavasti.
-            # SpriteButton ei tue event-pohjaista klikkausta suoraan, se pollaa hiirtä.
-            # Joten tehdään update() draw_ui_overlay:ssa ja luetaan tulos sieltä?
-            # TAI: Käytetään update() tässä, mutta se vaatii että tätä kutsutaan loopissa.
-            # Koska handle_ui_event on event-loopissa, tämä on ongelmallista SpriteButtonille.
-            # RATKAISU: SpriteButton toimii parhaiten update-loopissa.
-            # Mutta voimme tarkistaa klikkauksen manuaalisesti tässä eventin perusteella.
-            pass
-            
+            # Pause-valikon napit toimivat pollauksella (_update_pause_menu),
+            # eivät eventeillä. BUGIKORJAUS: kun valikko on auki ja klikkaa
+            # (esim. RESUMEa tai tyhjää), hiiriklikkaus valui pelimaailmaan ja
+            # hahmo löi LMB:llä. Kulutetaan kaikki eventit paussin ajaksi,
+            # ettei mikään valu taustan combat-käsittelyyn.
+            return True
+
         return None
 
     def _handle_pause_panel_event(self, event):
@@ -2908,6 +2906,7 @@ class GameManager:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.pause_name_slot = None
+                    pygame.key.set_repeat()  # näppäintoisto pois
                     return True
                 if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                     name = self.pause_name_buffer.strip() or None
@@ -2918,6 +2917,7 @@ class GameManager:
                     sound_system.play_sound('click' if ok else 'error')
                     self.pause_name_slot = None
                     self.pause_panel_mode = None
+                    pygame.key.set_repeat()  # näppäintoisto pois
                     return True
                 if event.key == pygame.K_BACKSPACE:
                     self.pause_name_buffer = self.pause_name_buffer[:-1]
@@ -2966,6 +2966,10 @@ class GameManager:
                             except Exception:
                                 pass
                         self.pause_name_buffer = default
+                        # BUGIKORJAUS: näppäintoisto päälle nimeä kirjoittaessa,
+                        # jotta backspacea pohjassa pitäen pyyhkii jatkuvasti
+                        # (ei tarvitse näpyttää). Nollataan kun nimeäminen loppuu.
+                        pygame.key.set_repeat(300, 40)
                         sound_system.play_sound('click')
                         return True
                     else:  # load
