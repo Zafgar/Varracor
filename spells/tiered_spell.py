@@ -84,6 +84,15 @@ class TieredSpell(Spell):
         self.cost = int(spec.get("price", tier_price(self.tier)))  # kauppahinta
         self.rarity = spec.get("rarity", RARITY_BY_TIER.get(self.tier, "Rare"))
         self.icon_color = DAMAGE_COLORS.get(self.damage_type, (150, 150, 255))
+
+        # Cast time: kovemmat loitsut (tier >= 6) latautuvat ennen laukeamista.
+        # Voidaan keskeyttää vahingolla/counterilla; juurruttaa loitsijan.
+        default_ct = (self.tier - 5) * 30 if self.tier >= 6 else 0  # T6=30..T8=90
+        self.cast_time = int(spec.get("cast_time", default_ct))
+        self.rooted_while_casting = bool(spec.get(
+            "rooted", self.cast_time > 0 and self.archetype != "utility"))
+        self.interruptible = bool(spec.get("interruptible", True))
+        self.counterable = bool(spec.get("counterable", True))
         self.description = self.short_line()
 
     # ---- Selitetekstit (kaupan "iso selite") ----
@@ -137,6 +146,12 @@ class TieredSpell(Spell):
         lines.append(f"Mana: {self.mana_cost}   "
                      f"Cooldown: {self.cooldown_max / 60:.1f}s   "
                      f"Price: {self.cost} SP")
+        if self.cast_time > 0:
+            note = "rooted, " if self.rooted_while_casting else ""
+            note += "interruptible" if self.interruptible else "steady"
+            if self.counterable:
+                note += ", counterable"
+            lines.append(f"Cast: {self.cast_time / 60:.1f}s charge ({note})")
         lines.append("")
         lines.append(self._effect_line())
         return "\n".join(lines)
@@ -149,13 +164,45 @@ class TieredSpell(Spell):
     def cast(self, caster, target, manager, target_pos=None):
         if caster.current_mana < self.mana_cost:
             return False
+        # Ei uutta loitsua kesken toisen latauksen
+        try:
+            from spells import casting
+            if casting.is_casting(caster):
+                return False
+        except Exception:
+            casting = None
 
+        # Ammusloitsuille tähtäyssuunta talteen jo tässä (latauksen alkaessa)
+        if self.archetype in ("nuke", "aoe", "dot"):
+            if not target_pos and target:
+                target_pos = target.rect.center
+            if not target_pos:
+                return False
+
+        caster.current_mana -= self.mana_cost
+
+        def _fire():
+            self._resolve(caster, target, manager, target_pos)
+
+        # Cast time: kovemmat loitsut latautuvat ennen laukeamista
+        if self.cast_time > 0 and casting is not None:
+            spell_vfx.cast_flash(manager, caster, self.damage_type)
+            casting.start_cast(caster, self, self.cast_time, _fire,
+                               rooted=self.rooted_while_casting,
+                               interruptible=self.interruptible,
+                               counterable=self.counterable)
+            return True
+
+        _fire()
+        return True
+
+    def _resolve(self, caster, target, manager, target_pos):
+        """Loitsun varsinainen efekti (välitön tai latauksen jälkeen)."""
         if self.archetype == "heal":
             ally = target if (target is not None
                               and not getattr(target, "is_dead", False)
                               and getattr(target, "team_color", None)
                               == getattr(caster, "team_color", None)) else caster
-            caster.current_mana -= self.mana_cost
             ally.heal(self._amount(caster), manager)
             try:
                 manager.vfx.create_heal_effect(ally.rect.centerx,
@@ -165,26 +212,19 @@ class TieredSpell(Spell):
                                        radius=30, sparks=8)
             except Exception:
                 pass
-            return True
+            return
 
         if self.archetype == "utility":
-            caster.current_mana -= self.mana_cost
             self._cast_utility(caster, manager)
-            return True
+            return
 
         # nuke / aoe / dot -> tähdätty ammus
-        if not target_pos and target:
-            target_pos = target.rect.center
-        if not target_pos:
-            return False
-        caster.current_mana -= self.mana_cost
         dmg = self._amount(caster)
         spell_vfx.cast_flash(manager, caster, self.damage_type)
         proj = spell_vfx.TieredBolt(
             caster.rect.centerx, caster.rect.centery, target_pos,
             speed=14, damage=dmg, owner=caster, manager=manager, spell=self)
         manager.vfx.add_projectile(proj)
-        return True
 
     def _cast_utility(self, caster, manager):
         cx, cy = caster.rect.center

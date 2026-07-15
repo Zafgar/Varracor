@@ -141,6 +141,8 @@ class Gladiator(pygame.sprite.Sprite):
         self.stats = {"damage": 0, "healing": 0, "kills": 0, "assists": 0}
         self.attackers = set()
         self.status_effects = []
+        # Latautuva loitsu (spells/casting.py): cast time + interrupt + counter
+        self.active_cast = None
         self.traits = []
         # Synnynnäiset talentit (systems/talents.py): efektit joita
         # calculate_final_stats kuluttaa + insight-gated kuvaukset
@@ -1345,6 +1347,14 @@ class Gladiator(pygame.sprite.Sprite):
         self.current_hp -= final
         self._break_invisibility(manager)  # Osuma paljastaa
 
+        # Vahinko keskeyttää latautuvan loitsun (jos interruptible)
+        if getattr(self, "active_cast", None) is not None:
+            try:
+                from spells import casting
+                casting.on_caster_damaged(self)
+            except Exception:
+                pass
+
         # Werewolf Frenzy: hyokkaaja imee elamaa osuessaan
         if (attacker is not None and not getattr(attacker, 'is_dead', False)
                 and getattr(attacker, 'frenzy_timer', 0) > 0):
@@ -1680,6 +1690,14 @@ class Gladiator(pygame.sprite.Sprite):
         self.current_stamina = max(0, min(self.current_stamina, self.max_stamina))
 
         self.is_charging = False # Reset for next frame
+
+        # Latautuva loitsu: edistä castia (valmistuessaan laukaisee efektin)
+        if self.active_cast is not None:
+            try:
+                from spells import casting
+                casting.tick_caster(self, manager)
+            except Exception:
+                self.active_cast = None
 
         # Status effects
         for effect in self.status_effects[:]:

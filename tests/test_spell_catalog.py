@@ -82,6 +82,9 @@ def test_damage_increases_with_tier_for_nukes():
         e = _enemy(m)
         hp0 = e.current_hp
         sp.cast(p, e, m, target_pos=e.rect.center)
+        # Aja mahdollinen cast time loppuun (korkeat tierit latautuvat)
+        for _ in range(int(getattr(sp, "cast_time", 0)) + 2):
+            p.update([], m)
         for _ in range(20):
             m.vfx.update(obstacles=[])
         dmg_by_tier.setdefault(sp.tier, []).append(hp0 - e.current_hp)
