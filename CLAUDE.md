@@ -178,26 +178,28 @@ tiedostot kuuluu pudottaa.
   yöllä 22-07 koteihin (pysyvä sim_home) nukkumaan. VillagerAI ei ota
   töitä yöllä. HUOM: _update_simulation oli luokassa KAHDESTI -
   duplikaatti poistettu, muokkaa vain jäljellä olevaa.
-- **Muckford Warrens = reitti Rat Kingille** (citys/mucford/
+- **Muckford Warrens = laaja questlinja Rat Kingille** (citys/mucford/
   muckford_warrens.py) — PÄÄreitti bossille: E torin takana olevalla
-  viemäriluukulla (CitySewerHatch) → 3600×2400 viemärikartta. Griznak
-  aloittaa/seuraa (world_events), Hamo/Rinna antavat vaiheet. Linja
-  (warrens_state.quest_stage 0-7): jäljitä 4 violettijälkeä → 4
-  ruokavarastoa → tuhoa 4 jäteluolaa → pelasta 3 ratcatcheria → **vedä
-  2 sulkuvipua (SluiceLever → +2 Rusted Sluice Cog/vipu) + tao Cistern
-  Gate Crank sepällä (loot_data BLUEPRINTS, type key_item → craft_item
-  reppuun) + kammea Royal Cistern -portti auki** → Rat King herää
-  eeppisellä introdialogilla → kaato → hunt_01 valmis + raidit loppuvat.
-  PELITESTI 25: alue rakennettu uusiksi OIKEILLA rottayksiköillä (ei enää
-  koodipiirretty units/muckford_warrens_monsters.py — POISTETTU): lattia
-  laattapohjainen (_load_floor_tiles lataa sewer_floors/floors kuten
-  maps.rat_sewer, fallback kivilaatta); populaatio GiantRat/RatRider/
-  BruteRat (units/rat.py; BruteRat = 420 HP Giant Rat tuplakokoon);
-  boss = OIKEA units.rat_king.RatKing (sylky/summon/rage/superhyppy).
-  Rat Kingin summonit menevät enemy_teamiin → _process_boss imee ne
-  self.monstersiin; on_exit siivoaa enemy_team/all_units. Retkikunta
-  mukaan (enable_expedition/expedition_units). Portin lippu: warrens_state
-  gate_cranked/boss_unlocked; set_boss_gate riippuu näistä.
+  viemäriluukulla (CitySewerHatch) → ISO 4600×2800 viemärikartta.
+  PELITESTI 26: 8-vaiheinen questlinja (Rat King VASTA lopussa),
+  warrens_state.quest_stage 0-8: (0) Hamo, (1) CULL kaada CULL_TARGET
+  rottaa → raha+XP+heikko ase (Scrap Blade), (2) INVASION lyö aalto +
+  sulje BreachTunnel (E) → area_safe, (3) käännä FloodValve, (4) tyhjennä
+  rottaleiri + lue LoreBoard (Vortex Abyssal -lore, nimetty king, "Master
+  demands payment") → tremor, (5) rakenna lankkusilta (BuildSite, Rough
+  Timber), (6) kohtaa+rekrytoi sammakko-seppä Brekka (units.frog_smith
+  FrogSmith → my_team + has_smith) + rakenna portti-ram (BuildSite,
+  DEVICE_RECIPE) → avaa ison portin, (7) nimetty boss RAT_KING_NAME
+  ("Skrivvax, the Gnawing Crown"), (8) raportti Hamolle. Kill-tracking:
+  _track_kills laskee rats_culled/invasion_kills/camp_kills. Keräily:
+  GatherNode-yrtit/sienet (GATHER_KINDS) aktiivisia kun area_safe.
+  Griznak (world_events) seuraa vaihetta /8. Boss = OIKEA
+  units.rat_king.RatKing (sylky/summon/rage); summonit imetään
+  enemy_teamista _process_bossissa; on_exit siivoaa. Retkikunta mukaan
+  (enable_expedition). Lattia laattapohjainen (_load_floor_tiles lataa
+  sewer_floors/floors kuten maps.rat_sewer). Populaatio GiantRat/
+  RatRider/BruteRat (units/rat.py). Koodipiirretty monster-tiedosto
+  POISTETTU pelitesti 25:ssä.
 - **Rat King -areenajahti** (Griznakin urakkalista → start_boss_hunt →
   missions/boss_registry → maps/rat_sewer): VAIHTOEHTOINEN areenaversio.
   Boss valtaistuimella idässä, pelaajat viemärin suulla; is_boss →
