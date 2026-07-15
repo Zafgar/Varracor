@@ -65,8 +65,14 @@ class ExplosiveFireball(MagicProjectile):
     def explode(self):
         self.manager.vfx.create_fireburst(self.rect.centerx, self.rect.centery)
         # AoE Damage
+        owner_team = getattr(self.owner, "team_color", None)
         for u in self.manager.all_units:
             if u.is_dead: continue
+            # BUGIKORJAUS: räjähdys osui aiemmin KAIKKIIN (myös loitsijaan ja
+            # omiin) - nyt ohitetaan loitsija ja samat joukkueet, kuten
+            # muissakin AoE-loitsuissa (Vortex Slash / Rift Pulse).
+            if u is self.owner: continue
+            if getattr(u, "team_color", None) == owner_team: continue
             # Tarkista etäisyys räjähdykseen
             d = math.hypot(u.rect.centerx - self.rect.centerx, u.rect.centery - self.rect.centery)
             if d < 80: # Räjähdyssäde

@@ -48,9 +48,9 @@ class Pyroblast(Spell):
         end = target.rect.center
 
         def on_impact():
-            # Deal Damage
+            # Deal Damage (välitetään manager, jotta osuma-vfx/aggro toimivat)
             if hasattr(target, "take_damage"):
-                target.take_damage(dmg, 'Magic', attacker=caster)
+                target.take_damage(dmg, 'Magic', attacker=caster, manager=manager)
             else:
                 target.current_hp -= dmg
 
