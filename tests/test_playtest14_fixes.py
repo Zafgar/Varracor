@@ -184,6 +184,8 @@ def test_move_towards_smooths_heading():
 # ----------------------------------------------------------------------
 
 def test_quest_journal_draws_and_toggles():
+    # Pelitesti 27: J avaa TÄYDEN journalin; silmänappi piilottaa
+    # HUD-seurantapaneelin
     from quest_system import quest_manager
     m = _manager()
     q = quest_manager.get_quest("quest_krads_crate")
@@ -193,17 +195,21 @@ def test_quest_journal_draws_and_toggles():
     surf = pygame.Surface((1920, 1080))
     m._draw_quest_journal(surf)
     assert m._journal_toggle_rect is not None
-    # J-näppäin piilottaa
+    # J-näppäin avaa täyden journalin
     handled = m.handle_ui_event(
         pygame.event.Event(pygame.KEYDOWN, key=pygame.K_j), "muckford_city")
-    assert handled is True and m.show_quest_journal is False
-    # Piilossa piirretään avausnuppi, jonka klikkaus tuo takaisin
-    m._draw_quest_journal(surf)
-    chip = m._journal_toggle_rect
+    assert handled is True and m.show_full_journal is True
+    # J sulkee sen taas (modaalinen)
     handled = m.handle_ui_event(
-        pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=chip.center,
+        pygame.event.Event(pygame.KEYDOWN, key=pygame.K_j), "muckford_city")
+    assert handled is True and m.show_full_journal is False
+    # Silmänappi piilottaa HUD-trackerin
+    m._draw_quest_journal(surf)
+    eye = m._journal_toggle_rect
+    handled = m.handle_ui_event(
+        pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=eye.center,
                            button=1), "muckford_city")
-    assert handled is True and m.show_quest_journal is True
+    assert handled is True and m.show_quest_journal is False
     q.status = "available"
 
 
