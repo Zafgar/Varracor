@@ -165,11 +165,11 @@ def world_events(manager):
                               "The Rat King's Warrens run under all of "
                               "Muckford - clear them or the raids never "
                               "stop. Talk to Hamo at the cellar hatch.")
-            elif stage >= 6:
+            elif stage >= 8:
                 events.append("Word is the Rat King's crown is cracked. "
-                              "Report to Hamo and Rinna to close it out.")
+                              "Report to Hamo to close it out.")
             else:
-                events.append(f"Warrens crisis, stage {stage}/6: {objective}")
+                events.append(f"Warrens crisis, stage {stage}/8: {objective}")
         else:
             clock = getattr(manager, "world_clock", None)
             nrd = int(getattr(manager, "next_raid_day", 0) or 0)

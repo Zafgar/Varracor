@@ -15,10 +15,10 @@ install_muckford_opening_integration()
 
 from citys.mucford.muckford_city_menu import MuckfordCityMenu
 from citys.mucford.muckford_warrens import (
-    CACHE_COUNT,
-    NEST_COUNT,
-    RATCATCHER_COUNT,
-    TRACE_COUNT,
+    CULL_TARGET,
+    INVASION_TARGET,
+    CAMP_TARGET,
+    RAT_KING_NAME,
     WARRENS_HEIGHT,
     WARRENS_WIDTH,
     CitySewerHatch,
@@ -170,56 +170,59 @@ class FakeCityMenu:
 
 
 def test_warrens_story_progresses_through_every_city_crisis_stage():
+    # Pelitesti 26: uusi 8-vaiheinen questlinja (Rat King vasta lopussa)
     manager = DummyManager()
     state = warrens_state(manager)
 
-    assert warrens_objective(manager).startswith("Speak with Hamo")
+    assert warrens_objective(manager).startswith("Climb down")
     state["quest_stage"] = 1
-    state["traced_signs"] = [f"trail_{index}" for index in range(1, TRACE_COUNT + 1)]
+    state["rats_culled"] = CULL_TARGET
     assert sync_warrens_story(manager) is True
-    assert state["quest_stage"] == 2
+    assert state["quest_stage"] == 2      # invaasio
 
-    state["recovered_caches"] = [f"cache_{index}" for index in range(1, CACHE_COUNT + 1)]
+    state["breach_sealed"] = True
     assert sync_warrens_story(manager) is True
-    assert state["quest_stage"] == 3
+    assert state["quest_stage"] == 3      # kuivatus
+    assert state["area_safe"] is True     # keräily aukeaa
 
-    state["destroyed_nests"] = [f"nest_{index}" for index in range(1, NEST_COUNT + 1)]
+    state["valve_turned"] = True
     assert sync_warrens_story(manager) is True
-    assert state["quest_stage"] == 4
-    assert state["deep_drain_open"] is True
+    assert state["quest_stage"] == 4      # rottaleiri
 
-    state["rescued_ratcatchers"] = [
-        "ratcatcher_tessa",
-        "ratcatcher_brin",
-        "ratcatcher_dorrik",
-    ]
+    state["lore_read"] = True
     assert sync_warrens_story(manager) is True
-    assert state["quest_stage"] == 5
-    # Pelitesti 24: boss ei enää avaudu automaattisesti vaiheessa 5 -
-    # Royal Cistern -portti kammetään auki sepän Cistern Gate Crankilla
-    assert state["boss_unlocked"] is False
+    assert state["quest_stage"] == 5      # silta
+    assert state["tremor_triggered"] is True
+
+    state["bridge_built"] = True
+    assert sync_warrens_story(manager) is True
+    assert state["quest_stage"] == 6      # portti-ram
+
+    state["device_built"] = True
+    assert sync_warrens_story(manager) is True
+    assert state["quest_stage"] == 7      # boss
+    assert state["boss_unlocked"] is True
 
     state["boss_defeated"] = True
     assert sync_warrens_story(manager) is True
-    assert state["quest_stage"] == 6
+    assert state["quest_stage"] == 8      # turvattu
     assert state["city_raids_ended"] is True
 
-    state["completed"] = True
-    assert sync_warrens_story(manager) is True
-    assert state["quest_stage"] == 7
 
-
-def test_warrens_arena_contains_routes_objectives_channels_and_royal_gate():
+def test_warrens_arena_is_large_with_questline_props_and_royal_gate():
     manager = DummyManager()
     arena = MuckfordWarrensArena(manager)
 
-    assert arena.width == WARRENS_WIDTH == 3600
-    assert arena.height == WARRENS_HEIGHT == 2400
-    assert len(arena.trail_marks) == TRACE_COUNT == 4
-    assert len(arena.food_caches) == CACHE_COUNT == 4
-    assert len(arena.waste_nests) == NEST_COUNT == 4
-    assert len(arena.bridges) == 4
-    assert len(arena.tainted_channels) == 3
+    # Iso alue (pelitesti 26)
+    assert arena.width == WARRENS_WIDTH == 4600
+    assert arena.height == WARRENS_HEIGHT == 2800
+    # Uudet questlinjan interaktiivit
+    assert len(arena.gather_nodes) >= 6
+    assert arena.breach is not None
+    assert arena.valve is not None
+    assert arena.lore_board is not None
+    assert arena.bridge_site is not None
+    assert arena.device_site is not None
     assert arena.boss_gate is not None
     assert arena.city_exit.centery < arena.low_fields_exit.centery
     assert arena.throne in arena.props
@@ -286,33 +289,34 @@ def test_regional_factory_returns_warrens_menu_and_stable_story_npcs():
 
     assert isinstance(menu, MuckfordWarrensMenu)
     state = warrens_state(manager)
-    state["quest_stage"] = 4
+    # Hamo vahtii sisäänkäyntiä koko kriisin ajan; sammakko-seppä ilmestyy
+    # työpajalle vaiheesta 6 (pelitesti 26)
+    state["quest_stage"] = 1
+    menu._refresh_npcs()
+    assert "Hamo" in {npc.name for npc in menu.warrens_npcs}
+    state["quest_stage"] = 6
     menu._refresh_npcs()
     names = {npc.name for npc in menu.warrens_npcs}
-    assert names >= {
-        "Hamo",
-        "Old Rinna Net",
-        "Tessa Trapwire",
-        "Brin Sootsnare",
-        "Dorrik Two-Nails",
-    }
+    assert "Hamo" in names
+    assert any("Brekka" in n for n in names), "sammakko-seppä työpajalla"
 
 
 def test_rat_king_death_marks_tier0_phase_and_permanently_ends_city_raids():
     manager = DummyManager()
     state = warrens_state(manager)
-    state["quest_stage"] = 5
+    state["quest_stage"] = 7
     state["boss_unlocked"] = True
     menu = MuckfordWarrensMenu(manager)
     menu._spawn_boss_if_needed()
     assert menu.boss is not None
+    assert menu.boss.name == RAT_KING_NAME, "nimetty Rat King"
 
     menu.boss.is_dead = True
     menu._process_boss()
 
     assert state["boss_defeated"] is True
     assert state["city_raids_ended"] is True
-    assert state["quest_stage"] == 6
+    assert state["quest_stage"] == 8
     assert manager.next_raid_day == 10 ** 9
     assert manager.inventory["Gnawed Crown"] == 1
     assert tier0_phase(manager) == 5
@@ -328,24 +332,22 @@ def test_rat_king_death_marks_tier0_phase_and_permanently_ends_city_raids():
 def test_reporting_crisis_recovery_rewards_city_and_sets_completion_flags_once():
     manager = DummyManager()
     state = warrens_state(manager)
-    state["quest_stage"] = 6
+    state["quest_stage"] = 8
     state["boss_defeated"] = True
     state["city_raids_ended"] = True
     menu = MuckfordWarrensMenu(manager)
 
-    menu._complete_report("Hamo")
+    menu._report()
     first_gold = manager.gold
     first_rep = manager.reputation
     first_storage = dict(manager.city_storage)
 
     assert state["completed"] is True
-    assert state["quest_stage"] == 7
-    assert manager.gold == 140
-    assert manager.reputation == 10
+    assert manager.gold == 180
+    assert manager.reputation == 12
     assert manager.city_storage["Recovered Grain"] == 8
-    assert manager.city_storage["Scrap Iron"] == 4
 
-    menu._complete_report("Old Rinna Net")
+    menu._report()
     assert manager.gold == first_gold
     assert manager.reputation == first_rep
     assert manager.city_storage == first_storage
