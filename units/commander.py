@@ -599,6 +599,9 @@ class Commander(Gladiator):
             pygame.draw.rect(surface, (50, 50, 50), (bx, by, bar_w, bar_h))
             pygame.draw.rect(surface, (220, 220, 220), (bx, by, int(bar_w * pct), bar_h))
 
+        # Loitsun latauspalkki (cast time) pään päälle
+        self._draw_cast_bar(surface, offset)
+
     def update(self, obstacles=None, manager=None):
         super().update(obstacles, manager)
         
@@ -893,14 +896,21 @@ class Commander(Gladiator):
         self.set_sprinting(_wants_sprint and (dx != 0 or dy != 0))
         
         if dx != 0 or dy != 0:
+            # Latautuva JUURRUTTAVA loitsu: liike keskeyttää latauksen
+            try:
+                from spells import casting
+                if casting.is_rooted(self):
+                    casting.on_caster_moved(self)
+            except Exception:
+                pass
             l = math.hypot(dx, dy)
             dx, dy = dx/l, dy/l
             self.animation_state = "run" # Pakotetaan juoksu-animaatio WASD-liikkeessä
-            
+
             speed = self.speed
             move_x = dx * speed
             move_y = dy * speed
-            
+
             self.check_wall_collision(move_x, move_y, obstacles)
             
         # 5. ESTÄ PÄÄLLEKKÄISYYS

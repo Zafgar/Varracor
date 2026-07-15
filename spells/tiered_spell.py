@@ -53,6 +53,7 @@ _ARCH_DEFAULTS = {
     "dot":     {"range": 380, "cd": 130, "skillshot": True},
     "heal":    {"range": 320, "cd": 180, "skillshot": False},
     "utility": {"range": 180, "cd": 240, "skillshot": False},
+    "counter": {"range": 460, "cd": 300, "skillshot": False},
 }
 
 # DoT-status vahinkotyypin mukaan
@@ -119,6 +120,9 @@ class TieredSpell(Spell):
         if a == "utility":
             return (f"Erupts around you within {self.radius}px: light damage "
                     f"and slows every enemy caught in it.")
+        if a == "counter":
+            return (f"Interrupts the nearest enemy spell being cast within "
+                    f"{self.range}px. Deals no damage.")
         return "Strikes a single target for direct damage."
 
     def short_line(self):
@@ -142,7 +146,10 @@ class TieredSpell(Spell):
                      + ("" if self.archetype == "heal"
                         else "  (ignores blocking)"))
         lines.append(f"Range: {self.range}px ({self._range_label()})")
-        lines.append(f"{amount_word}: {base} + INT x {coef}")
+        if self.archetype == "counter":
+            lines.append("Effect: interrupts an enemy spell cast (no damage)")
+        else:
+            lines.append(f"{amount_word}: {base} + INT x {coef}")
         lines.append(f"Mana: {self.mana_cost}   "
                      f"Cooldown: {self.cooldown_max / 60:.1f}s   "
                      f"Price: {self.cost} SP")
@@ -198,6 +205,10 @@ class TieredSpell(Spell):
 
     def _resolve(self, caster, target, manager, target_pos):
         """Loitsun varsinainen efekti (välitön tai latauksen jälkeen)."""
+        if self.archetype == "counter":
+            self._cast_counter(caster, manager)
+            return
+
         if self.archetype == "heal":
             ally = target if (target is not None
                               and not getattr(target, "is_dead", False)
@@ -243,6 +254,23 @@ class TieredSpell(Spell):
                 u.apply_status("Slow", 120)
             except Exception:
                 pass
+
+    def _cast_counter(self, caster, manager):
+        """Counterspell: keskeyttää lähimmän vastustajan latauksen."""
+        try:
+            from spells import casting
+            units = list(getattr(manager, "all_units", []))
+            victim = casting.counter_cast(caster, units, rng=self.range)
+        except Exception:
+            victim = None
+        try:
+            spell_vfx.cast_flash(manager, caster, self.damage_type)
+            if victim is not None:
+                spell_vfx.impact_burst(manager, victim.rect.centerx,
+                                       victim.rect.centery, self.damage_type,
+                                       radius=46, sparks=14)
+        except Exception:
+            pass
 
     def draw_card_icon(self, surface, x, y, size):
         rect = pygame.Rect(x, y, size, size)

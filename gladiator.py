@@ -280,6 +280,35 @@ class Gladiator(pygame.sprite.Sprite):
 
     def draw_health_bar(self, surface, offset=(0, 0)):
         self.renderer.draw_health_bar(surface, offset)
+        self._draw_cast_bar(surface, offset)
+
+    def _draw_cast_bar(self, surface, offset=(0, 0)):
+        """Latauspalkki yksikön pään päälle latautuvan loitsun ajaksi."""
+        c = getattr(self, "active_cast", None)
+        if c is None or getattr(c, "done", True):
+            return
+        ox, oy = offset
+        w, h = 62, 7
+        x = self.rect.centerx - w // 2 - ox
+        y = self.rect.top - 24 - oy
+        pygame.draw.rect(surface, (10, 10, 14), (x - 1, y - 1, w + 2, h + 2),
+                         border_radius=3)
+        pygame.draw.rect(surface, (44, 44, 54), (x, y, w, h), border_radius=3)
+        col = getattr(getattr(c, "spell", None), "icon_color", (180, 180, 255))
+        fw = max(0, min(w, int(w * c.progress)))
+        if fw > 0:
+            pygame.draw.rect(surface, col, (x, y, fw, h), border_radius=3)
+        pygame.draw.rect(surface, (205, 205, 215), (x, y, w, h), 1,
+                         border_radius=3)
+        name = getattr(getattr(c, "spell", None), "name", "")
+        if name:
+            try:
+                from ui_kit import font_small
+                lbl = font_small.render(name, True, (225, 222, 210))
+                surface.blit(lbl, (self.rect.centerx - lbl.get_width() // 2 - ox,
+                                   y - 16))
+            except Exception:
+                pass
 
     def draw_info_card(self, surface, x, y, w=200, h=260, bg_color=(30, 30, 35), border_color=(60, 60, 70), show_cost=False, hover=False, can_afford=True, show_talent_details=False):
         """

@@ -601,6 +601,13 @@ class BaseAI:
 
     def _move_towards(self, dx, dy, dist, obstacles, all_units, manager=None):
         if dist == 0: return
+        # Latautuva loitsu pitää AI-loitsijan paikallaan (ei liiku casting aikana)
+        try:
+            from spells import casting
+            if casting.is_casting(self.unit):
+                return
+        except Exception:
+            pass
 
         # SPRINTTI: NPC:t eivät aiemmin juosseet KOSKAAN (pelaajapalaute:
         # "säästelevät staminaa"). Pitkä väli kohteeseen + staminaa yli

@@ -39,6 +39,10 @@ CATALOG = [
      "archetype": "nuke", "damage_type": "Holy", "range": 430,
      "flavor": "A lance of blessed light from the Radiant Synod. It sears "
                "the living and scours the undead."},
+    {"id": "counterspell", "name": "Counterspell", "tier": 3, "school": "pure",
+     "archetype": "counter", "damage_type": "Arcane", "range": 460,
+     "flavor": "A sharp word of unmaking. Snuffs out an enemy spell mid-cast "
+               "- the duelist's art of the Prism Collegium."},
 
     # --- Tier 4 ---
     {"id": "storm_call", "name": "Storm Call", "tier": 4, "school": "pure",
