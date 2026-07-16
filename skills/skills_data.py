@@ -114,7 +114,7 @@ SKILL_TREE = {
         "requires": [],
         "pos": (1040, 140),
         "branch": "Dexterity",
-        "effects": {"dex": 5}
+        "effects": {"dex_pct": 0.10}
     },
     "dex_skirmisher": {
         "name": "Skirmisher",
@@ -197,7 +197,7 @@ SKILL_TREE = {
         "requires": [],
         "pos": (0, 140),
         "branch": "Strength",
-        "effects": {"str": 5}
+        "effects": {"str_pct": 0.10}
     },
     "str_veteran": {
         "name": "Veteran",
@@ -226,7 +226,7 @@ SKILL_TREE = {
         "requires": ["str_barbarian"],
         "pos": (-140, 380),
         "branch": "Strength",
-        "effects": {"str": 10, "cooldown_mult": 0.9}
+        "effects": {"str_pct": 0.15, "cooldown_mult": 0.9}
     },
     "str_warlord": {
         "name": "Warlord",
@@ -235,7 +235,7 @@ SKILL_TREE = {
         "requires": ["str_berserker"],
         "pos": (-140, 500),
         "branch": "Strength",
-        "effects": {"str": 15, "max_hp": 50}
+        "effects": {"str_pct": 0.25, "max_hp": 50}
     },
 
     # Branch 2: Tank (Shields, Heavy Armor)
@@ -284,7 +284,7 @@ SKILL_TREE = {
         "requires": ["str_might"],
         "pos": (140, 260),
         "branch": "Strength",
-        "effects": {"weapon_prof": ["sword"], "str": 5}
+        "effects": {"weapon_prof": ["sword"], "str_pct": 0.10}
     },
     "str_dual_wield": {
         "name": "Dual Wield",
@@ -302,7 +302,7 @@ SKILL_TREE = {
         "requires": ["str_dual_wield"],
         "pos": (140, 500),
         "branch": "Strength",
-        "effects": {"str": 10, "dex": 10}
+        "effects": {"str_pct": 0.15, "dex_pct": 0.15}
     },
 
     # --- INT TREE (Magic) ---
@@ -313,7 +313,7 @@ SKILL_TREE = {
         "requires": [],
         "pos": (520, 20),
         "branch": "Intelligence",
-        "effects": {"int": 5}
+        "effects": {"int_pct": 0.10}
     },
     
     # Side: Relics
@@ -383,7 +383,7 @@ SKILL_TREE = {
         "requires": ["int_adept"],
         "pos": (660, -340),
         "branch": "Intelligence",
-        "effects": {"shapeshift": "bear", "str": 20, "max_hp": 200}
+        "effects": {"shapeshift": "bear", "str_pct": 0.20, "max_hp": 200}
     },
     
     # --- HIGH TIER MAGIC (4-8) ---
@@ -394,7 +394,7 @@ SKILL_TREE = {
         "requires": ["int_invoker"],
         "pos": (520, -460),
         "branch": "Intelligence",
-        "effects": {"spell_tier": 4, "int": 5}
+        "effects": {"spell_tier": 4, "int_pct": 0.10}
     },
     "int_wizard": {
         "name": "Wizard",
@@ -421,7 +421,7 @@ SKILL_TREE = {
         "requires": ["int_warlock"],
         "pos": (520, -820),
         "branch": "Intelligence",
-        "effects": {"spell_tier": 7, "int": 10}
+        "effects": {"spell_tier": 7, "int_pct": 0.15}
     },
     "int_ascendant": {
         "name": "Ascendant",

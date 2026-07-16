@@ -99,6 +99,14 @@ class WorldClock:
         if self.day > DAYS_PER_YEAR:
             self.day = 1
             self.year += 1
+        # Päiväkuuntelijat (esim. koulutusjärjestelmä): kutsutaan kerran
+        # per pelipäivä riippumatta siitä miten päivä vaihtui (yö/nukkuminen/
+        # retkikunta).
+        for cb in list(getattr(self, "day_listeners", [])):
+            try:
+                cb()
+            except Exception:
+                pass
 
     @property
     def hour(self):

@@ -146,6 +146,10 @@ class GameManager:
         # --- WORLD CLOCK & WEATHER ---
         from world_clock import WorldClock
         self.world_clock = WorldClock()
+        # Koulutusjärjestelmä: gladiaattorit koulussa saavat statteja joka
+        # pelipäivä (systems/training_school). Rekisteröidään day-listener.
+        self.training_roster = []
+        self.world_clock.day_listeners = [self._on_training_day]
 
         # --- INNKEEPER DEBT (alkutarina: yöt tajuttomana Sunk Caskissa) ---
         self.innkeeper_debt = 0
@@ -369,6 +373,14 @@ class GameManager:
         return leveled
 
     # --- REPUTATION SYSTEM ---
+    def _on_training_day(self):
+        """Pelipäivän vaihtuessa: koulutuksessa olevat saavat statinsa."""
+        try:
+            from systems import training_school
+            training_school.advance_day(self)
+        except Exception:
+            pass
+
     def get_faction_rep(self, faction_id):
         if faction_id == "global":
             return self.reputation

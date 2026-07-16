@@ -56,8 +56,29 @@ class SchoolSpellShop(BaseMenu):
         return any(getattr(it, "name", None) == name
                    for it in self.manager.equipment_bag)
 
+    # Koulun fraktio: maine avaa paremmat loitsut (tier-portit)
+    _SCHOOL_FACTION = {"pure": "prism", "holy": "radiant",
+                       "necromancy": "ashen", "druidism": "lupine"}
+
+    def _rep_required(self, spell):
+        """Korkeampi tier vaatii enemmän koulun mainetta: (tier-1)*10."""
+        return max(0, (int(getattr(spell, "tier", 1)) - 1) * 10)
+
+    def _rep_ok(self, spell):
+        fac = self._SCHOOL_FACTION.get(self.school)
+        if fac is None:
+            return True
+        try:
+            return int(self.manager.get_faction_rep(fac)) >= \
+                self._rep_required(spell)
+        except Exception:
+            return True
+
     def _buy(self, spell):
         if self._owned(spell):
+            sound_system.play_sound('error')
+            return
+        if not self._rep_ok(spell):
             sound_system.play_sound('error')
             return
         cost = int(getattr(spell, "cost", 0))
@@ -148,6 +169,12 @@ class SchoolSpellShop(BaseMenu):
             if owned:
                 draw_text("OWNED", font_small, (150, 220, 160), screen,
                           rect.right - 90, rect.y + 12)
+            elif not self._rep_ok(sp):
+                draw_text(f"Rep {self._rep_required(sp)}", font_small, RED,
+                          screen, rect.right - 100, rect.y + 12)
+                draw_text(format_money(int(getattr(sp, "cost", 0))),
+                          font_small, (140, 130, 120), screen,
+                          rect.right - 100, rect.y + 36)
             else:
                 afford = self.manager.gold >= int(getattr(sp, "cost", 0))
                 draw_text(format_money(int(getattr(sp, "cost", 0))), font_main,
@@ -185,6 +212,9 @@ class SchoolSpellShop(BaseMenu):
         self._buy_rect = brect
         if owned:
             col, label = (60, 90, 66), "OWNED"
+        elif not self._rep_ok(sp):
+            col = (90, 55, 55)
+            label = f"NEEDS {self._rep_required(sp)} REPUTATION"
         elif not afford:
             col, label = (90, 55, 55), "TOO EXPENSIVE"
         else:

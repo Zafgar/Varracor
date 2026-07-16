@@ -690,6 +690,11 @@ class Gladiator(pygame.sprite.Sprite):
         self.school_effects = {}
         self.magic_school = None
 
+        # Skill-puun PROSENTTIBONUKSET (str_pct/dex_pct/int_pct): kerätään
+        # puusta ja sovelletaan VARUSTEIDEN JÄLKEEN, jotta % kertoo myös
+        # gearin antamat statit (statit tulevat pääosin gearista).
+        _pct = {"str_pct": 0.0, "dex_pct": 0.0, "int_pct": 0.0}
+
         # Base Stats
         base_hp_val = int(self.base_attributes.get("max_hp", self.base_attributes.get("hp", 100)))
         self.max_hp = base_hp_val
@@ -714,6 +719,10 @@ class Gladiator(pygame.sprite.Sprite):
                 self.dexterity += int(effects["dex"])
             if "int" in effects:
                 self.intelligence += int(effects["int"])
+            # Prosenttibonukset (uusi malli: puu antaa %, gear antaa määrät)
+            for _k in ("str_pct", "dex_pct", "int_pct"):
+                if _k in effects:
+                    _pct[_k] += float(effects[_k])
             if "max_hp" in effects:
                 self.max_hp += int(effects["max_hp"])
             if "max_mana" in effects:
@@ -821,6 +830,15 @@ class Gladiator(pygame.sprite.Sprite):
                 self.crit_chance += float(item.crit_bonus)
 
             # --- UNIVERSAL PASSIVE BONUS (Aseet, Armor, Helmet, Off-hand) ---
+            # Suorat primääristatit varusteista (statit tulevat pääosin
+            # gearista - stat_curve mitoittaa määrät per taso/tier)
+            if hasattr(item, "str_bonus"):
+                self.strength += int(getattr(item, "str_bonus", 0) or 0)
+            if hasattr(item, "dex_bonus"):
+                self.dexterity += int(getattr(item, "dex_bonus", 0) or 0)
+            if hasattr(item, "int_bonus"):
+                self.intelligence += int(getattr(item, "int_bonus", 0) or 0)
+
             if hasattr(item, "passive_bonuses"):
                 bonuses = getattr(item, "passive_bonuses", {}) or {}
                 for k, v in bonuses.items():
@@ -855,6 +873,16 @@ class Gladiator(pygame.sprite.Sprite):
             if slot == "body":
                 self.armor = item
                 self.armor_name = getattr(item, "name", "No Armor")
+
+        # Skill-puun prosenttibonukset: sovelletaan gearin JÄLKEEN, ennen
+        # johdettuja statteja (stamina/strain) -> % hyödyttää myös niitä.
+        if _pct["str_pct"]:
+            self.strength = int(self.strength * (1.0 + _pct["str_pct"]))
+        if _pct["dex_pct"]:
+            self.dexterity = int(self.dexterity * (1.0 + _pct["dex_pct"]))
+        if _pct["int_pct"]:
+            self.intelligence = int(self.intelligence * (1.0 + _pct["int_pct"]))
+            self.max_strain = 80 + self.intelligence * 4
 
         # Final calculations
         self.max_stamina = 50 + (self.strength * 1.5) + (self.dexterity * 1.5)
