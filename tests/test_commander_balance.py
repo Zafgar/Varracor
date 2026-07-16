@@ -63,10 +63,10 @@ def test_commander_stats_in_elite_band(manager):
 
 def test_commander_speed_uses_shared_formula(manager):
     """Sama nopeuskaava kuin gladiaattoreilla (gladiator.py: walk_speed =
-    (1 + DEX*0.02 + mod) * mult) - ei omaa liikesääntöä. Rekryyttiproxy ei
+    (2 + DEX*0.025 + mod) * mult) - ei omaa liikesääntöä. Rekryyttiproxy ei
     kelpaa vertailuun (satunnaisperkit), joten verrataan suoraan kaavaan."""
     c = _no_gear_commander()
-    expected = (1.0 + c.dexterity * 0.02) * c.speed_multiplier
+    expected = (2.0 + c.dexterity * 0.025) * c.speed_multiplier
     assert abs(c.walk_speed - expected) <= 0.1, (
         f"Commander walk_speed {c.walk_speed} eroaa jaetusta kaavasta "
         f"{expected:.2f} - onko Commanderille tullut oma liikesääntö?")

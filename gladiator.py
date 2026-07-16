@@ -105,9 +105,12 @@ class Gladiator(pygame.sprite.Sprite):
         self.max_dashes = 1 # Oletus: 1 syöksy
         self.current_dashes = 1
         self.dash_recharge_timer = 0
-        self.dash_recharge_time = 180 # 3 sekuntia per lataus
+        # GAME FEEL: 3 s -> 2 s per lataus (dodge käytettävissä useammin)
+        self.dash_recharge_time = 120
         self.dash_vector = (0.0, 0.0)
-        self.dash_speed_mult = 3.5 # Oletusnopeuskerroin syöksylle
+        # GAME FEEL: nopea pyrähdys (5.0 x 10 framea) hitaan liu'un
+        # (3.5 x 15) sijaan - sama matka, puolet ajasta, i-framet tallella
+        self.dash_speed_mult = 5.0
         self.dash_damage = 0 # UUSI: Vahinko törmäyksessä
         self.dash_hit_list = [] # Lista osutuista yksiköistä (ettei osu samaan montaa kertaa)
         self.jump_height = 0 # Visuaalinen hyppykorkeus (pikseleinä)
@@ -125,6 +128,8 @@ class Gladiator(pygame.sprite.Sprite):
         self.armor_masteries = set()    # e.g. {"light","medium","heavy","cloth"}
         self.can_dual_wield = False
         self.block_stamina_mult = 1.0
+        self.block_timer = 0 # GAME FEEL: frameja blokin alusta (parry-ikkuna)
+        self.parry_cooldown = 0 # onnistuneen parryn jälkeinen lukitus
         self.heavy_armor_penalty_mult = 1.0
         self.double_shot_chance = 0.0
         self.temp_speed_mult = 1.0 # UUSI: Väliaikainen nopeuskerroin (esim. lataus)
@@ -916,9 +921,13 @@ class Gladiator(pygame.sprite.Sprite):
         self.xp_mult *= float(_tal.get("xp_mult", 1.0))
 
         dex_compensation = self.dexterity * 0.005
+        # GAME FEEL (pelitesti 23): taisteluliikkeen perusvauhti nostettu
+        # 1.0 -> 2.0 px/frame (oli ryömintää; kaupunkikävely on 4.0).
+        # Sprintillä ~3.6 -> yhtenäinen tuntuma kaupungin kanssa.
+        # Symmetrinen muutos: kaikki yksiköt liikkuvat samalla kaavalla.
         final_speed_mod = float(gear_spd_penalty) + float(dex_compensation)
 
-        self.walk_speed = max(0.3, (1.0 + (self.dexterity * 0.02) + final_speed_mod) * self.speed_multiplier)
+        self.walk_speed = max(0.5, (2.0 + (self.dexterity * 0.025) + final_speed_mod) * self.speed_multiplier)
         self.speed = self.walk_speed
 
         dex_cdr = min(0.5, self.dexterity * 0.015)
@@ -1041,6 +1050,11 @@ class Gladiator(pygame.sprite.Sprite):
 
     def set_blocking(self, active: bool):
         if self.stun_timer > 0: return
+
+        # GAME FEEL: parry-ikkuna - block_timer mittaa montako framea
+        # blokki on ollut ylhäällä; tuore blokki (<=10) torjuu täydellisesti
+        if active and not self.is_blocking:
+            self.block_timer = 0
         
         if self.is_dashing:
             self.is_blocking = False
@@ -1079,7 +1093,7 @@ class Gladiator(pygame.sprite.Sprite):
             # Yksinkertainen: Lataa aina yhtä kerrallaan
             self.is_dashing = True
             self.is_blocking = False
-            self.dash_timer = 15
+            self.dash_timer = 10
             self.dash_damage = 0 # Nollataan oletuksena (ase asettaa tämän jos on hyökkäys)
             self.dash_hit_list = [] # Tyhjennetään osumalista
             
@@ -1174,7 +1188,8 @@ class Gladiator(pygame.sprite.Sprite):
             self.attack_vector = (10 if self.facing_right else -10, 0)
 
         # --- STAMINA COST CALCULATION ---
-        base_cost = 18 # Hieman korkeampi perushinta, jotta statsit tuntuvat
+        # GAME FEEL: 18 -> 14 - lyöntisarjat eivät kuivaa staminaa heti
+        base_cost = 14
         w_group = getattr(w, "weapon_group", "")
         reduction = 0
         
@@ -1193,6 +1208,16 @@ class Gladiator(pygame.sprite.Sprite):
         self.attack_cooldown = self.attack_speed
         self.current_stamina = max(0, self.current_stamina - final_cost)
         self._break_invisibility(manager)  # Hyökkäys paljastaa
+
+        # GAME FEEL: pieni syöksähdys lyönnin suuntaan (painon ja
+        # sitoutumisen tuntu) - vain melee, seinät kunnioittaen
+        if getattr(w, "type", "") == "melee":
+            _al = math.hypot(self.attack_vector[0], self.attack_vector[1]) or 1.0
+            _obs = None
+            if manager and getattr(manager, "current_arena", None):
+                _obs = getattr(manager.current_arena, "obstacles", None)
+            self.check_wall_collision(self.attack_vector[0] / _al * 8.0,
+                                      self.attack_vector[1] / _al * 8.0, _obs)
 
         # --- HITBOX CHECK (UUSI) ---
         hit_targets = []
@@ -1290,6 +1315,11 @@ class Gladiator(pygame.sprite.Sprite):
                 # HUOM: tappo kirjataan take_damagessa (kaikki osumatyypit)
                 if hasattr(w, "on_hit"):
                     w.on_hit(self, t, real_dmg, manager)
+                # GAME FEEL: mikrotyrkkäys osumasta - isku tuntuu kontaktilta
+                if real_dmg > 0 and hasattr(t, "check_wall_collision"):
+                    _kl = math.hypot(self.attack_vector[0], self.attack_vector[1]) or 1.0
+                    t.check_wall_collision(self.attack_vector[0] / _kl * 7.0,
+                                           self.attack_vector[1] / _kl * 7.0, None)
             
             # --- GAME FEEL: HIT STOP & SHAKE (Vain pelaajalle) ---
             if manager and self == getattr(manager, "player_character", None):
@@ -1364,6 +1394,39 @@ class Gladiator(pygame.sprite.Sprite):
 
         offhand = self.equipment.get("off_hand")
         mainhand = self.equipment.get("main_hand") # Haetaan pääase torjuntatehon laskemiseen
+
+        # --- GAME FEEL: PERFECT PARRY ---
+        # Tuore blokki (nostettu <=10 framea ennen osumaa) torjuu melee-
+        # iskun täydellisesti ILMAN staminakulua ja horjuttaa hyökkääjää.
+        # Palkitsee reaktion; toimii symmetrisesti myös AI:lle.
+        if self.is_blocking and damage_type == "Physical" \
+                and getattr(self, "block_timer", 999) <= 10 \
+                and getattr(self, "parry_cooldown", 0) <= 0 \
+                and attacker is not None \
+                and getattr(attacker, "weapon_type", "melee") != "ranged":
+            self.parry_cooldown = 90   # kerran per 1.5 s (AI togglaa blokkia)
+            if manager:
+                manager.vfx.show_damage(self.rect.centerx, self.rect.top - 25,
+                                        "PERFECT PARRY!", color=(255, 230, 120))
+                try:
+                    manager.vfx.create_impact_sparks(
+                        self.rect.centerx, self.rect.centery,
+                        color=(255, 230, 120), count=10)
+                except Exception:
+                    pass
+                # Tuntuu kädessä: tärinä + pysäytys jos pelaaja osallisena
+                if self is getattr(manager, "player_character", None) or \
+                        attacker is getattr(manager, "player_character", None):
+                    manager.trigger_hit_stop(5)
+                    manager.trigger_screen_shake(4)
+            sound_system.play_sound("swish")
+            if getattr(attacker, "stun_immunity", 0) <= 0:
+                attacker.stun_timer = max(getattr(attacker, "stun_timer", 0), 25)
+                if manager:
+                    manager.vfx.show_damage(attacker.rect.centerx,
+                                            attacker.rect.top - 20,
+                                            "STAGGERED", color=(200, 200, 255))
+            return 0
 
         # Blocking (Shield or Weapon)
         if self.is_blocking and damage_type == "Physical":
@@ -1699,6 +1762,12 @@ class Gladiator(pygame.sprite.Sprite):
             self.is_blocking = False
             self.is_sprinting = False
 
+        # Parry-ikkunan laskuri (ks. set_blocking / take_damage)
+        if self.is_blocking:
+            self.block_timer += 1
+        if getattr(self, "parry_cooldown", 0) > 0:
+            self.parry_cooldown -= 1
+
         can_regen = not (self.is_blocking or self.is_sprinting or self.is_dashing or self.is_charging) and self.stun_timer <= 0
         if can_regen:
             self.current_stamina += self.stamina_regen
@@ -1753,6 +1822,15 @@ class Gladiator(pygame.sprite.Sprite):
             move_y = self.dash_vector[1] * current_speed
             self.check_wall_collision(move_x, move_y, obstacles)
             self.dash_timer -= 1
+
+            # GAME FEEL: dash-vana (kipinäjälki joka toisella framella)
+            if manager and self.dash_timer % 2 == 0:
+                try:
+                    manager.vfx.create_impact_sparks(
+                        self.rect.centerx, self.rect.centery,
+                        color=(170, 210, 255), count=3)
+                except Exception:
+                    pass
             
             # --- DASH DAMAGE CHECK ---
             if self.dash_damage > 0 and manager:
@@ -1777,12 +1855,13 @@ class Gladiator(pygame.sprite.Sprite):
             
         elif self.is_sprinting:
             if self.current_stamina > 0.5:
-                current_speed *= 1.5
+                current_speed *= 1.6
                 self.current_stamina -= 0.3
             else:
                 self.is_sprinting = False
         elif self.is_blocking:
-            current_speed *= 0.5
+            # GAME FEEL: blockaus ei saa tuntua liimalta - 0.5 -> 0.65
+            current_speed *= 0.65
 
         # Apply temporary modifier (Weapon charge etc.)
         current_speed *= self.temp_speed_mult
