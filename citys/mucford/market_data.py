@@ -124,6 +124,21 @@ MARKET_SHOPS = OrderedDict({
 })
 
 
+def _fill_scrap_arms_tier_weapons():
+    """Aseet L30 asti (pelitesti 27): Grett myy tier 1-2 -aseet suoraan
+    asekatalogista - hinnat katalogista, ei kovakoodattuja kopioita."""
+    from items.weapon_catalog import make_weapon
+    rows = []
+    for wid in ("w_sword_t1", "w_dagger_t1", "w_axe_t1", "w_mace_t1",
+                "w_spear_t1", "w_bow_t1", "w_crossbow_t1", "w_staff_t1",
+                "w_book_t1",
+                "w_sword_t2", "w_axe_t2", "w_bow_t2"):
+        w = make_weapon(wid)
+        rows.append({"name": w.name, "price": w.cost, "kind": "item"})
+    shop = MARKET_SHOPS["scrap_arms"]
+    shop["goods"] = tuple(list(shop["goods"]) + rows)
+
+
 def _fill_mudguard_tier_gear():
     """Armor rework (pelitesti 26): Mudguard myy tier 1-2 -taistelija-
     varusteet suoraan katalogista - nimet JA hinnat gear_catalogista,
@@ -145,3 +160,4 @@ def _fill_mudguard_tier_gear():
 
 
 _fill_mudguard_tier_gear()
+_fill_scrap_arms_tier_weapons()

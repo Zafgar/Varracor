@@ -222,6 +222,15 @@ def create_item(name):
     except Exception:
         pass
 
+    # Tier-aseet (items/weapon_catalog.py): sama polku aseille
+    try:
+        from items.weapon_catalog import make_weapon_by_name
+        _w = make_weapon_by_name(name)
+        if _w is not None:
+            return _w
+    except Exception:
+        pass
+
     for C in get_available_item_classes():
         try:
             if C.__name__ == name:

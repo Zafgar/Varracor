@@ -26,7 +26,12 @@ def _manager_with_team():
 
 
 def test_prepare_card_clicks_hit_drawn_cards():
-    """Klikkihitboxien PITÄÄ vastata piirrettyjä kortteja (320/90/100)."""
+    """Klikkihitboxien PITÄÄ vastata piirrettyjä kortteja (320/90/100).
+
+    FLAKE-KORJAUS: vastustajageneraatio on siemenetön - siemen tekee
+    ajosta toistettavan (sama kuin league-flow'n kovennus)."""
+    import random
+    random.seed(88)
     m = _manager_with_team()
     m.mode = "League"
     m.match_mode = "3v3"
