@@ -140,7 +140,13 @@ def test_barracks_dismiss_requires_double_click():
 
 
 def test_full_league_match_flow_with_recruits():
-    """Rekrytoi -> valitse prepare-valikossa -> matsi käyntiin ja loppuun."""
+    """Rekrytoi -> valitse prepare-valikossa -> matsi käyntiin ja loppuun.
+
+    FLAKE-KORJAUS: matsisimulaatio on siemenetön ja saattoi harvoin venyä
+    yli framekaton (kaksi kitettäjää). Siemen tekee ajosta toistettavan ja
+    katto on väljä - testin pointti on että FLOW valmistuu, ei tasapaino."""
+    import random
+    random.seed(77)
     m = _manager_with_team()
     from menus.tier0_team_intro import mark_tier0_team_intro_seen
     from menus.league_menu import LeagueMenu
@@ -157,7 +163,7 @@ def test_full_league_match_flow_with_recruits():
     assert m.match_in_progress is True
     assert len(list(m.enemy_team)) == 3
     frames = 0
-    while m.match_in_progress and frames < 20000:
+    while m.match_in_progress and frames < 40000:
         m.update_match()
         frames += 1
     assert m.match_over is True

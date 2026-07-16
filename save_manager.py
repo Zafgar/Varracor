@@ -138,6 +138,14 @@ def _apply_unit_state(unit, data):
     unit.talent_details = list(data.get("talent_details", []) or [])
     if data.get("base_attributes"):
         unit.base_attributes = dict(data["base_attributes"])
+        # MIGRAATIO: vanhat savet kantavat initin jäädyttämää "max_hp":ta
+        # (aina rodun perus-HP, ei aliluokan aiottu) - se söi mm.
+        # Commanderin 150 HP:n. Pudota vanhentunut avain jos "hp" on
+        # suurempi; aidosti max_hp-avainta käyttävillä (rat_king,
+        # premade-buffit) max_hp > hp, joten ne säilyvät.
+        ba = unit.base_attributes
+        if "max_hp" in ba and "hp" in ba and int(ba["max_hp"]) < int(ba["hp"]):
+            del ba["max_hp"]
     unit.cost = data.get("cost", unit.cost)
     unit.training_count = data.get("training_count", 0)
     unit.morale = int(data.get("morale", 50))

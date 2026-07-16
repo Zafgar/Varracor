@@ -24,7 +24,9 @@ def create_team(tier):
         orc = Orc(name, 0, 0, t.color)
         orc.level = base_lvl
         orc.base_attributes["str"] += 4 + tier
-        orc.base_attributes["max_hp"] += 30
+        # "max_hp"-avainta ei enää esitäytetä initissä -> lähde "hp"-arvosta
+        orc.base_attributes["max_hp"] = orc.base_attributes.get(
+            "max_hp", orc.base_attributes.get("hp", 100)) + 30
         group = "mace" if i % 2 == 0 else "axe"
         orc.unlocked_skills.update([f"wp_{group}", "str_tank"])
         t.equip_unit(orc, weapon_for(group, tier))

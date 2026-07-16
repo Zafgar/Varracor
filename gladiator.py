@@ -218,8 +218,13 @@ class Gladiator(pygame.sprite.Sprite):
         else:
             self.base_attributes = {"str": base_stat, "dex": base_stat, "int": base_stat, "hp": 100, "mana": 20, "def_flat": 0}
 
-        # Normalize key
-        self.base_attributes.setdefault("max_hp", self.base_attributes.get("hp", 100))
+        # HUOM: "max_hp"-avainta EI esitäytetä tässä. Se jäädytti rodun
+        # perus-HP:n ENNEN kuin aliluokka ehti asettaa omansa - troll (600),
+        # commander (150), corrupted_crow (50) yms. eivät koskaan saaneet
+        # aiottua HP:tään, koska calculate_final_stats luki vanhentuneen
+        # "max_hp":n. Nyt: "hp" on perusarvo; "max_hp" on valinnainen
+        # ylikirjoitus (rat_king, premade-buffit) jonka aliluokka asettaa
+        # itse. calculate_final_stats: get("max_hp", get("hp", 100)).
 
         # --- ASE-AFFINITEETIT (rotu + rekrytoinnin satunnaisperkit) ---
         # {weapon_group: kerroin}, esim. {'axe': 1.15}. Näkyvät traits-listassa

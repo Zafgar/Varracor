@@ -42,11 +42,16 @@ class Commander(Gladiator):
         super().__init__(name, "Human", x, y, team_color)
         # Feet Hitbox
         self.rect = pygame.Rect(x, y, 30, 20) # Pieni fysiikka-hitbox
-        # Commander starts with slightly better base stats
-        self.base_attributes["str"] = 12
-        self.base_attributes["dex"] = 12
+        # TASAPAINO (pelitesti 23): Commander on Elite-rekryytin tasoinen
+        # taistelija, EI ylivoimainen - gladiaattorit ovat tähtiä, pelaajan
+        # taito (dash/block/tähtäys) antaa loput. Duel-matriisi samalla
+        # AI:lla ja aseella: 12/12/150 voitti Eliten 8/8 (OP), 10/10/120
+        # voittaa niukasti pitkissä väännöissä. INT 12 säilyy (caster-
+        # identiteetti, ei vaikuta melee-tasapainoon).
+        self.base_attributes["str"] = 10
+        self.base_attributes["dex"] = 10
         self.base_attributes["int"] = 12
-        self.base_attributes["hp"] = 150
+        self.base_attributes["hp"] = 120
         
         # STORY ITEM: Vortex Blade (Menetetään introssa, ellei CHEAT_MODE)
         try:
