@@ -173,7 +173,10 @@ class TieredBolt(Projectile):
         if sp.archetype == "aoe":
             self._explode()
             return
-        target.take_damage(self.damage, dtype, self.owner, self.manager)
+        dealt = target.take_damage(self.damage, dtype, self.owner, self.manager)
+        # Necro Life Steal -erikoistuminen: necromancian loitsut imevät
+        # osan tehdystä vahingosta loitsijalle (lifesteal_pct).
+        _apply_lifesteal(self.owner, sp, dealt, self.manager)
         if sp.archetype == "dot":
             st = _dot_status(dtype)
             per = max(1, int(self.damage * 0.35))
@@ -207,13 +210,39 @@ class TieredBolt(Projectile):
             if getattr(u, "team_color", None) == owner_team:
                 continue
             if math.hypot(u.rect.centerx - cx, u.rect.centery - cy) <= radius:
-                u.take_damage(self.damage, getattr(sp, "damage_type", "Magic"),
-                              self.owner, self.manager)
+                dealt = u.take_damage(self.damage,
+                                      getattr(sp, "damage_type", "Magic"),
+                                      self.owner, self.manager)
+                _apply_lifesteal(self.owner, sp, dealt, self.manager)
         self.kill()
 
 
 def _dot_status(damage_type):
     return {"Fire": "Burn"}.get(damage_type, "Poison")
+
+
+def _apply_lifesteal(caster, spell, dealt, manager):
+    """Necron Life Steal -haara: necromancian loitsuvahingosta osa
+    palautuu loitsijalle elämänä (school_effects['lifesteal_pct'])."""
+    try:
+        if getattr(spell, "school", "") != "necromancy":
+            return
+        pct = float((getattr(caster, "school_effects", {}) or {})
+                    .get("lifesteal_pct", 0.0))
+        if pct <= 0 or not dealt:
+            return
+        heal = max(1, int(int(dealt) * pct))
+        if hasattr(caster, "heal"):
+            caster.heal(heal, manager)
+            try:
+                manager.vfx.add_effect(Mote(
+                    caster.rect.centerx, caster.rect.centery,
+                    (80, 200, 120), size=5, life=16, drift=1.2,
+                    gravity=-0.08))
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 # --- Rikkaat efektifunktiot ---

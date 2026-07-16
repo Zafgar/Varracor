@@ -214,7 +214,13 @@ class TieredSpell(Spell):
                               and not getattr(target, "is_dead", False)
                               and getattr(target, "team_color", None)
                               == getattr(caster, "team_color", None)) else caster
-            ally.heal(self._amount(caster), manager)
+            amount = self._amount(caster)
+            # Holyn Pure Healing -haara (heal_power): +25% per piste
+            hp_bonus = int((getattr(caster, "school_effects", {}) or {})
+                           .get("heal_power", 0))
+            if hp_bonus > 0:
+                amount = int(amount * (1.0 + 0.25 * hp_bonus))
+            ally.heal(amount, manager)
             try:
                 manager.vfx.create_heal_effect(ally.rect.centerx,
                                                ally.rect.centery)

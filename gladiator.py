@@ -280,6 +280,14 @@ class Gladiator(pygame.sprite.Sprite):
 
     # --- DELEGATED DRAWING METHODS ---
     def draw_on_screen(self, surface, offset=(0, 0)):
+        # Muodonmuutos: piirrä koodipiirretty peto humanoidin sijaan
+        if getattr(self, "shapeshift_form", None) is not None \
+                and getattr(self, "image", None) is not None:
+            img = self.image
+            x = self.rect.centerx - img.get_width() // 2 - offset[0]
+            y = self.rect.bottom - img.get_height() - offset[1]
+            surface.blit(img, (x, y))
+            return
         self.renderer.draw_on_screen(surface, offset)
 
     def draw_health_bar(self, surface, offset=(0, 0)):
@@ -1458,6 +1466,15 @@ class Gladiator(pygame.sprite.Sprite):
             self.attackers.add(attacker)
 
         if self.current_hp <= 0:
+            # Druidin muoto murtuu ennen kuolemaa: druid palaa entry-HP:hen
+            # (muoto ei kestä kuolemaan asti - mana ja muodon HP ovat rajat)
+            if getattr(self, "shapeshift_form", None):
+                try:
+                    from spells.druid import shapeshift
+                    shapeshift.exit_form(self, manager, broken=True)
+                    return final
+                except Exception:
+                    pass
             self.current_hp = 0
             self.is_dead = True
             if attacker:
@@ -1746,6 +1763,15 @@ class Gladiator(pygame.sprite.Sprite):
                 casting.tick_caster(self, manager)
             except Exception:
                 self.active_cast = None
+
+        # Druidin muodonmuutos: manan kulutus + cooldownin lasku
+        if getattr(self, "shapeshift_form", None) is not None \
+                or int(getattr(self, "shapeshift_cooldown", 0)) > 0:
+            try:
+                from spells.druid import shapeshift
+                shapeshift.tick(self, manager)
+            except Exception:
+                pass
 
         # Status effects
         for effect in self.status_effects[:]:

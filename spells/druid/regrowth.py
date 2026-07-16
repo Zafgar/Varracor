@@ -40,6 +40,11 @@ class Regrowth(Spell):
         caster.current_mana -= self.mana_cost
 
         per = int(self.heal_per_tick + caster.intelligence * 0.3)
+        # Druidin Life-haara (hot_power): +30% per piste HoT-tehoon
+        hot = int((getattr(caster, "school_effects", {}) or {})
+                  .get("hot_power", 0))
+        if hot > 0:
+            per = int(per * (1.0 + 0.30 * hot))
         duration = self.ticks * 60 + 1   # +1 jotta ensitikki osuu %60==0 kohtaan
         try:
             ally.apply_status("Regen", duration, per)

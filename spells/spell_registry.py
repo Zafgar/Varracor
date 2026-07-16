@@ -112,14 +112,26 @@ def get_catalog_spells():
 
 def get_catalog_school_spells(school):
     """Katalogin loitsut annetulle koululle (esim. 'holy'). Sun Ray
-    (channel) liitetään Holyyn tässä."""
+    (channel) liitetään Holyyn ja muotoloitsut Druidismiin tässä."""
     try:
         from spells.catalog import catalog_spells_for_school
         out = catalog_spells_for_school(school)
     except Exception:
         out = []
+    # Entry-loitsut mukaan kauppaan
+    for cls in SCHOOL_SPELLS.get(school, []):
+        try:
+            out.append(cls())
+        except Exception:
+            pass
     if school == "holy" and SunRay is not None:
         out.append(SunRay())
+    if school == "druidism":
+        try:
+            from spells.druid.shapeshift import make_form_spells
+            out.extend(make_form_spells())
+        except Exception:
+            pass
     return out
 
 
