@@ -19,7 +19,7 @@ class WeakBook(Weapon):
         self.weapon_group = "book"
         self.level_required = 2
         
-        self.damage = 6
+        self.damage = 8
         self.attack_range = 245
         self.speed_bonus = 0.0
         self.scaling = {'INT': 0.8}
@@ -68,7 +68,7 @@ class WeakBook(Weapon):
             manager.vfx.add_projectile(proj)
             
             sound_system.play_sound("book_1")
-            owner.attack_cooldown = 22
+            owner.attack_cooldown = owner.attack_speed  # keskitetty rytmi (weapon_feel)
 
     def draw_equipped(self, surface, unit_rect, facing_right, attack_cooldown, total_cooldown=60, attack_vector=None):
         hand_x = unit_rect.centerx + (14 if facing_right else -14)

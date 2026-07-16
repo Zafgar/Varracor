@@ -89,7 +89,7 @@ class ScrapStaff(Weapon):
             manager.vfx.add_projectile(proj)
             
             sound_system.play_sound("staff_1")
-            owner.attack_cooldown = 40
+            owner.attack_cooldown = int(owner.attack_speed * 1.1)  # keskitetty rytmi
             
         self.charge_time = 0
 

@@ -130,6 +130,7 @@ class Gladiator(pygame.sprite.Sprite):
         self.block_stamina_mult = 1.0
         self.block_timer = 0 # GAME FEEL: frameja blokin alusta (parry-ikkuna)
         self.parry_cooldown = 0 # onnistuneen parryn jälkeinen lukitus
+        self.riposte_timer = 0  # perfect parry avaa vastaiskuikkunan
         self.heavy_armor_penalty_mult = 1.0
         self.double_shot_chance = 0.0
         self.temp_speed_mult = 1.0 # UUSI: Väliaikainen nopeuskerroin (esim. lataus)
@@ -942,16 +943,22 @@ class Gladiator(pygame.sprite.Sprite):
         # --- FIX: Update current_weapon reference ---
         self.current_weapon = w
 
-        self.attack_range = int(getattr(w, "attack_range", 35)) + int(self.range_bonus)
+        # Aseperheen identiteetti (systems/weapon_feel.py): rytmi, range
+        # ja staminakulut eroavat perheittäin - dagger nopea, mace raskas
+        from systems import weapon_feel
+        w_group = self._weapon_group_from_item(w)
+
+        self.attack_range = int(getattr(w, "attack_range", 35)) \
+            + int(self.range_bonus) + weapon_feel.range_add(w_group)
         self.weapon_type = str(getattr(w, "type", "melee")).lower()
         self.weapon_effect = str(getattr(w, "effect", "damage")).lower()
 
         base_atk_spd = 60.0
         if hasattr(w, "speed_bonus"):
             base_atk_spd -= (float(w.speed_bonus) * 10.0)
+        base_atk_spd *= weapon_feel.cd_mult(w_group)
 
         # Weapon proficiency penalty: slower if not proficient (except fists)
-        w_group = self._weapon_group_from_item(w)
         if w_group and (w_group not in self.weapon_masteries) and (getattr(w, "name", "") != "Fists"):
             base_atk_spd *= 2.0
 
@@ -1203,7 +1210,10 @@ class Gladiator(pygame.sprite.Sprite):
         elif w_group in ["staff", "book"]:
             reduction = self.intelligence * 0.3
             
-        final_cost = max(6, int(base_cost - reduction))
+        # Aseperheen staminakerroin (dagger/fists kevyt, mace raskas)
+        from systems import weapon_feel
+        final_cost = max(4, int((base_cost - reduction)
+                                * weapon_feel.stamina_mult(w_group)))
 
         self.attack_cooldown = self.attack_speed
         self.current_stamina = max(0, self.current_stamina - final_cost)
@@ -1285,6 +1295,8 @@ class Gladiator(pygame.sprite.Sprite):
             dmg = 5
             if hasattr(w, "calculate_damage"):
                 dmg = w.calculate_damage(stats)
+            # Perheen DPS-kompensaatio (rytmi muuttui weapon_feelissä)
+            dmg *= weapon_feel.dmg_mult(getattr(w, "weapon_group", ""))
             # Ase-affiniteetti (rotu/perkki)
             dmg *= self.weapon_affinities.get(getattr(w, "weapon_group", ""), 1.0)
             # Moraali: 0.9x (0) ... 1.0x (50) ... 1.1x (100)
@@ -1307,6 +1319,12 @@ class Gladiator(pygame.sprite.Sprite):
 
             dmg = int(dmg * float(damage_mult))
 
+            # Aseperheen osumakerroin: backstab, tip damage, riposte
+            # (systems/weapon_feel.py - sama pelaajalle ja AI:lle)
+            if getattr(w, "type", "") == "melee":
+                dmg = int(dmg * weapon_feel.pre_hit_mult(
+                    self, t, getattr(w, "weapon_group", ""), manager))
+
             if self.weapon_effect == "heal":
                 t.heal(abs(dmg), manager)
             else:
@@ -1320,6 +1338,12 @@ class Gladiator(pygame.sprite.Sprite):
                     _kl = math.hypot(self.attack_vector[0], self.attack_vector[1]) or 1.0
                     t.check_wall_collision(self.attack_vector[0] / _kl * 7.0,
                                            self.attack_vector[1] / _kl * 7.0, None)
+                # Aseperheen osumaefekti: mace-daze, spear-työntö,
+                # fists-combo (systems/weapon_feel.py)
+                if getattr(w, "type", "") == "melee":
+                    weapon_feel.post_hit(self, t,
+                                         getattr(w, "weapon_group", ""),
+                                         real_dmg, manager)
             
             # --- GAME FEEL: HIT STOP & SHAKE (Vain pelaajalle) ---
             if manager and self == getattr(manager, "player_character", None):
@@ -1392,6 +1416,24 @@ class Gladiator(pygame.sprite.Sprite):
         # Osuma keskeyttää passiivisen HP-regenin 5 sekunniksi
         self.hp_regen_delay = 300
 
+        # --- POINT BLANK: etäaseet heikkoja nollaetäisyydeltä ---
+        # Melee vs ranged -dynamiikka (systems/weapon_feel.py): jousi/
+        # varsijousi/kirja/sauva tekee -40 % kun kohde on iholla. Antaa
+        # meleelle syyn painaa kiinni ja ampujalle syyn pitää etäisyys -
+        # korjaa myös AI-kitingin joka voitti kaikki melee-matsit.
+        if attacker is not None and \
+                str(getattr(attacker, "weapon_type", "")) == "ranged":
+            _pb = math.hypot(self.rect.centerx - attacker.rect.centerx,
+                             self.rect.centery - attacker.rect.centery)
+            from systems import weapon_feel as _wf
+            if _pb < _wf.POINT_BLANK_DIST:
+                amount = int(amount * _wf.POINT_BLANK_MULT)
+                if manager:
+                    manager.vfx.show_damage(self.rect.centerx,
+                                            self.rect.top - 45,
+                                            "POINT BLANK",
+                                            color=(170, 170, 170))
+
         offhand = self.equipment.get("off_hand")
         mainhand = self.equipment.get("main_hand") # Haetaan pääase torjuntatehon laskemiseen
 
@@ -1426,6 +1468,9 @@ class Gladiator(pygame.sprite.Sprite):
                     manager.vfx.show_damage(attacker.rect.centerx,
                                             attacker.rect.top - 20,
                                             "STAGGERED", color=(200, 200, 255))
+            # Riposte-ikkuna: seuraava melee-isku 1.5 s sisällä tekee +30 %
+            # (systems/weapon_feel.py kuluttaa tämän)
+            self.riposte_timer = 90
             return 0
 
         # Blocking (Shield or Weapon)
@@ -1446,6 +1491,23 @@ class Gladiator(pygame.sprite.Sprite):
                 elif w_group == "staff": block_pct = 0.4
                 elif w_group in ["bow", "crossbow", "book"]: block_pct = 0.2
             
+            # KIRVES: GUARD CRUSH - puolittaa blokin tehon ja repii
+            # blokkaajan staminaa (kirveen identiteetti: raivopää joka
+            # murtaa kilpimuurit; systems/weapon_feel.py)
+            _atk_w = None
+            if attacker is not None and hasattr(attacker, "equipment"):
+                _atk_w = attacker.equipment.get("main_hand")
+            if getattr(_atk_w, "weapon_group", "") == "axe":
+                from systems import weapon_feel as _wf
+                block_pct *= _wf.GUARD_CRUSH_BLOCK_CUT
+                self.current_stamina = max(
+                    0, self.current_stamina - _wf.GUARD_CRUSH_STAMINA)
+                if manager:
+                    manager.vfx.show_damage(self.rect.centerx,
+                                            self.rect.top - 45,
+                                            "GUARD CRUSH!",
+                                            color=(255, 150, 80))
+
             base_cost = max(2, float(amount) - (self.strength * 0.4))
             
             # Aseella torjuminen vie enemmän staminaa (2.5x)
@@ -1767,6 +1829,8 @@ class Gladiator(pygame.sprite.Sprite):
             self.block_timer += 1
         if getattr(self, "parry_cooldown", 0) > 0:
             self.parry_cooldown -= 1
+        if getattr(self, "riposte_timer", 0) > 0:
+            self.riposte_timer -= 1
 
         can_regen = not (self.is_blocking or self.is_sprinting or self.is_dashing or self.is_charging) and self.stun_timer <= 0
         if can_regen:
@@ -1866,6 +1930,15 @@ class Gladiator(pygame.sprite.Sprite):
         # Apply temporary modifier (Weapon charge etc.)
         current_speed *= self.temp_speed_mult
         self.temp_speed_mult = 1.0 # Reset for next frame
+
+        # GAME FEEL / TASAPAINO: laukauksen jälkeinen jalkatyö - ampuja
+        # hidastuu kunnes puolet cooldownista on kulunut. Antaa meleelle
+        # mahdollisuuden kuroa kitettäjää (ilman tätä samaa vauhtia
+        # perääntyvä kirja/jousi voitti KAIKKI melee-matsit) ja tekee
+        # ampumisesta painavan tuntuista myös pelaajalle.
+        if self.weapon_type == "ranged" and \
+                self.attack_cooldown > self.attack_speed * 0.5:
+            current_speed *= 0.55
 
         # Web/Slow-status hidastaa liikettä (esim. hämähäkin verkko)
         if any(e.get("type") in ("Web", "Slow") for e in self.status_effects):

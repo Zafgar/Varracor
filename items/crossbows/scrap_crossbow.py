@@ -19,14 +19,14 @@ class ScrapCrossbow(Weapon):
         self.weapon_group = "crossbow"
         self.level_required = 1
         
-        self.damage = 11 # Kovempi vahinko
+        self.damage = 13 # Kovempi vahinko
         self.attack_range = 350
         self.speed_bonus = -0.1
         self.scaling = {"DEX": 0.7, "STR": 0.2}
         
         self.is_loaded = False
         self.load_progress = 0
-        self.load_time = 70 # Reilun sekunnin lataus
+        self.load_time = 85  # raskas viritys - reload on aseen sydan
         self.charge_enabled = True
         self.last_charge_tick = 0
         self.just_finished_loading = False # UUSI: Estää välittömän laukaisun latauksen jälkeen
@@ -63,7 +63,7 @@ class ScrapCrossbow(Weapon):
                 self.load_progress = 0
             self.last_charge_tick = now
 
-            owner.temp_speed_mult = 0.0 # Pysähdy lataamaan
+            owner.temp_speed_mult = 0.25  # hidas kavely ladatessa (ei taysjuurrutus) # Pysähdy lataamaan
             owner.is_charging = True
             
             # Kuluta staminaa (raskas viritys)

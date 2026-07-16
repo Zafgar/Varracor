@@ -19,7 +19,7 @@ class WeakStaff(Weapon):
         self.weapon_group = "staff"
         self.level_required = 2
         
-        self.damage = 8
+        self.damage = 7
         self.attack_range = 280
         self.speed_bonus = 0.0
         self.scaling = {"INT": 0.9}
@@ -87,7 +87,7 @@ class WeakStaff(Weapon):
             manager.vfx.add_projectile(proj)
             
             sound_system.play_sound("staff_1")
-            owner.attack_cooldown = 35 # Hieman nopeampi
+            owner.attack_cooldown = owner.attack_speed  # keskitetty rytmi (weapon_feel)
             
         self.charge_time = 0
 

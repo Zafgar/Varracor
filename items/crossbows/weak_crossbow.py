@@ -26,7 +26,7 @@ class WeakCrossbow(Weapon):
         
         self.is_loaded = False
         self.load_progress = 0
-        self.load_time = 55 # Nopeampi lataus (0.9s)
+        self.load_time = 70  # raskas viritys - reload on aseen sydan
         self.charge_enabled = True
         self.last_charge_tick = 0
         self.just_finished_loading = False
@@ -62,14 +62,10 @@ class WeakCrossbow(Weapon):
                 self.load_progress = 0
             self.last_charge_tick = now
 
-            owner.temp_speed_mult = 0.0
+            owner.temp_speed_mult = 0.25  # hidas kavely ladatessa (ei taysjuurrutus)
             owner.is_charging = True
             
-            drain = max(0.2, 0.8 - (owner.strength * 0.02))
-            if owner.current_stamina > drain:
-                owner.current_stamina -= drain
-            else:
-                return
+            # Lataus ei kuluta staminaa (weapon feel: tuplasakko poistettu)
             
             self.load_progress += 1
             
@@ -88,7 +84,7 @@ class WeakCrossbow(Weapon):
 
             dmg = self.calculate_damage({"dex": owner.dexterity, "str": owner.strength})
             dmg = int(dmg * getattr(owner, 'weapon_affinities', {}).get('crossbow', 1.0))
-            bolt = ArrowProjectile(owner.rect.centerx, owner.rect.centery, target_pos, 28, dmg, owner, manager, is_bolt=True, max_range=self.attack_range)
+            bolt = ArrowProjectile(owner.rect.centerx, owner.rect.centery, target_pos, 34, dmg, owner, manager, is_bolt=True, max_range=self.attack_range)
             manager.vfx.add_projectile(bolt)
             
             sound_system.play_sound("crossbow_1")
