@@ -18,3 +18,6 @@ Thumbs.db
 # Runtime-generated placeholder art (regenerated on boot)
 assets/generated/
 asset_inbox/
+
+# Godot import-cache (rinnakkaisversio godot/)
+godot/.godot/
