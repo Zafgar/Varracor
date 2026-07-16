@@ -7,7 +7,7 @@ from typing import Iterable, List
 import pygame
 
 from ai.tier0_monster_ai import HeavyChargeAI, PounceMonsterAI, SkitterMonsterAI, SwarmMonsterAI
-from units.tier0_monsters import CodeMonster, _shade, _vfx_text
+from units.tier0_monsters import CodeMonster, MOVE_SCALE, _shade, _vfx_text
 
 
 class GreywashMonster(CodeMonster):
@@ -139,7 +139,7 @@ class CaptainGarranVale(GreywashMonster):
     EYE = (232, 178, 91)
     VISUAL_SIZE = (132, 124)
     HITBOX_SIZE = (72, 54)
-    HP, STR, DEX, INT, DEFENSE = 1380, 40, 16, 12, 17
+    HP, STR, DEX, INT, DEFENSE = 1380, 32, 16, 12, 17
     MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 1.02, 91, 64
     DAMAGE_TYPE = "Physical"
     STATUS_EFFECT = ("Bleed", 150, 4)
@@ -163,7 +163,7 @@ class CaptainGarranVale(GreywashMonster):
             return
         self.phase_two_triggered = True
         self.phase = 2
-        self.speed = self.walk_speed = 1.18
+        self.speed = self.walk_speed = 1.18 * MOVE_SCALE
         self.attack_speed = 55
         self.pending_spawn = [
             CrownDeserter(
@@ -182,7 +182,7 @@ class CaptainGarranVale(GreywashMonster):
             return
         self.phase_three_triggered = True
         self.phase = 3
-        self.speed = self.walk_speed = 1.31
+        self.speed = self.walk_speed = 1.31 * MOVE_SCALE
         self.attack_speed = 46
         self.strength += 10
         self.defense += 5

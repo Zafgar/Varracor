@@ -54,7 +54,7 @@ class HushMantle(Gladiator):
         self.calculate_final_stats()
         self.max_hp = 560
         self.current_hp = self.max_hp
-        self.speed = 0.9
+        self.speed = self.walk_speed = 0.9 * 1.85  # uusi liikeskaala (pelitesti 28); pelkka .speed ylikirjoittui updatessa
         self.attack_range = 52
         self.attack_speed = 80
         self.defense = 4
@@ -109,7 +109,7 @@ class GutterVermin(Gladiator):
         self.calculate_final_stats()
         self.max_hp = 44
         self.current_hp = self.max_hp
-        self.speed = 1.7
+        self.speed = self.walk_speed = 1.7 * 1.85  # uusi liikeskaala (pelitesti 28); pelkka .speed ylikirjoittui updatessa
         self.attack_range = 30
         self.attack_speed = 45
         self.defense = 0
@@ -154,11 +154,11 @@ class RedLanternCadaver(Gladiator):
         self.rect = pygame.Rect(x, y, 32, 44)
         self.base_attributes["str"] = 11
         self.base_attributes["dex"] = 5
-        self.base_attributes["hp"] = 120
+        self.base_attributes["hp"] = 260  # pelitesti 28: tier 1 -alueen mitoitus
         self.calculate_final_stats()
-        self.max_hp = 120
+        self.max_hp = 260
         self.current_hp = self.max_hp
-        self.speed = 0.85
+        self.speed = self.walk_speed = 0.85 * 1.85  # uusi liikeskaala (pelitesti 28); pelkka .speed ylikirjoittui updatessa
         self.attack_range = 34
         self.attack_speed = 70
         self.defense = 1

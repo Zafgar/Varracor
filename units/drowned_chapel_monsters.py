@@ -12,7 +12,7 @@ from ai.tier0_monster_ai import (
     SwarmMonsterAI,
     ToxicPulseAI,
 )
-from units.tier0_monsters import CodeMonster, _shade, _vfx_text
+from units.tier0_monsters import CodeMonster, MOVE_SCALE, _shade, _vfx_text
 
 
 class ChapelMonster(CodeMonster):
@@ -96,7 +96,7 @@ class WaterRisenPilgrim(ChapelMonster):
     EYE = (151, 225, 213)
     VISUAL_SIZE = (64, 62)
     HITBOX_SIZE = (35, 27)
-    HP, STR, DEX, DEFENSE = 128, 13, 6, 3
+    HP, STR, DEX, DEFENSE = 230, 19, 6, 5
     MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 0.78, 47, 69
     STATUS_EFFECT = ("Slow", 100, 0)
     AI_CLASS = SwarmMonsterAI
@@ -112,7 +112,7 @@ class FloodedAcolyte(ChapelMonster):
     EYE = (169, 235, 218)
     VISUAL_SIZE = (68, 64)
     HITBOX_SIZE = (36, 28)
-    HP, STR, DEX, INT, DEFENSE = 154, 12, 8, 11, 4
+    HP, STR, DEX, INT, DEFENSE = 270, 17, 8, 14, 6
     MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 0.72, 175, 76
     DAMAGE_TYPE = "Poison"
     STATUS_EFFECT = ("Poison", 150, 3)
@@ -129,7 +129,7 @@ class BellWraith(ChapelMonster):
     EYE = (188, 239, 227)
     VISUAL_SIZE = (66, 64)
     HITBOX_SIZE = (34, 24)
-    HP, STR, DEX, INT, DEFENSE = 182, 15, 14, 13, 3
+    HP, STR, DEX, INT, DEFENSE = 300, 20, 14, 16, 5
     MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 1.18, 205, 66
     DAMAGE_TYPE = "Magic"
     STATUS_EFFECT = ("Slow", 130, 0)
@@ -165,7 +165,7 @@ class BellDrownedPilgrim(ChapelMonster):
         if self.phase >= 2 or self.is_dead:
             return
         self.phase = 2
-        self.walk_speed = 0.86
+        self.walk_speed = 0.86 * MOVE_SCALE
         self.speed = self.walk_speed
         self.attack_speed = 62
         self.strength += 6

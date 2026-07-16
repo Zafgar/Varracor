@@ -149,7 +149,12 @@ def manager():
 
 
 def run_duel(m, unit_a, unit_b, max_frames=3600):
-    """Ajaa kaksintaistelun loppuun tai max_frames asti. Palauttaa dictin."""
+    """Ajaa kaksintaistelun loppuun tai max_frames asti. Palauttaa dictin.
+
+    DETERMINISMI: aseiden charge-logiikka lukee pygame.time.get_ticks()
+    (reaaliaika!) - koneen kuorma heilutti duel-tuloksia ja teki
+    tasapainotesteistä flakeja. Simuloidaan kello frame-ajalla (16 ms/
+    frame), jolloin sama siemen antaa aina saman taistelun."""
     from settings import PLAYER_TEAM, ENEMY_TEAM
     unit_a.team_color = PLAYER_TEAM
     unit_b.team_color = ENEMY_TEAM
@@ -161,15 +166,23 @@ def run_duel(m, unit_a, unit_b, max_frames=3600):
 
     hp_start = (unit_a.current_hp, unit_b.current_hp)
     damaged = False
-    for frame in range(max_frames):
-        for u in (unit_a, unit_b):
-            if not u.is_dead:
-                u.run_combat_ai(m.all_units, None, manager=m)
-                u.update(None, manager=m)
-        m.vfx.update(obstacles=None)
-        if unit_a.current_hp < hp_start[0] or unit_b.current_hp < hp_start[1]:
-            damaged = True
-        if unit_a.is_dead or unit_b.is_dead:
-            return {"ended": True, "damaged": damaged, "frames": frame,
-                    "winner": unit_a if unit_b.is_dead else unit_b}
-    return {"ended": False, "damaged": damaged, "frames": max_frames, "winner": None}
+    _real_ticks = pygame.time.get_ticks
+    _sim_ms = [_real_ticks()]
+    pygame.time.get_ticks = lambda: _sim_ms[0]
+    try:
+        for frame in range(max_frames):
+            _sim_ms[0] += 16
+            for u in (unit_a, unit_b):
+                if not u.is_dead:
+                    u.run_combat_ai(m.all_units, None, manager=m)
+                    u.update(None, manager=m)
+            m.vfx.update(obstacles=None)
+            if unit_a.current_hp < hp_start[0] or unit_b.current_hp < hp_start[1]:
+                damaged = True
+            if unit_a.is_dead or unit_b.is_dead:
+                return {"ended": True, "damaged": damaged, "frames": frame,
+                        "winner": unit_a if unit_b.is_dead else unit_b}
+        return {"ended": False, "damaged": damaged, "frames": max_frames,
+                "winner": None}
+    finally:
+        pygame.time.get_ticks = _real_ticks

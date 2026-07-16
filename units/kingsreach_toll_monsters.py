@@ -7,7 +7,7 @@ from typing import Iterable, List
 import pygame
 
 from ai.tier0_monster_ai import HeavyChargeAI, RangedKiteMonsterAI, SkitterMonsterAI, ToxicPulseAI
-from units.tier0_monsters import CodeMonster, _shade, _vfx_text
+from units.tier0_monsters import CodeMonster, MOVE_SCALE, _shade, _vfx_text
 
 
 class KingsreachThreat(CodeMonster):
@@ -141,7 +141,7 @@ class TollmasterHadrikCrowl(KingsreachThreat):
     EYE = (239, 186, 82)
     VISUAL_SIZE = (136, 128)
     HITBOX_SIZE = (76, 56)
-    HP, STR, DEX, INT, DEFENSE = 1640, 44, 17, 11, 20
+    HP, STR, DEX, INT, DEFENSE = 1640, 35, 17, 11, 20
     MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 1.00, 96, 66
     STATUS_EFFECT = ("Bleed", 150, 4)
     AI_CLASS = HeavyChargeAI
@@ -164,7 +164,7 @@ class TollmasterHadrikCrowl(KingsreachThreat):
             return
         self.phase_two_triggered = True
         self.phase = 2
-        self.speed = self.walk_speed = 1.16
+        self.speed = self.walk_speed = 1.16 * MOVE_SCALE
         self.attack_speed = 55
         self.pending_spawn = [
             CrownTollEnforcer(
@@ -183,7 +183,7 @@ class TollmasterHadrikCrowl(KingsreachThreat):
             return
         self.phase_three_triggered = True
         self.phase = 3
-        self.speed = self.walk_speed = 1.31
+        self.speed = self.walk_speed = 1.31 * MOVE_SCALE
         self.attack_speed = 46
         self.strength += 11
         self.defense += 6

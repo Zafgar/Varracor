@@ -49,6 +49,9 @@ def _vfx_text(manager, unit, text: str, color=(180, 220, 180)) -> None:
         pass
 
 
+MOVE_SCALE = 1.85  # vanha liikeskaala -> uusi (ks. gladiator.walk_speed)
+
+
 class CodeMonster(Gladiator):
     """Shared stat, attack and generated-sprite implementation."""
 
@@ -105,7 +108,11 @@ class CodeMonster(Gladiator):
         self.current_hp = self.max_hp
         self.max_mana = 0
         self.current_mana = 0
-        self.walk_speed = float(self.MOVE_SPEED)
+        # LIIKESKAALA (pelitesti 28): MOVE_SPEED-vakiot on mitoitettu
+        # VANHAAN liikekaavaan (pelaaja ~1.25 px/f). Game feel -remontin
+        # jälkeen pelaaja kävelee ~2.25 ja sprinttaa ~3.6 - monsterit
+        # skaalataan samalla kertoimella etteivät ne ole etanoita.
+        self.walk_speed = float(self.MOVE_SPEED) * MOVE_SCALE
         self.speed = self.walk_speed
         self.attack_range = int(self.ATTACK_RANGE)
         self.attack_speed = int(self.ATTACK_SPEED)
@@ -558,10 +565,10 @@ class WhisperMoth(CodeMonster):
     EYE = (177, 239, 230)
     VISUAL_SIZE = (66, 58)
     HITBOX_SIZE = (34, 22)
-    HP, STR, DEX, INT, DEFENSE = 168, 15, 14, 12, 2
-    MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 1.22, 190, 72
+    HP, STR, DEX, INT, DEFENSE = 168, 12, 14, 12, 2
+    MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 0.92, 190, 72  # kiteri: pelaajan taydytettava saada kiinni
     DAMAGE_TYPE = "Poison"
-    STATUS_EFFECT = ("Poison", 180, 4)
+    STATUS_EFFECT = ("Poison", 150, 2)  # pelitesti 28: kenttatrash, ei tappokite
     AI_CLASS = RangedKiteMonsterAI
     XP_REWARD, BOUNTY_VALUE = 38, 6
 

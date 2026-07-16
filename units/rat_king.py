@@ -21,7 +21,7 @@ class RatKing(Gladiator):
         self.base_attributes["mana"] = 100
         
         # Boss Stats (nämä ylikirjoittuvat calculate_final_statsissa jos ei koske base_attributesiin)
-        self.speed = 0.75
+        self.speed = self.walk_speed = 0.75 * 1.85  # uusi liikeskaala (pelitesti 28); pelkka .speed ylikirjoittui updatessa
         self.attack_range = 70
         self.is_boss = True   # bossipalkki ruudun yläreunaan (pelitesti 22)
 

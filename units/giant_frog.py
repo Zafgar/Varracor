@@ -19,7 +19,7 @@ class GiantFrog(Gladiator):
         self.calculate_final_stats()
         self.current_hp = self.max_hp
         
-        self.speed = 0.9
+        self.speed = self.walk_speed = 0.9 * 1.85  # uusi liikeskaala (pelitesti 28); pelkka .speed ylikirjoittui updatessa
         self.attack_range = 45
         self.mud_immune = True
         

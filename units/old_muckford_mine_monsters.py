@@ -13,7 +13,7 @@ from ai.tier0_monster_ai import (
     SkitterMonsterAI,
     SwarmMonsterAI,
 )
-from units.tier0_monsters import CodeMonster, _shade, _vfx_text
+from units.tier0_monsters import CodeMonster, MOVE_SCALE, _shade, _vfx_text
 
 
 class MineMonster(CodeMonster):
@@ -150,9 +150,9 @@ class RailWraith(MineMonster):
     VISUAL_SIZE = (66, 68)
     HITBOX_SIZE = (34, 24)
     HP, STR, DEX, INT, DEFENSE = 172, 13, 13, 14, 3
-    MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 1.08, 210, 68
+    MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 0.72, 210, 68  # kiteri: slow-yhdistelma vaatii hitauden
     DAMAGE_TYPE = "Magic"
-    STATUS_EFFECT = ("Slow", 120, 0)
+    STATUS_EFFECT = ("Slow", 60, 0)  # pelitesti 28: permaslow-kite oli voittamaton
     AI_CLASS = RangedKiteMonsterAI
     XP_REWARD, BOUNTY_VALUE = 37, 6
 
@@ -182,7 +182,7 @@ class CrystalHusk(MineMonster):
     EYE = (240, 166, 191)
     VISUAL_SIZE = (86, 76)
     HITBOX_SIZE = (50, 34)
-    HP, STR, DEX, INT, DEFENSE = 255, 21, 6, 8, 8
+    HP, STR, DEX, INT, DEFENSE = 255, 16, 6, 8, 8
     MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 0.72, 63, 82
     DAMAGE_TYPE = "Physical"
     STATUS_EFFECT = ("Slow", 110, 0)
@@ -199,7 +199,7 @@ class BroodGuard(MineMonster):
     EYE = (235, 63, 102)
     VISUAL_SIZE = (116, 92)
     HITBOX_SIZE = (62, 40)
-    HP, STR, DEX, DEFENSE = 340, 24, 12, 9
+    HP, STR, DEX, DEFENSE = 280, 14, 12, 5  # eliittivartija: kova muttei kolikonheitto
     MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 1.02, 61, 64
     STATUS_EFFECT = ("Poison", 150, 3)
     AI_CLASS = SkitterMonsterAI
@@ -215,7 +215,7 @@ class DeepCaveBroodmother(MineMonster):
     EYE = (242, 60, 103)
     VISUAL_SIZE = (154, 124)
     HITBOX_SIZE = (88, 58)
-    HP, STR, DEX, INT, DEFENSE = 1080, 31, 12, 14, 11
+    HP, STR, DEX, INT, DEFENSE = 1080, 25, 12, 14, 11
     MOVE_SPEED, ATTACK_RANGE, ATTACK_SPEED = 0.86, 78, 76
     STATUS_EFFECT = ("Poison", 180, 4)
     AI_CLASS = HeavyChargeAI
@@ -237,7 +237,7 @@ class DeepCaveBroodmother(MineMonster):
             return
         self.phase_two_triggered = True
         self.phase = 2
-        self.speed = self.walk_speed = 1.05
+        self.speed = self.walk_speed = 1.05 * MOVE_SCALE
         self.attack_speed = 62
         self.pending_spawn = [
             WebCrawler(
@@ -256,7 +256,7 @@ class DeepCaveBroodmother(MineMonster):
             return
         self.phase_three_triggered = True
         self.phase = 3
-        self.speed = self.walk_speed = 1.22
+        self.speed = self.walk_speed = 1.22 * MOVE_SCALE
         self.attack_speed = 52
         self.strength += 7
         self.defense += 3

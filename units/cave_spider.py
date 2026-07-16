@@ -29,7 +29,7 @@ class Spiderling(Gladiator):
         self.calculate_final_stats()
         self.max_hp = 40
         self.current_hp = self.max_hp
-        self.speed = 1.7
+        self.speed = self.walk_speed = 1.7 * 1.85  # uusi liikeskaala (pelitesti 28); pelkka .speed ylikirjoittui updatessa
         self.attack_range = 34
         self.attack_speed = 45
         self.defense = 0
@@ -79,7 +79,10 @@ class CaveBroodmother(Gladiator):
         super().__init__(name, "Spider", x, y, team_color)
         self.rect = pygame.Rect(x, y, 96, 84)
 
-        self.base_attributes["str"] = 26
+        self.base_attributes["str"] = 32  # pelitesti 28: boss-purevuus
+        from items.monster_weapons import NaturalWeapon
+        self.equipment["main_hand"] = NaturalWeapon(
+            "Venom Fangs", damage=28, attack_range=48)
         self.base_attributes["dex"] = 12
         self.base_attributes["hp"] = 750
         self.base_attributes["def_flat"] = 6
@@ -88,7 +91,7 @@ class CaveBroodmother(Gladiator):
         self.max_hp = 750
         self.current_hp = self.max_hp
 
-        self.speed = 1.15
+        self.speed = self.walk_speed = 1.15 * 1.85  # uusi liikeskaala (pelitesti 28); pelkka .speed ylikirjoittui updatessa
         self.attack_range = 60
         self.attack_speed = 70
         self.defense = 6

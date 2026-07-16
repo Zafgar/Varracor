@@ -6,7 +6,7 @@ import math
 import pygame
 
 from ai.tier0_monster_ai import HeavyChargeAI
-from units.tier0_monsters import CodeMonster, MireLurkerSpawn, _shade, _vfx_text
+from units.tier0_monsters import CodeMonster, MOVE_SCALE, MireLurkerSpawn, _shade, _vfx_text
 
 
 class WhisperPoolMaw(CodeMonster):
@@ -81,7 +81,7 @@ class WhisperPoolMaw(CodeMonster):
         if self.phase >= 2 or self.is_dead:
             return
         self.phase = 2
-        self.walk_speed = 0.94
+        self.walk_speed = 0.94 * MOVE_SCALE
         self.speed = self.walk_speed
         self.attack_speed = 61
         self.strength += 5

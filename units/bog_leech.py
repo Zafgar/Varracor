@@ -19,7 +19,7 @@ class BogLeech(Gladiator):
         self.calculate_final_stats()
         self.current_hp = self.max_hp
         
-        self.speed = 1.3
+        self.speed = self.walk_speed = 1.3 * 1.85  # uusi liikeskaala (pelitesti 28); pelkka .speed ylikirjoittui updatessa
         self.attack_range = 30
         self.mud_immune = True
         

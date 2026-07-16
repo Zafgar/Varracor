@@ -29,7 +29,10 @@ class Troll(Gladiator):
         super().__init__(name, "Troll", x, y, team_color)
         self.rect = pygame.Rect(x, y, 64, 80)
 
-        self.base_attributes["str"] = 20
+        self.base_attributes["str"] = 27  # pelitesti 28: pure tier-panssariin
+        from items.monster_weapons import NaturalWeapon
+        self.equipment["main_hand"] = NaturalWeapon(
+            "Troll Fists", damage=30, attack_range=55, speed_bonus=-1.0)
         self.base_attributes["dex"] = 4
         self.base_attributes["hp"] = 600
         self.calculate_final_stats()
@@ -37,7 +40,7 @@ class Troll(Gladiator):
         self.max_hp = 600
         self.current_hp = self.max_hp
 
-        self.speed = 0.8
+        self.speed = self.walk_speed = 0.8 * 1.85  # uusi liikeskaala (pelitesti 28); pelkka .speed ylikirjoittui updatessa
         self.attack_range = 55
         self.attack_speed = 90   # hidas mutta kova
         self.defense = 4

@@ -12,7 +12,7 @@ class GiantRat(Gladiator):
         self.current_hp = 60
         self.strength = 25
         self.dexterity = 14
-        self.speed = 1.2
+        self.speed = self.walk_speed = 1.2 * 1.85  # uusi liikeskaala (pelitesti 28); pelkka .speed ylikirjoittui updatessa
         self.attack_speed = 45
 
     def load_assets(self):
