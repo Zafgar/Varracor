@@ -100,6 +100,19 @@ py-arvot = exportatut arvot.
     (Label3D), kaivo, MUCKFORD-nimikortti feidillä; portti
     harjoitusareenalle. CONTINUE jatkaa tallennettuun skeneen
     (state_dict tallentaa scene-polun).
+- **Vaihe 0.95 – Save-slotit + Muckford v2 (TEHTY)**
+  - Päävalikon CONTINUE -> LOAD GAME: jaettu slottipaneeli
+    (save_slot_panel.gd, 3 slottia, X-poisto kahdella klikillä kuten
+    py:ssä); pause-valikon SAVE GAME käyttää samaa paneelia.
+    SaveGame: user://save_slot_N.json + vanhan save.jsonin migraatio.
+  - Muckford-layout suunniteltu uusiksi py-version pohjalta (hienompana):
+    tori kojuineen (market_data.py:n 5 liikettä), Griznakin vankkurit,
+    Sunk Cask + laituri suolammelle, paja hehkuvine ahjoineen,
+    barracks, Town Hall banderolleineen, Hobbin maatila peltoineen ja
+    aitoineen, Shanty Yard -areenaportti, lukittu kaivostieportti,
+    suolammet (kaislat, lumpeet, tulikärpäset), laudoitukset, lyhdyt,
+    savupiiput savuineen, reunametsä ja kuljeskelevat kyläläiset
+    (villager.gd, kevyt POI-wander).
 - **Vaihe 1 – Ydinsimulaatio**
   - Yksikködata Resourceina; statit käyrästä + gearista + puu-%
   - Vahinko/parannus, statukset (Burn/Poison/Regen/Slow), kuolema

@@ -14,12 +14,10 @@ func _ready() -> void:
 	_build_environment()
 	_build_arena()
 	player = _spawn_player()
-	# CONTINUE päävalikosta: ladataan tallennettu tila commanderiin
-	if SaveGame.pending_load:
-		SaveGame.pending_load = false
-		var state := SaveGame.load_state()
-		if not state.is_empty():
-			player.apply_state(state)
+	# LOAD GAME päävalikosta: ladataan valitun slotin tila commanderiin
+	var state := SaveGame.consume_pending()
+	if not state.is_empty():
+		player.apply_state(state)
 	_spawn_enemies()
 	_build_camera()
 	_build_hud()

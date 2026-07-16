@@ -105,7 +105,8 @@ def test_godot_project_skeleton_present():
                 "scripts/save_manager.gd", "scripts/dialogue_box.gd",
                 "scripts/devourer.gd", "scenes/forest_road.tscn",
                 "scripts/forest_road.gd", "scenes/muckford.tscn",
-                "scripts/muckford.gd"):
+                "scripts/muckford.gd", "scripts/save_slot_panel.gd",
+                "scripts/villager.gd"):
         assert os.path.exists(os.path.join(root, rel)), f"{rel} puuttuu"
     # Autoload rekisteröity
     with open(os.path.join(root, "project.godot"), encoding="utf-8") as f:

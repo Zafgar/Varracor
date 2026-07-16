@@ -52,15 +52,39 @@ func _btn(parent: Node, text: String, action: Callable) -> void:
 	parent.add_child(b)
 
 
+## SAVE GAME avaa saman slottipaneelin kuin päävalikon LOAD GAME
 func _save_game() -> void:
 	var players := get_tree().get_nodes_in_group("player")
 	if players.is_empty():
 		_saved_label.text = "No commander to save"
 		return
-	if SaveGame.save_state(players[0].state_dict()):
-		_saved_label.text = "Game saved!"
-	else:
-		_saved_label.text = "Save failed"
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.65)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_panel.add_child(dim)
+	var panel := PanelContainer.new()
+	panel.set_script(load("res://scripts/save_slot_panel.gd"))
+	panel.set("mode", "save")
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	dim.add_child(panel)
+	panel.connect("slot_picked", func(slot: int):
+		if SaveGame.save_slot(slot, players[0].state_dict()):
+			_saved_label.text = "Saved to slot %d" % slot
+		else:
+			_saved_label.text = "Save failed"
+		dim.queue_free()
+		_focus_first())
+	panel.connect("closed", func():
+		dim.queue_free()
+		_focus_first())
+
+
+func _focus_first() -> void:
+	var first := _panel.find_children("", "Button", true, false)
+	if not first.is_empty():
+		(first[0] as Button).grab_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -74,6 +98,4 @@ func toggle(show_menu: bool) -> void:
 	_panel.visible = show_menu
 	get_tree().paused = show_menu
 	if show_menu:
-		var first := _panel.find_children("", "Button", true, false)
-		if not first.is_empty():
-			(first[0] as Button).grab_focus()
+		_focus_first()

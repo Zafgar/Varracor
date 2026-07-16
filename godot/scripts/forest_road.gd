@@ -167,9 +167,9 @@ func _build_forest() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
 	# Tiheät puurivit tien molemmin puolin (2 riviä/puoli)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		for row in range(2):
-			var z_base := side * (ROAD_HALF_W + 3.0 + row * 5.0)
+			var z_base: float = side * (ROAD_HALF_W + 3.0 + row * 5.0)
 			var x := -10.0
 			while x < ROAD_LEN + 20.0:
 				_add_tree(Vector3(x + rng.randf_range(-2.0, 2.0), 0,
@@ -265,13 +265,11 @@ func _spawn_player() -> void:
 	player.spell_cast.connect(func(_s): _spell_seen = true)
 	player.downed.connect(_on_player_downed)
 	_attach_rain(player)
-	# CONTINUE tähän skeneen: palauta statit mutta pidä opetus alusta
-	if SaveGame.pending_load:
-		SaveGame.pending_load = false
-		var state := SaveGame.load_state()
-		state.erase("pos")
-		if not state.is_empty():
-			player.apply_state(state)
+	# LOAD GAME tähän skeneen: palauta statit mutta pidä opetus alusta
+	var state := SaveGame.consume_pending()
+	state.erase("pos")
+	if not state.is_empty():
+		player.apply_state(state)
 
 
 ## Sade seuraa pelaajaa: GPU-partikkelit laatikosta pelaajan yllä,

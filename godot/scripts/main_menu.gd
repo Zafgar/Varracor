@@ -28,14 +28,9 @@ func _ready() -> void:
 	box.add_child(_spacer(30))
 
 	_btn(box, "NEW GAME", func(): Router.goto("res://scenes/intro.tscn"))
-	_btn(box, "CONTINUE", func():
-		SaveGame.pending_load = true
-		# Jatka siitä skenestä johon tallennettiin
-		var scene: String = str(SaveGame.load_state().get(
-			"scene", "res://scenes/muckford.tscn"))
-		Router.goto(scene))
-	# CONTINUE vain jos tallennus on olemassa
-	_buttons[1].disabled = not SaveGame.has_save()
+	_btn(box, "LOAD GAME", func(): _open_load_panel())
+	# LOAD GAME vain jos jokin slotti on käytössä
+	_buttons[1].disabled = not SaveGame.has_any_save()
 	_btn(box, "OPTIONS", func(): Router.goto("res://scenes/options_menu.tscn"))
 	_btn(box, "QUIT", func(): get_tree().quit())
 
@@ -44,6 +39,31 @@ func _ready() -> void:
 
 	_buttons[0].grab_focus()
 	Audio.play_music("menu")
+
+
+## Slottipaneeli overlayna: valinta lataa slotin skeneen johon tallennettiin
+func _open_load_panel() -> void:
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.65)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
+	var panel := PanelContainer.new()
+	panel.set_script(load("res://scripts/save_slot_panel.gd"))
+	panel.set("mode", "load")
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	dim.add_child(panel)
+	panel.connect("slot_picked", func(slot: int):
+		SaveGame.pending_slot = slot
+		SaveGame.pending_load = true
+		var scene: String = str(SaveGame.load_slot(slot).get(
+			"scene", "res://scenes/muckford.tscn"))
+		Router.goto(scene))
+	panel.connect("closed", func():
+		dim.queue_free()
+		_buttons[1].disabled = not SaveGame.has_any_save()
+		_buttons[0].grab_focus())
 
 
 func _btn(parent: Node, text: String, action: Callable) -> void:
