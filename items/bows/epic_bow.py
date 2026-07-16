@@ -25,6 +25,7 @@ class EpicBow(Weapon):
 
         # AI/Gladiator logic
         self.type = "ranged"
+        self.two_handed = True  # varaa molemmat kadet - ei kilpea/off-handia
         self.slot_type = "main_hand"
 
         # core stats

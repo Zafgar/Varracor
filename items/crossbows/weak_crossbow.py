@@ -17,6 +17,7 @@ class WeakCrossbow(Weapon):
         self.type = "ranged"
         self.slot_type = "main_hand"
         self.weapon_group = "crossbow"
+        self.two_handed = True  # varaa molemmat kadet - ei kilpea/off-handia
         self.level_required = 2
         
         self.damage = 15

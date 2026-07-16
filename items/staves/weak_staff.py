@@ -17,6 +17,7 @@ class WeakStaff(Weapon):
         self.type = "ranged" # Battle Mage: Ampuu taikaa
         self.slot_type = "main_hand"
         self.weapon_group = "staff"
+        self.two_handed = True  # varaa molemmat kadet - ei kilpea/off-handia
         self.level_required = 2
         
         self.damage = 7

@@ -16,6 +16,7 @@ class RatPoisonStaff:
         self.cost = 450
         self.speed_bonus = 0.0
         self.weapon_group = "staff"
+        self.two_handed = True  # varaa molemmat kadet - ei kilpea/off-handia
         self.level_required = 2
         self.in_shop = False
 

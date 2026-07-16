@@ -17,6 +17,7 @@ class ScrapShield(Item):
         
         self.defense = 1
         self.block_chance = 0.10 # 10% chance
+        self.shield_tier = 1  # 1=perus, 2=Tower Discipline
         self.speed_bonus = -0.02
         
         self.image = None

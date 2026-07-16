@@ -131,6 +131,8 @@ class Gladiator(pygame.sprite.Sprite):
         self.block_timer = 0 # GAME FEEL: frameja blokin alusta (parry-ikkuna)
         self.parry_cooldown = 0 # onnistuneen parryn jälkeinen lukitus
         self.riposte_timer = 0  # perfect parry avaa vastaiskuikkunan
+        self.shield_tier = 1    # 1 = perus, 2 = Tower Discipline -kilvet
+        self.shield_bash_cd = 0 # kilpi-iskun cooldown
         self.heavy_armor_penalty_mult = 1.0
         self.double_shot_chance = 0.0
         self.temp_speed_mult = 1.0 # UUSI: Väliaikainen nopeuskerroin (esim. lataus)
@@ -619,10 +621,21 @@ class Gladiator(pygame.sprite.Sprite):
 
         # 2. Off-hand
         if slot_name == "off_hand":
+            # Kaksikätinen pääase varaa molemmat kädet (jousi, varsijousi,
+            # keihäs, sauva) - ei kilpeä eikä off-hand-asetta niiden kanssa
+            mh = self.equipment.get("main_hand")
+            if mh is not None and getattr(mh, "two_handed", False):
+                return False, (f"{getattr(mh, 'name', 'Weapon')} requires "
+                               "both hands.")
             t = str(getattr(item, "type", "")).lower()
             if t == "shield":
                 if "shield" not in self.weapon_masteries:
-                    return False, "Shield proficiency required."
+                    return False, "Shield proficiency required (Shieldbearer)."
+                # Paremmat kilvet (tier 2) vaativat Tower Discipline -noden
+                if int(getattr(item, "shield_tier", 1)) > \
+                        int(getattr(self, "shield_tier", 1)):
+                    return False, ("Advanced shield - requires Tower "
+                                   "Discipline (skill tree).")
                 return True, ""
             if t == "relic":
                 # Relikvit vaativat Relic User -noden (int-haara)
@@ -641,6 +654,10 @@ class Gladiator(pygame.sprite.Sprite):
 
         # 3. Main hand Weapon (HARD LOCK)
         if slot_name == "main_hand":
+            # Kaksikätinen ase vaatii vapaan off-hand-käden
+            if getattr(item, "two_handed", False) and \
+                    self.equipment.get("off_hand") is not None:
+                return False, "Requires both hands (unequip off-hand first)."
             w_group = self._weapon_group_from_item(item)
             # Elämäntaitotyökalut (hakku, kirves, vapa): käyttöoikeus tulee
             # Commander Paths -poluista (tools-listat), EI asekoulutuksesta.
@@ -772,6 +789,11 @@ class Gladiator(pygame.sprite.Sprite):
                     self.armor_masteries.update([str(x).lower() for x in p])
                 else:
                     self.armor_masteries.add(str(p).lower())
+
+            # Kilpitier (Tower Discipline): paremmat kilvet vaativat tämän
+            if "shield_tier" in effects:
+                self.shield_tier = max(getattr(self, "shield_tier", 1),
+                                       int(effects["shield_tier"]))
 
             # Spell unlocks
             if "unlock_spell_slot" in effects:
@@ -1109,6 +1131,61 @@ class Gladiator(pygame.sprite.Sprite):
             sound_system.play_sound("swish")
             return True
         return False
+
+    def perform_shield_bash(self, target_pos, manager=None):
+        """KILPI-ISKU: LMB blokin aikana - lyhyt tyrkkäys eteenpäin joka
+        vahingoittaa (STR-skaalaus), horjuttaa (20 f) ja työntää lähellä
+        olevat viholliset. Vaatii kilven + shield-masteryn + aktiivisen
+        blokin. Sama koodipolku pelaajalle ja AI:lle."""
+        off = self.equipment.get("off_hand")
+        if not (off and str(getattr(off, "type", "")).lower() == "shield"):
+            return False
+        if "shield" not in self.weapon_masteries:
+            return False
+        if not self.is_blocking or self.is_dead or self.stun_timer > 0:
+            return False
+        if getattr(self, "shield_bash_cd", 0) > 0:
+            return False
+        if self.current_stamina < 15:
+            return False
+
+        self.shield_bash_cd = 90
+        self.current_stamina -= 15
+        self.animation_state = "attack"
+        self.animation_timer = 12
+        dx = target_pos[0] - self.rect.centerx
+        dy = target_pos[1] - self.rect.centery
+        l = math.hypot(dx, dy) or 1.0
+        # Tyrkkäysaskel eteen
+        self.check_wall_collision(dx / l * 10.0, dy / l * 10.0, None)
+        sound_system.play_sound("swish")
+
+        dmg = int(4 + self.strength * 0.5)
+        if manager:
+            manager.vfx.show_damage(self.rect.centerx, self.rect.top - 40,
+                                    "BASH!", color=(200, 220, 255))
+            for u in manager.all_units:
+                if u is self or self.is_ally(u) or getattr(u, "is_dead", False):
+                    continue
+                ux = u.rect.centerx - self.rect.centerx
+                uy = u.rect.centery - self.rect.centery
+                dist = math.hypot(ux, uy)
+                # Etusektori: kohteen pitää olla iskusuunnassa
+                if dist > 60 or (ux * dx + uy * dy) <= 0:
+                    continue
+                real = u.take_damage(dmg, "Physical", attacker=self,
+                                     manager=manager)
+                self.stats["damage"] += int(real)
+                if getattr(u, "stun_immunity", 0) <= 0:
+                    u.stun_timer = max(getattr(u, "stun_timer", 0), 20)
+                if hasattr(u, "check_wall_collision"):
+                    ul = dist or 1.0
+                    u.check_wall_collision(ux / ul * 16.0, uy / ul * 16.0,
+                                           None)
+            if self is getattr(manager, "player_character", None):
+                manager.trigger_hit_stop(3)
+                manager.trigger_screen_shake(4)
+        return True
 
     def perform_dodge(self):
         if self.ai_controller and hasattr(self.ai_controller, "current_target"):
@@ -1831,6 +1908,8 @@ class Gladiator(pygame.sprite.Sprite):
             self.parry_cooldown -= 1
         if getattr(self, "riposte_timer", 0) > 0:
             self.riposte_timer -= 1
+        if getattr(self, "shield_bash_cd", 0) > 0:
+            self.shield_bash_cd -= 1
 
         can_regen = not (self.is_blocking or self.is_sprinting or self.is_dashing or self.is_charging) and self.stun_timer <= 0
         if can_regen:

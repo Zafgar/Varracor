@@ -9,6 +9,7 @@ class RatKingShield:
         self.slot_type = "off_hand"
         self.defense = 5
         self.block_chance = 0.30
+        self.shield_tier = 2  # 1=perus, 2=Tower Discipline
         self.rarity = "Epic"
         self.description = "A heavy shield made of sewer scrap. High block chance."
         self.cost = 600

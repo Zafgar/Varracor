@@ -19,6 +19,7 @@ class WeakBow(Weapon):
         
         self.slot_type = "main_hand"
         self.weapon_group = "bow"  # BUGIKORJAUS: puuttui -> AI ei osannut ladata jousta
+        self.two_handed = True  # varaa molemmat kadet - ei kilpea/off-handia
         self.level_required = 2
         self.damage = 9
         self.attack_range = 300

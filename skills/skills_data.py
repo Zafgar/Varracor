@@ -239,23 +239,46 @@ SKILL_TREE = {
     },
 
     # Branch 2: Tank (Shields, Heavy Armor)
+    # HUOM (pelitesti 24): kilpi on kova yhdiste minkä tahansa aseen
+    # kanssa -> se EI tule heti. Knight avaa vain raskaan panssarin;
+    # kilvet vaativat oman Shieldbearer-noden syvemmältä, ja paremmat
+    # kilvet (tier 2: Slime/Rat King...) vielä Tower Discipline -noden.
+    # Dagger+kilpi tms. combo = panostus kahteen haaraan.
     "str_knight": {
         "name": "Knight",
-        "desc": "Unlock Heavy Armor & Shields.",
+        "desc": "Unlock Heavy Armor.",
         "cost": 1,
         "requires": ["str_veteran"],
         "pos": (0, 300),
         "branch": "Strength",
-        "effects": {"armor_prof": ["heavy"], "weapon_prof": ["shield"]}
+        "effects": {"armor_prof": ["heavy"]}
+    },
+    "str_shieldbearer": {
+        "name": "Shieldbearer",
+        "desc": "Unlock Shields (basic). RMB blocks, LMB while blocking bashes.",
+        "cost": 2,
+        "requires": ["str_knight"],
+        "pos": (-70, 380),
+        "branch": "Strength",
+        "effects": {"weapon_prof": ["shield"]}
     },
     "str_shield_master": {
         "name": "Shield Master",
         "desc": "Shields are 25% more efficient.",
         "cost": 2,
-        "requires": ["str_knight"],
-        "pos": (-70, 380),
+        "requires": ["str_shieldbearer"],
+        "pos": (-70, 460),
         "branch": "Strength",
         "effects": {"block_stamina_mult": 0.75}
+    },
+    "str_bulwark": {
+        "name": "Tower Discipline",
+        "desc": "Unlock advanced shields (Tier 2).",
+        "cost": 2,
+        "requires": ["str_shield_master"],
+        "pos": (-70, 540),
+        "branch": "Strength",
+        "effects": {"shield_tier": 2}
     },
     "str_juggernaut": {
         "name": "Juggernaut",

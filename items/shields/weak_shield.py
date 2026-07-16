@@ -16,6 +16,7 @@ class WeakShield(Item):
         
         self.defense = 2
         self.block_chance = 0.20 # 20% chance to block completely
+        self.shield_tier = 1  # 1=perus, 2=Tower Discipline
         self.speed_bonus = -0.05
         
         self.image = None

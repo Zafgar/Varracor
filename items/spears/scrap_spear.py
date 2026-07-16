@@ -16,6 +16,7 @@ class ScrapSpear(Weapon):
         self.type = "melee"
         self.slot_type = "main_hand"
         self.weapon_group = "spear"
+        self.two_handed = True  # varaa molemmat kadet - ei kilpea/off-handia
         self.level_required = 1
         
         self.damage = 6

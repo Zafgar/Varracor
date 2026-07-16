@@ -350,6 +350,13 @@ class BaseAI:
                 # Blokataan jos vihollinen katsoo meihin (todennäköisesti lyömässä)
                 if can_block and (self.unit.attack_cooldown > 10 or self.unit.current_hp < self.unit.max_hp * 0.4):
                     self.unit.set_blocking(True)
+                    # KILPI-ISKU: kilpimies tyrkkää iholle tulleen
+                    # vihollisen (sama mekaniikka kuin pelaajalla)
+                    if has_shield and dist < 65 and \
+                            getattr(self.unit, "shield_bash_cd", 0) <= 0 and \
+                            self.unit.current_stamina > 40:
+                        self.unit.perform_shield_bash(target.rect.center,
+                                                      manager)
 
             # --- MELEE CHARGE LOGIC (Spear/Sword) ---
             is_heavy_melee = (is_spear or is_sword or is_axe or is_mace)

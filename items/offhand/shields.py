@@ -9,6 +9,7 @@ class Shield(Armor):
         
         # Oletusarvot (nämä ylikirjoitetaan alaluokissa)
         self.block_chance = 0.15        # Passiivinen torjunta %
+        self.shield_tier = 1  # 1=perus, 2=Tower Discipline
         self.stamina_efficiency = 1.0   # 1.0 = normaali kulutus aktiivisessa torjunnassa
         
         # UUSI: Nopeusrangaistus (painava kilpi hidastaa)
@@ -75,6 +76,7 @@ class SlimeShield(Shield):
         self.defense = 4
         self.health_bonus = 20
         self.block_chance = 0.25  # 25% block
+        self.shield_tier = 2  # 1=perus, 2=Tower Discipline
         self.cost = 100
         self.rarity = "Rare"
         self.description = "Sticky but effective. 25% Block chance."

@@ -753,12 +753,21 @@ class Commander(Gladiator):
 
         # 3. ACTIONS
         
-        # BLOCK (RMB) - Vain jos ei hyökätä (LMB)
-        # Tämä estää "kilpikonna"-efektin jos painaa molempia
-        if mouse_buttons[2] and not lmb_down:
+        # BLOCK (RMB). Kilven kanssa LMB blokin aikana = SHIELD BASH
+        # (pelitesti 24); asetorjunnassa LMB katkaisee blokin kuten ennen
+        # ("kilpikonna"-esto).
+        _off = self.equipment.get("off_hand")
+        _has_shield = (_off is not None
+                       and str(getattr(_off, "type", "")).lower() == "shield"
+                       and "shield" in self.weapon_masteries)
+        if mouse_buttons[2] and (not lmb_down or _has_shield):
             self.set_blocking(True)
         else:
             self.set_blocking(False)
+
+        _bashing = self.is_blocking and _has_shield
+        if _bashing and lmb_down and not self.prev_mouse[0]:
+            self.perform_shield_bash((world_mx, world_my), manager)
 
         from systems import keybinds
 
@@ -842,8 +851,8 @@ class Commander(Gladiator):
         self.prev_keys = keys
         self.prev_mouse = mouse_buttons
 
-        # ATTACK / CAST (LMB)
-        if lmb_down:
+        # ATTACK / CAST (LMB) - kilpiblokin aikana LMB on bash, ei lyönti
+        if lmb_down and not _bashing:
             if self.selected_spell_slot:
                 # Turvaverkko: jos valittu slotti on tyhjentynyt, vapauta
                 # valinta jotta melee toimii taas
@@ -887,7 +896,7 @@ class Commander(Gladiator):
                     self.perform_attack(None, manager, target_pos=(world_mx, world_my))
 
         # RELEASE ATTACK (Jouset yms.)
-        if lmb_released:
+        if lmb_released and not _bashing:
             # _melee_hold_block: sama klikkaus castasi loitsun - irtipäästö
             # ei saa laukaista release_chargea (= melee-lyöntiä castin perään)
             if not self.selected_spell_slot and \

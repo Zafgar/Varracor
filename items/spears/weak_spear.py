@@ -16,6 +16,7 @@ class WeakSpear(Weapon):
         self.type = "melee"
         self.slot_type = "main_hand"
         self.weapon_group = "spear"
+        self.two_handed = True  # varaa molemmat kadet - ei kilpea/off-handia
         
         self.damage = 11
         self.attack_range = 60
