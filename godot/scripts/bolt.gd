@@ -5,6 +5,9 @@ extends Area3D
 var damage := 10
 var direction := Vector3.FORWARD
 var tint := Color(0.55, 0.5, 1.0)
+# Mihin ryhmään projektiiili osuu: pelaajan boltit "enemies",
+# vihollisten (esim. Devourer) boltit "player"
+var hits_group := "enemies"
 
 const SPEED := 26.0
 const LIFETIME := 1.6
@@ -49,11 +52,12 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_hit(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		return
-	if body.is_in_group("enemies") and body.has_method("take_damage"):
+	if body.is_in_group(hits_group) and body.has_method("take_damage"):
 		body.take_damage(float(damage))
-	_burst()
+		_burst()
+		return
+	if body is StaticBody3D:
+		_burst()   # seinä/este pysäyttää; muut hahmot läpäistään
 
 
 func _burst() -> void:

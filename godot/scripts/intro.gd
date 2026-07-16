@@ -110,4 +110,5 @@ func _next_slide() -> void:
 
 
 func _finish() -> void:
-	Router.goto("res://scenes/main.tscn", false)
+	# Intro päättyy metsätien avausopetukseen (matka kohti Muckfordia)
+	Router.goto("res://scenes/forest_road.tscn", false)

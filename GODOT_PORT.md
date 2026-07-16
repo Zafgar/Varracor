@@ -77,6 +77,29 @@ py-arvot = exportatut arvot.
   - Save/load samalla idealla kuin optiot: SaveGame-autoload
     (user://save.json, versioitu), pause-valikon SAVE GAME,
     päävalikon CONTINUE aktiivinen vain jos tallennus on olemassa.
+- **Vaihe 0.9 – Avaus: Forest Road -opetus + Devourer + Muckford (TEHTY)**
+  - Intro päättyy metsätielle (forest_road.tscn): sateinen yömyrsky -
+    volyymisumu, GPU-sadepartikkelit pelaajan yllä, salamavälähdykset
+    (valo + ruutuflash + ukkos-SFX), kiiltävät lätäköt, tiheä kuusimetsä,
+    hylätyt kärryt. Grafiikkapanostus koodilla alusta saakka.
+  - 5 opetusvaihetta (peilaa systems/muckford_forest_tutorial.py):
+    liike, peruslyönti, dash (vaatimus), loitsut 1-3 (vaatimus),
+    tie eteenpäin. Rotat spawnaavat vaiheittain; jos oppi jäi
+    näyttämättä, vaihe toistuu palautteella (kuten py:ssä).
+  - Dialogijärjestelmä (dialogue_box.gd): kirjoituskone-teksti,
+    puhujanimi, valintanapit ohjainfokuksella, await-rajapinta
+    (say/ask), pausettaa maailman modaalisti.
+  - Mnemonic Devourer -kohtaus samoilla repliikeillä kuin py-versiossa
+    (commander_npc.py + mnemonic_devourer_npc.py): Vortex-portaali-VFX,
+    4 vastausvaihtoehtoa, skriptattu bossitaistelu bossipalkilla -
+    vahva-haara (HP<50 % -> raivostuu), heikko-haara (pelaaja kaatuu),
+    loppu aina "Forget." -> muistinpyyhintäflash, miekka ja loitsut
+    viedään, blackout.
+  - Muckford-saapuminen (muckford.tscn): aamuinen kylä koodilla -
+    harjakattoiset talot hehkuvine ikkunoineen, The Sunk Cask -kyltti
+    (Label3D), kaivo, MUCKFORD-nimikortti feidillä; portti
+    harjoitusareenalle. CONTINUE jatkaa tallennettuun skeneen
+    (state_dict tallentaa scene-polun).
 - **Vaihe 1 – Ydinsimulaatio**
   - Yksikködata Resourceina; statit käyrästä + gearista + puu-%
   - Vahinko/parannus, statukset (Burn/Poison/Regen/Slow), kuolema

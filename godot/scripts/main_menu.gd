@@ -30,7 +30,10 @@ func _ready() -> void:
 	_btn(box, "NEW GAME", func(): Router.goto("res://scenes/intro.tscn"))
 	_btn(box, "CONTINUE", func():
 		SaveGame.pending_load = true
-		Router.goto("res://scenes/main.tscn"))
+		# Jatka siitä skenestä johon tallennettiin
+		var scene: String = str(SaveGame.load_state().get(
+			"scene", "res://scenes/muckford.tscn"))
+		Router.goto(scene))
 	# CONTINUE vain jos tallennus on olemassa
 	_buttons[1].disabled = not SaveGame.has_save()
 	_btn(box, "OPTIONS", func(): Router.goto("res://scenes/options_menu.tscn"))

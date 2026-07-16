@@ -12,6 +12,10 @@ const VERSION := 1
 ## Päävalikko asettaa tämän; areena kuluttaa sen spawnissa
 var pending_load := false
 
+## Skenenvaihdon kevyt tilansiirto (esim. intro -> Muckford: ei miekkaa,
+## ei loitsuja). Vastaanottava skene kuluttaa ja tyhjentää.
+var transfer_state: Dictionary = {}
+
 
 func has_save() -> bool:
 	return FileAccess.file_exists(PATH)

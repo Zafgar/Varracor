@@ -11,6 +11,8 @@ extends CharacterBody3D
 
 signal stats_changed
 signal spell_cast(slot: int)
+signal dashed
+signal downed
 
 const SPEED := 8.0
 const DASH_SPEED := 22.0
@@ -36,6 +38,10 @@ var intelligence := 10
 # Kolme loitsupaikkaa (Square/1, Triangle/2, L1/3) - katalogista
 var spells: Array[String] = ["arcane_dart", "frost_shard", "flame_wave"]
 var cooldowns: Array[float] = [0.0, 0.0, 0.0]
+
+# Vortex-miekka: Devourer vie sen intron lopussa (tarina) - ilman
+# miekkaa lyönti on nyrkki-isku ja terän hehku puuttuu
+var has_sword := true
 
 var _dash_left := 0.0
 var _dash_dir := Vector3.ZERO
@@ -87,6 +93,7 @@ func _build_body() -> void:
 	smat.emission_energy_multiplier = 0.6
 	_sword.material_override = smat
 	_sword.position = Vector3(0.55, 0.2, -0.5)
+	_sword.visible = has_sword
 	add_child(_sword)
 
 	var col := CollisionShape3D.new()
@@ -156,6 +163,7 @@ func _move(delta: float) -> void:
 			_dash_dir = input.normalized()
 			Audio.sfx("whoosh")
 			Input.start_joy_vibration(0, 0.35, 0.6, 0.15)
+			dashed.emit()
 		velocity.x = input.x * SPEED
 		velocity.z = input.z * SPEED
 
@@ -187,7 +195,7 @@ func _melee() -> void:
 	_swing = 1.0
 	Audio.sfx("hit")
 	Input.start_joy_vibration(0, 0.2, 0.4, 0.1)
-	var dmg := 8.0 + strength * 0.6
+	var dmg := (8.0 + strength * 0.6) if has_sword else (3.0 + strength * 0.3)
 	var origin := global_position + _aim * (ATTACK_RANGE * 0.5)
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e is Node3D and origin.distance_to(e.global_position) <= ATTACK_RANGE:
@@ -280,17 +288,28 @@ func take_damage(amount: float) -> void:
 	Input.start_joy_vibration(0, 0.5, 0.8, 0.2)
 	stats_changed.emit()
 	if hp <= 0.0:
-		# Prototyyppi: kuolema palauttaa täysiin voimiin paikallaan
+		# Prototyyppi: kuolema palauttaa täysiin voimiin paikallaan.
+		# downed-signaali antaa skenen reagoida (esim. Devourer-taistelun
+		# heikko-haara intron aikana).
+		downed.emit()
 		hp = max_hp
 		mana = max_mana
 
 
 # ---- Tallennus (SaveGame käyttää näitä) ----
+func set_has_sword(v: bool) -> void:
+	has_sword = v
+	if _sword:
+		_sword.visible = v
+
+
 func state_dict() -> Dictionary:
 	return {
 		"pos": [global_position.x, global_position.y, global_position.z],
 		"hp": hp, "mana": mana, "stamina": stamina,
 		"level": level, "spells": spells,
+		"has_sword": has_sword,
+		"scene": get_tree().current_scene.scene_file_path,
 	}
 
 
@@ -303,9 +322,9 @@ func apply_state(d: Dictionary) -> void:
 	hp = clamp(float(d.get("hp", max_hp)), 1.0, max_hp)
 	mana = clamp(float(d.get("mana", max_mana)), 0.0, max_mana)
 	stamina = clamp(float(d.get("stamina", max_stamina)), 0.0, max_stamina)
-	var sp: Array = d.get("spells", [])
-	if not sp.is_empty():
+	if d.has("spells"):
 		spells.clear()
-		for s in sp:
+		for s in d["spells"]:
 			spells.append(str(s))
+	set_has_sword(bool(d.get("has_sword", true)))
 	stats_changed.emit()

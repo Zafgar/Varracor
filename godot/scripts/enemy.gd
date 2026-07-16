@@ -3,14 +3,20 @@ extends CharacterBody3D
 ## ja tekee kontaktivahinkoa. Kuuluu "enemies"-ryhmään (Commanderin lyönnit
 ## ja loitsut osuvat ryhmän kautta). Kuolema = punainen purske.
 
-const SPEED := 3.2
-const AGGRO_RANGE := 14.0
-const CONTACT_RANGE := 1.4
-const CONTACT_DMG := 6.0
 const CONTACT_CD := 1.0
 
+# Parametrisoitu: metsätien rotat ja areenan harjoitusviholliset
+# käyttävät samaa runkoa eri arvoilla (aseta ennen add_childia)
+var speed := 3.2
+var aggro_range := 14.0
+var contact_range := 1.4
+var contact_dmg := 6.0
 var max_hp := 40.0
-var hp := 40.0
+var hp := -1.0
+var body_color := Color(0.42, 0.26, 0.22)
+var body_radius := 0.45
+var body_height := 1.2
+var lying := false   # rotta: kapseli vaakatasossa + kuono
 
 var _hit_cd := 0.0
 var _mesh: MeshInstance3D
@@ -19,20 +25,38 @@ var _mat: StandardMaterial3D
 
 func _ready() -> void:
 	add_to_group("enemies")
+	if hp < 0.0:
+		hp = max_hp
 	_mesh = MeshInstance3D.new()
 	var cm := CapsuleMesh.new()
-	cm.radius = 0.45
-	cm.height = 1.2
+	cm.radius = body_radius
+	cm.height = body_height
 	_mesh.mesh = cm
 	_mat = StandardMaterial3D.new()
-	_mat.albedo_color = Color(0.42, 0.26, 0.22)
+	_mat.albedo_color = body_color
 	_mesh.material_override = _mat
 	add_child(_mesh)
 
+	if lying:
+		_mesh.rotation_degrees.x = 90.0
+		# Kuono: pieni vaalea kartio eteen
+		var snout := MeshInstance3D.new()
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.02
+		cone.bottom_radius = body_radius * 0.55
+		cone.height = 0.4
+		snout.mesh = cone
+		var smat := StandardMaterial3D.new()
+		smat.albedo_color = body_color.lightened(0.25)
+		snout.material_override = smat
+		snout.rotation_degrees.x = -90.0
+		snout.position = Vector3(0, 0.05, -body_height * 0.5 - 0.15)
+		add_child(snout)
+
 	var col := CollisionShape3D.new()
 	var shape := CapsuleShape3D.new()
-	shape.radius = 0.45
-	shape.height = 1.2
+	shape.radius = body_radius
+	shape.height = body_height
 	col.shape = shape
 	add_child(col)
 
@@ -47,14 +71,14 @@ func _physics_process(delta: float) -> void:
 	to_target.y = 0.0
 	var dist := to_target.length()
 
-	if dist <= CONTACT_RANGE and _hit_cd <= 0.0:
+	if dist <= contact_range and _hit_cd <= 0.0:
 		_hit_cd = CONTACT_CD
 		if target.has_method("take_damage"):
-			target.take_damage(CONTACT_DMG)
-	elif dist <= AGGRO_RANGE and dist > CONTACT_RANGE * 0.8:
+			target.take_damage(contact_dmg)
+	elif dist <= aggro_range and dist > contact_range * 0.8:
 		var dir := to_target.normalized()
-		velocity.x = dir.x * SPEED
-		velocity.z = dir.z * SPEED
+		velocity.x = dir.x * speed
+		velocity.z = dir.z * speed
 		look_at(global_position + dir, Vector3.UP)
 	else:
 		velocity.x = 0.0
@@ -72,7 +96,7 @@ func take_damage(amount: float) -> void:
 	# Osumavälähdys: hetkeksi vaaleampi
 	_mat.albedo_color = Color(0.9, 0.5, 0.4)
 	var tw := create_tween()
-	tw.tween_property(_mat, "albedo_color", Color(0.42, 0.26, 0.22), 0.25)
+	tw.tween_property(_mat, "albedo_color", body_color, 0.25)
 	if hp <= 0.0:
 		_die()
 

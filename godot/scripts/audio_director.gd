@@ -25,6 +25,8 @@ const MOODS := {
 	"menu":  [[57, 60, 64], [55, 59, 62], [53, 57, 60], [55, 59, 62]],
 	"intro": [[45, 48, 52], [43, 47, 50], [41, 45, 48], [40, 43, 47]],
 	"arena": [[50, 53, 57], [48, 52, 55], [46, 50, 53], [48, 52, 55]],
+	"storm": [[38, 41, 45], [36, 39, 43], [34, 38, 41], [36, 39, 43]],
+	"town":  [[57, 61, 64], [59, 62, 66], [55, 59, 62], [57, 61, 64]],
 }
 
 
@@ -36,6 +38,8 @@ func _ready() -> void:
 	_sfx["back"] = _two_tone(660.0, 440.0, 0.12, 0.35)
 	_sfx["whoosh"] = _noise_burst(0.18, 14.0, 0.5)
 	_sfx["hit"] = _noise_burst(0.08, 30.0, 0.6)
+	_sfx["thunder"] = _noise_burst(1.1, 3.5, 0.8)
+	_sfx["roar"] = _noise_burst(0.6, 5.0, 0.7)
 
 
 func _make_buses() -> void:
@@ -73,6 +77,30 @@ func play_music(mood: String) -> void:
 		add_child(_music_player)
 		_music_player.play()
 		_playback = _music_player.get_stream_playback()
+
+
+var _rain_player: AudioStreamPlayer
+
+
+## Jatkuva sadekohina (looppaava matalapäästösuodatettu noise-WAV)
+func play_rain() -> void:
+	if _rain_player != null:
+		return
+	var wav := _noise_burst(2.0, 0.0, 0.16)
+	wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	wav.loop_end = wav.data.size() / 2
+	_rain_player = AudioStreamPlayer.new()
+	_rain_player.stream = wav
+	_rain_player.bus = "SFX"
+	add_child(_rain_player)
+	_rain_player.play()
+
+
+func stop_rain() -> void:
+	if _rain_player:
+		_rain_player.stop()
+		_rain_player.queue_free()
+		_rain_player = null
 
 
 func stop_music() -> void:
