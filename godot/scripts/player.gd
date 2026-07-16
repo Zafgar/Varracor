@@ -25,6 +25,16 @@ const AOE_RADIUS := 6.0
 # Arkkityyppikohtaiset cooldownit (nopea nuke, hitaampi aoe)
 const ARCH_CD := {"nuke": 1.5, "aoe": 2.5, "dot": 2.2}
 
+# Intron Vortex-kyvyt (py: SeamCut/VortexWarp/RiftPulse) - miekan lainaamat
+# voimat, eivät katalogiloitsuja. Devourer vie ne intron lopussa;
+# Commander oppii ne uudelleen Path of the Vortexin kautta.
+const VORTEX_SPELLS := {
+	"vortex_slash": {"name": "Vortex Slash", "mana": 10.0, "cd": 1.1},
+	"vortex_warp": {"name": "Vortex Warp", "mana": 14.0, "cd": 4.0},
+	"rift_pulse": {"name": "Rift Pulse", "mana": 20.0, "cd": 6.0},
+}
+const VORTEX_TEAL := Color(0.2, 0.95, 0.78)
+
 var level := 5
 var max_hp := 100.0
 var hp := 100.0
@@ -48,7 +58,7 @@ var _dash_dir := Vector3.ZERO
 var _attack_cd := 0.0
 var _swing := 0.0
 var _aim := Vector3.FORWARD
-var _sword: MeshInstance3D
+var _sword: Node3D
 
 
 func _ready() -> void:
@@ -72,27 +82,99 @@ func _init_stats() -> void:
 
 
 func _build_body() -> void:
-	var mesh := MeshInstance3D.new()
+	# Vartalo: teräksensininen haarniska
+	var torso := MeshInstance3D.new()
 	var cm := CapsuleMesh.new()
-	cm.radius = 0.45
-	cm.height = 1.8
-	mesh.mesh = cm
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.25, 0.45, 0.85)
-	mesh.material_override = mat
-	add_child(mesh)
+	cm.radius = 0.42
+	cm.height = 1.5
+	torso.mesh = cm
+	var tmat := StandardMaterial3D.new()
+	tmat.albedo_color = Color(0.22, 0.32, 0.52)
+	tmat.metallic = 0.35
+	tmat.roughness = 0.55
+	torso.material_override = tmat
+	torso.position.y = -0.1
+	add_child(torso)
 
-	_sword = MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.12, 0.12, 1.2)
-	_sword.mesh = bm
+	# Rintapanssari: vaaleampi metallilevy kultaviivalla
+	var chest := MeshInstance3D.new()
+	var chb := BoxMesh.new()
+	chb.size = Vector3(0.62, 0.55, 0.28)
+	chest.mesh = chb
+	var chmat := StandardMaterial3D.new()
+	chmat.albedo_color = Color(0.42, 0.50, 0.62)
+	chmat.metallic = 0.7
+	chmat.roughness = 0.35
+	chest.material_override = chmat
+	chest.position = Vector3(0, 0.15, -0.28)
+	add_child(chest)
+	var trim := MeshInstance3D.new()
+	var trb := BoxMesh.new()
+	trb.size = Vector3(0.64, 0.06, 0.30)
+	trim.mesh = trb
+	var trmat := StandardMaterial3D.new()
+	trmat.albedo_color = Color(0.86, 0.72, 0.35)
+	trmat.metallic = 0.85
+	trmat.roughness = 0.25
+	trim.material_override = trmat
+	trim.position = Vector3(0, 0.42, -0.28)
+	add_child(trim)
+
+	# Olkapanssarit
 	var smat := StandardMaterial3D.new()
-	smat.albedo_color = Color(0.8, 0.8, 0.85)
-	smat.emission_enabled = true
-	smat.emission = Color(0.2, 0.9, 0.75)  # vortex-hehku
-	smat.emission_energy_multiplier = 0.6
-	_sword.material_override = smat
-	_sword.position = Vector3(0.55, 0.2, -0.5)
+	smat.albedo_color = Color(0.30, 0.36, 0.46)
+	smat.metallic = 0.6
+	smat.roughness = 0.4
+	for dx in [-0.5, 0.5]:
+		var pad := MeshInstance3D.new()
+		var pm := SphereMesh.new()
+		pm.radius = 0.20
+		pm.height = 0.30
+		pad.mesh = pm
+		pad.material_override = smat
+		pad.position = Vector3(dx, 0.52, 0)
+		add_child(pad)
+
+	# Pää + tumma visiiri
+	var head := MeshInstance3D.new()
+	var hm := SphereMesh.new()
+	hm.radius = 0.26
+	hm.height = 0.52
+	head.mesh = hm
+	var hmat := StandardMaterial3D.new()
+	hmat.albedo_color = Color(0.35, 0.40, 0.50)
+	hmat.metallic = 0.5
+	head.material_override = hmat
+	head.position.y = 0.95
+	add_child(head)
+	var visor := MeshInstance3D.new()
+	var vb := BoxMesh.new()
+	vb.size = Vector3(0.34, 0.09, 0.12)
+	visor.mesh = vb
+	var vmat := StandardMaterial3D.new()
+	vmat.albedo_color = Color(0.05, 0.08, 0.10)
+	vmat.emission_enabled = true
+	vmat.emission = VORTEX_TEAL
+	vmat.emission_energy_multiplier = 0.5
+	visor.material_override = vmat
+	visor.position = Vector3(0, 0.97, -0.22)
+	add_child(visor)
+
+	# Viitta: tummanpunainen levy selässä
+	var cape := MeshInstance3D.new()
+	var cb := BoxMesh.new()
+	cb.size = Vector3(0.66, 1.25, 0.05)
+	cape.mesh = cb
+	var cmat := StandardMaterial3D.new()
+	cmat.albedo_color = Color(0.38, 0.10, 0.10)
+	cmat.roughness = 0.9
+	cape.material_override = cmat
+	cape.position = Vector3(0, -0.05, 0.30)
+	cape.rotation_degrees.x = -6.0
+	add_child(cape)
+
+	_sword = _build_sword()
+	_sword.position = Vector3(0.55, 0.15, -0.35)
 	_sword.visible = has_sword
 	add_child(_sword)
 
@@ -102,6 +184,91 @@ func _build_body() -> void:
 	shape.height = 1.8
 	col.shape = shape
 	add_child(col)
+
+
+## Vortex Blade: kahva + kultainen väistin ja ponsi, teräslapa jonka
+## molemmissa syrjissä hehkuva vortex-särmä, kärki kapenee - oma valo
+func _build_sword() -> Node3D:
+	var sword := Node3D.new()
+
+	var grip := MeshInstance3D.new()
+	var gc := CylinderMesh.new()
+	gc.top_radius = 0.045
+	gc.bottom_radius = 0.05
+	gc.height = 0.28
+	grip.mesh = gc
+	var gmat := StandardMaterial3D.new()
+	gmat.albedo_color = Color(0.16, 0.10, 0.07)
+	gmat.roughness = 0.85
+	grip.material_override = gmat
+	grip.rotation_degrees.x = 90.0
+	grip.position.z = 0.30
+	sword.add_child(grip)
+
+	var gold := StandardMaterial3D.new()
+	gold.albedo_color = Color(0.86, 0.70, 0.30)
+	gold.metallic = 0.9
+	gold.roughness = 0.25
+	var pommel := MeshInstance3D.new()
+	var pms := SphereMesh.new()
+	pms.radius = 0.06
+	pms.height = 0.12
+	pommel.mesh = pms
+	pommel.material_override = gold
+	pommel.position.z = 0.46
+	sword.add_child(pommel)
+	var guard := MeshInstance3D.new()
+	var gb := BoxMesh.new()
+	gb.size = Vector3(0.30, 0.06, 0.07)
+	guard.mesh = gb
+	guard.material_override = gold
+	guard.position.z = 0.14
+	sword.add_child(guard)
+
+	var blade := MeshInstance3D.new()
+	var bb := BoxMesh.new()
+	bb.size = Vector3(0.14, 0.035, 0.95)
+	blade.mesh = bb
+	var bmat := StandardMaterial3D.new()
+	bmat.albedo_color = Color(0.75, 0.80, 0.88)
+	bmat.metallic = 0.9
+	bmat.roughness = 0.2
+	blade.material_override = bmat
+	blade.position.z = -0.38
+	sword.add_child(blade)
+
+	# Hehkuvat vortex-särmät terän molemmin puolin
+	var emat := StandardMaterial3D.new()
+	emat.albedo_color = VORTEX_TEAL
+	emat.emission_enabled = true
+	emat.emission = VORTEX_TEAL
+	emat.emission_energy_multiplier = 2.4
+	for dx in [-0.075, 0.075]:
+		var edge := MeshInstance3D.new()
+		var eb := BoxMesh.new()
+		eb.size = Vector3(0.015, 0.04, 0.95)
+		edge.mesh = eb
+		edge.material_override = emat
+		edge.position = Vector3(dx, 0, -0.38)
+		sword.add_child(edge)
+
+	# Kärki
+	var tip := MeshInstance3D.new()
+	var tp := PrismMesh.new()
+	tp.size = Vector3(0.14, 0.22, 0.035)
+	tip.mesh = tp
+	tip.material_override = emat
+	tip.rotation_degrees.x = -90.0
+	tip.position.z = -0.965
+	sword.add_child(tip)
+
+	var light := OmniLight3D.new()
+	light.light_color = VORTEX_TEAL
+	light.omni_range = 2.6
+	light.light_energy = 0.7
+	light.position.z = -0.5
+	sword.add_child(light)
+	return sword
 
 
 func _physics_process(delta: float) -> void:
@@ -203,8 +370,31 @@ func _melee() -> void:
 				e.take_damage(dmg)
 
 
+## HUD:n käyttämät apurit: nimi ja cooldownin maksimi slotille
+func spell_display_name(slot: int) -> String:
+	if slot >= spells.size():
+		return "-"
+	var id: String = spells[slot]
+	if VORTEX_SPELLS.has(id):
+		return str(VORTEX_SPELLS[id]["name"])
+	return str(Catalogs.spell_spec(id).get("name", id))
+
+
+func cooldown_max(slot: int) -> float:
+	if slot >= spells.size():
+		return 1.0
+	var id: String = spells[slot]
+	if VORTEX_SPELLS.has(id):
+		return float(VORTEX_SPELLS[id]["cd"])
+	var spec := Catalogs.spell_spec(id)
+	return float(ARCH_CD.get(str(spec.get("archetype", "nuke")), 1.8))
+
+
 func _cast(slot: int) -> void:
 	if slot >= spells.size() or cooldowns[slot] > 0.0:
+		return
+	if VORTEX_SPELLS.has(spells[slot]):
+		_cast_vortex(slot)
 		return
 	var spec := Catalogs.spell_spec(spells[slot])
 	if spec.is_empty():
@@ -228,6 +418,111 @@ func _cast(slot: int) -> void:
 	stats_changed.emit()
 
 
+# ---- Vortex-kyvyt (intro; py: SeamCut / VortexWarp / RiftPulse) ----
+func _cast_vortex(slot: int) -> void:
+	var id: String = spells[slot]
+	var spec: Dictionary = VORTEX_SPELLS[id]
+	var cost := float(spec["mana"])
+	if mana < cost:
+		Audio.sfx("back")
+		return
+	mana -= cost
+	cooldowns[slot] = float(spec["cd"])
+	spell_cast.emit(slot)
+	match id:
+		"vortex_slash":
+			_vortex_slash()
+		"vortex_warp":
+			_vortex_warp()
+		"rift_pulse":
+			_rift_pulse()
+	stats_changed.emit()
+
+
+## Leveä viilto: kolmen teal-säteen viuhka lyhyellä kantamalla
+func _vortex_slash() -> void:
+	_swing = 1.0
+	Audio.sfx("whoosh")
+	Input.start_joy_vibration(0, 0.3, 0.5, 0.1)
+	var dmg := Catalogs.scaled_damage(2, intelligence, "nuke")
+	for angle in [-0.35, 0.0, 0.35]:
+		var dir := _aim.rotated(Vector3.UP, angle)
+		var bolt := Area3D.new()
+		bolt.set_script(load("res://scripts/bolt.gd"))
+		bolt.set("damage", dmg)
+		bolt.set("direction", dir)
+		bolt.set("tint", VORTEX_TEAL)
+		bolt.set("lifetime_override", 0.28)
+		bolt.position = global_position + dir * 0.9 + Vector3.UP * 0.4
+		get_parent().add_child(bolt)
+
+
+## Teleporttihyppy tähtäyssuuntaan: lähtö- ja saapumispurske
+func _vortex_warp() -> void:
+	Audio.sfx("warp")
+	Input.start_joy_vibration(0, 0.4, 0.7, 0.15)
+	_warp_burst(global_position)
+	global_position += _aim * 7.0
+	_warp_burst(global_position)
+
+
+func _warp_burst(pos: Vector3) -> void:
+	var p := CPUParticles3D.new()
+	p.position = pos + Vector3.UP * 0.5
+	p.emitting = true
+	p.one_shot = true
+	p.amount = 36
+	p.lifetime = 0.5
+	p.explosiveness = 1.0
+	p.initial_velocity_min = 3.0
+	p.initial_velocity_max = 8.0
+	p.spread = 180.0
+	p.color = VORTEX_TEAL
+	p.mesh = SphereMesh.new()
+	(p.mesh as SphereMesh).radius = 0.05
+	(p.mesh as SphereMesh).height = 0.1
+	get_parent().add_child(p)
+	get_tree().create_timer(0.7).timeout.connect(p.queue_free)
+
+
+## Hätäpulssi: laajeneva rengas joka vahingoittaa JA työntää viholliset
+func _rift_pulse() -> void:
+	Audio.sfx("shriek")
+	Input.start_joy_vibration(0, 0.6, 0.9, 0.25)
+	var dmg := Catalogs.scaled_damage(2, intelligence, "aoe")
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e is Node3D and global_position.distance_to(e.global_position) <= AOE_RADIUS:
+			if e.has_method("take_damage"):
+				e.take_damage(float(dmg))
+			var push: Vector3 = e.global_position - global_position
+			push.y = 0.0
+			if e.get("knockback") != null:
+				e.set("knockback", push.normalized() * 14.0)
+	_nova_ring(VORTEX_TEAL)
+
+
+func _nova_ring(color: Color) -> void:
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.8
+	tm.outer_radius = 1.0
+	ring.mesh = tm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 2.5
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring.material_override = mat
+	ring.position = global_position + Vector3.UP * 0.2
+	get_parent().add_child(ring)
+	var tw := ring.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(ring, "scale", Vector3.ONE * AOE_RADIUS, 0.4)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.4)
+	tw.chain().tween_callback(ring.queue_free)
+
+
 func _cast_bolt(dmg: int, spec: Dictionary) -> void:
 	var bolt := Area3D.new()
 	bolt.set_script(load("res://scripts/bolt.gd"))
@@ -244,27 +539,7 @@ func _cast_nova(dmg: int, spec: Dictionary) -> void:
 		if e is Node3D and global_position.distance_to(e.global_position) <= AOE_RADIUS:
 			if e.has_method("take_damage"):
 				e.take_damage(float(dmg))
-	# Rengas-VFX: laajeneva torus joka haalistuu
-	var ring := MeshInstance3D.new()
-	var tm := TorusMesh.new()
-	tm.inner_radius = 0.8
-	tm.outer_radius = 1.0
-	ring.mesh = tm
-	var mat := StandardMaterial3D.new()
-	var c := _damage_color(str(spec.get("damage_type", "Fire")))
-	mat.albedo_color = c
-	mat.emission_enabled = true
-	mat.emission = c
-	mat.emission_energy_multiplier = 2.5
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring.material_override = mat
-	ring.position = global_position + Vector3.UP * 0.2
-	get_parent().add_child(ring)
-	var tw := ring.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(ring, "scale", Vector3.ONE * AOE_RADIUS, 0.4)
-	tw.tween_property(mat, "albedo_color:a", 0.0, 0.4)
-	tw.chain().tween_callback(ring.queue_free)
+	_nova_ring(_damage_color(str(spec.get("damage_type", "Fire"))))
 
 
 static func _damage_color(damage_type: String) -> Color:

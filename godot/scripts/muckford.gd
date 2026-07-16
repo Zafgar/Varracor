@@ -36,8 +36,49 @@ func _ready() -> void:
 	_build_camera()
 	_build_hud()
 	add_child(load("res://scripts/pause_menu.gd").new())
+	_build_commander_menu()
 	Audio.play_music("town")
 	_show_title()
+
+
+## Commander-menu (M / touchpad): hahmopaneeli + alueen kartta
+func _build_commander_menu() -> void:
+	var menu := CanvasLayer.new()
+	menu.set_script(load("res://scripts/commander_menu.gd"))
+	menu.set("player", player)
+	menu.set("area_title", "MUCKFORD — Tier 0")
+	menu.set("world_rect", Rect2(-45, -30, 85, 60))
+	menu.set("map_features", [
+		{"pos": Vector2(-32, 4), "size": Vector2(30, 6),
+		 "color": Color(0.25, 0.20, 0.14), "label": "Forest Road"},
+		{"pos": Vector2(0, 0), "size": Vector2(36, 26),
+		 "color": Color(0.24, 0.23, 0.20), "label": ""},
+		{"pos": Vector2(-16, 22), "size": Vector2(22, 12),
+		 "color": Color(0.12, 0.22, 0.18), "label": ""},
+		{"pos": Vector2(20, 24), "size": Vector2(14, 9),
+		 "color": Color(0.12, 0.22, 0.18), "label": ""},
+		{"pos": Vector2(-34, -18), "size": Vector2(12, 10),
+		 "color": Color(0.12, 0.22, 0.18), "label": ""},
+		{"pos": Vector2(-14, 11), "size": Vector2(10, 7),
+		 "color": Color(0.38, 0.27, 0.16), "label": "The Sunk Cask"},
+		{"pos": Vector2(16, 6), "size": Vector2(6, 5),
+		 "color": Color(0.36, 0.26, 0.16), "label": "Smithy"},
+		{"pos": Vector2(15, -13), "size": Vector2(8, 6),
+		 "color": Color(0.33, 0.28, 0.22), "label": "Barracks"},
+		{"pos": Vector2(0, -16), "size": Vector2(9, 6),
+		 "color": Color(0.40, 0.34, 0.26), "label": "Town Hall"},
+		{"pos": Vector2(-18, -12), "size": Vector2(6, 5),
+		 "color": Color(0.34, 0.26, 0.17), "label": "Hobb's Farm"},
+		{"pos": Vector2(-24, -4), "size": Vector2(9, 7),
+		 "color": Color(0.22, 0.34, 0.14), "label": ""},
+		{"pos": Vector2(13, 1), "size": Vector2(4, 2),
+		 "color": Color(0.55, 0.44, 0.28), "label": "Griznak"},
+		{"pos": Vector2(10, 17), "size": Vector2(5, 2),
+		 "color": Color(0.72, 0.58, 0.28), "label": "Arena"},
+		{"pos": Vector2(27, 0), "size": Vector2(2, 6),
+		 "color": Color(0.45, 0.40, 0.34), "label": "Mine Road"},
+	])
+	add_child(menu)
 
 
 # ---------- Valo ja ilma ----------
@@ -854,7 +895,7 @@ func _build_hud() -> void:
 	panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	panel.position = Vector2(24, -70)
 	panel.add_child(UITheme.hint(
-		"You wake outside the Sunk Cask. Your memory — and your blade — are gone."))
+		"You wake outside the Sunk Cask. Your memory — and your blade — are gone.      M / Touchpad — Commander & Map"))
 	layer.add_child(panel)
 
 

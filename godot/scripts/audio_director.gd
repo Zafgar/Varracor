@@ -40,6 +40,11 @@ func _ready() -> void:
 	_sfx["hit"] = _noise_burst(0.08, 30.0, 0.6)
 	_sfx["thunder"] = _noise_burst(1.1, 3.5, 0.8)
 	_sfx["roar"] = _noise_burst(0.6, 5.0, 0.7)
+	_sfx["squeak"] = _sweep(1700.0, 2500.0, 0.10, 18.0, 0.30)
+	_sfx["squeak_die"] = _sweep(2200.0, 900.0, 0.22, 9.0, 0.32)
+	_sfx["shriek"] = _sweep(600.0, 1900.0, 0.55, 3.0, 0.45)
+	_sfx["warp"] = _sweep(950.0, 180.0, 0.40, 4.0, 0.40)
+	_sfx["drain"] = _sweep(200.0, 70.0, 0.85, 1.6, 0.42)
 
 
 func _make_buses() -> void:
@@ -165,6 +170,21 @@ func _two_tone(f1: float, f2: float, dur: float, vol: float) -> AudioStreamWAV:
 		var t := float(i) / SR
 		var f := f1 if t < dur * 0.5 else f2
 		out[i] = sin(TAU * f * t) * exp(-10.0 * t) * vol
+	return _wav(out)
+
+
+## Liukuva sävelkorkeus (glissando): rotan vikinät, teleportit, imut
+func _sweep(f1: float, f2: float, dur: float, decay: float,
+		vol: float) -> AudioStreamWAV:
+	var n := int(SR * dur)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var phase := 0.0
+	for i in range(n):
+		var t := float(i) / SR
+		var f := lerpf(f1, f2, t / dur)
+		phase += f / SR
+		out[i] = sin(TAU * phase) * exp(-decay * t) * vol
 	return _wav(out)
 
 

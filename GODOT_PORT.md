@@ -113,6 +113,29 @@ py-arvot = exportatut arvot.
     suolammet (kaislat, lumpeet, tulikärpäset), laudoitukset, lyhdyt,
     savupiiput savuineen, reunametsä ja kuljeskelevat kyläläiset
     (villager.gd, kevyt POI-wander).
+- **Vaihe 0.97 – Pelitestipalaute: laatu joka askeleella (TEHTY)**
+  - Intron kyvyt = py-version Vortex-kyvyt: Vortex Slash (viuhka),
+    Vortex Warp (teleportti) ja Rift Pulse (pulssi + työntö) -
+    player.gd VORTEX_SPELLS; Devourer vie ne lopussa.
+  - Devourerille py-version kyvyt (units/mnemonic_devourer.py):
+    Vortex Barrage (kirkuva ammussarja), Teleport Strike (katoaa ja
+    ilmestyy selän taakse), Vortex Pull (raivona imee pelaajan luokseen);
+    raivona cooldownit 2x. Ulkoasu: leijuva kaapuhahmo, lonkerokruunu,
+    pyörivä auralenkki, hover-huojunta.
+  - Metsätie kirkastettu (palaute: liian pimeä): kuunvalo 0.28->0.65,
+    ambientti ylös, sumu kevyemmäksi.
+  - Rotat = rottahumanoidit (kyyry vartalo, kuono, korvat, häntä,
+    hehkuvat silmät) + vikinä-SFX (aggro/osuma/kuolema, syntetisoitu
+    glissando) + "Skreee!"-huutokupla aggrossa.
+  - Commander-grafiikka: haarniska (rintapanssari kultalistalla,
+    olkapanssarit, visiiripää, viitta) ja Vortex Blade v2 (kahva,
+    kultaväistin+ponsi, teräslapa hehkuvin vortex-särmin, kärkiprisma,
+    oma valo).
+  - HUD-palkit v2: kehyspaneelit, gradienttitäytöt, viivepalkki
+    (menetys valuu), kiiltoraita, numeroarvot.
+  - Commander-menu (M / PS5-touchpad, commander_menu.gd): COMMANDER-
+    välilehti (taso/statit/ase/kyvyt) + MAP-välilehti (koodipiirretty
+    aluekartta pelaajamerkillä; Muckford täyttää kohteet).
 - **Vaihe 1 – Ydinsimulaatio**
   - Yksikködata Resourceina; statit käyrästä + gearista + puu-%
   - Vahinko/parannus, statukset (Burn/Poison/Regen/Slow), kuolema

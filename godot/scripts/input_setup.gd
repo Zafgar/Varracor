@@ -23,6 +23,7 @@ func _ready() -> void:
 	_button("dash", KEY_SPACE, JOY_BUTTON_A)            # Cross
 	_button("pause", KEY_ESCAPE, JOY_BUTTON_START)      # Options
 	_button("skip", KEY_SPACE, JOY_BUTTON_A)
+	_button("menu", KEY_M, JOY_BUTTON_TOUCHPAD)         # Commander-menu/kartta
 
 	# Lyönti: LMB + R2-liipaisin
 	_mouse_and_trigger("attack", MOUSE_BUTTON_LEFT, JOY_AXIS_TRIGGER_RIGHT)

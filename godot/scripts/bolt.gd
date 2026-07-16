@@ -12,6 +12,9 @@ var hits_group := "enemies"
 const SPEED := 26.0
 const LIFETIME := 1.6
 
+# Lyhytikäiset boltit (esim. Vortex Slashin viuhka) asettavat tämän
+var lifetime_override := 0.0
+
 var _age := 0.0
 
 
@@ -47,7 +50,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	position += direction * SPEED * delta
 	_age += delta
-	if _age >= LIFETIME:
+	var life := lifetime_override if lifetime_override > 0.0 else LIFETIME
+	if _age >= life:
 		queue_free()
 
 

@@ -25,7 +25,7 @@ const STAGES := [
 	 "rats": [{"oz": -2.5, "hp": 26}, {"oz": 2.5, "hp": 26}],
 	 "need": "dash"},
 	{"title": "VORTEX SKILLS",
-	 "instr": "Square/1 Arcane Dart · Triangle/2 Frost Shard · L1/3 Flame Wave.",
+	 "instr": "Square/1 Vortex Slash · Triangle/2 Vortex Warp · L1/3 Rift Pulse.",
 	 "gate": 104.0, "spawn_x": 90.0,
 	 "rats": [{"oz": -3.0, "hp": 22}, {"oz": 0.0, "hp": 22}, {"oz": 3.0, "hp": 22}],
 	 "need": "spell"},
@@ -86,27 +86,29 @@ func _exit_tree() -> void:
 
 # ---------- Maailma ----------
 func _build_environment() -> void:
+	# Myrskyinen mutta LUETTAVA yö: kuunvalo ja ambientti reilusti ylös,
+	# sumu kevyemmäksi (pelitestipalaute: alue oli liian pimeä)
 	_moon = DirectionalLight3D.new()
 	_moon.rotation_degrees = Vector3(-50.0, 20.0, 0.0)
-	_moon.light_color = Color(0.55, 0.65, 0.95)
-	_moon.light_energy = 0.28
+	_moon.light_color = Color(0.62, 0.70, 0.95)
+	_moon.light_energy = 0.65
 	_moon.shadow_enabled = true
 	add_child(_moon)
 
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.015, 0.02, 0.035)
+	e.background_color = Color(0.05, 0.06, 0.10)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.16, 0.18, 0.26)
+	e.ambient_light_color = Color(0.34, 0.38, 0.50)
 	e.glow_enabled = true
 	e.glow_bloom = 0.15
 	e.fog_enabled = true
-	e.fog_light_color = Color(0.05, 0.06, 0.10)
-	e.fog_density = 0.012
+	e.fog_light_color = Color(0.10, 0.12, 0.18)
+	e.fog_density = 0.007
 	e.volumetric_fog_enabled = true
-	e.volumetric_fog_density = 0.035
-	e.volumetric_fog_albedo = Color(0.35, 0.4, 0.55)
+	e.volumetric_fog_density = 0.015
+	e.volumetric_fog_albedo = Color(0.45, 0.5, 0.65)
 	env.environment = e
 	add_child(env)
 
@@ -261,6 +263,11 @@ func _spawn_player() -> void:
 	player.set_script(load("res://scripts/player.gd"))
 	player.position = Vector3(3, 1, 0)
 	add_child(player)
+	# Intron Vortex-kyvyt kuten py-versiossa (SeamCut/Warp/RiftPulse) -
+	# miekan voimat jotka Devourer vie lopussa
+	player.spells.clear()
+	for s in ["vortex_slash", "vortex_warp", "rift_pulse"]:
+		player.spells.append(s)
 	player.dashed.connect(func(): _dash_seen = true)
 	player.spell_cast.connect(func(_s): _spell_seen = true)
 	player.downed.connect(_on_player_downed)
@@ -477,16 +484,21 @@ func _advance_stage() -> void:
 
 
 func _spawn_rat(pos: Vector3, hp: float) -> void:
+	# Rottahumanoidit (kuten py:n Road Rat -rottamiehet) vikinöineen
 	var rat := CharacterBody3D.new()
 	rat.set_script(load("res://scripts/enemy.gd"))
 	rat.set("max_hp", hp)
 	rat.set("speed", 4.2)
 	rat.set("contact_dmg", 4.0)
 	rat.set("aggro_range", 18.0)
-	rat.set("body_color", Color(0.28, 0.20, 0.15))
-	rat.set("body_radius", 0.32)
-	rat.set("body_height", 0.9)
-	rat.set("lying", true)
+	rat.set("body_color", Color(0.30, 0.22, 0.16))
+	rat.set("body_radius", 0.34)
+	rat.set("body_height", 1.15)
+	rat.set("species", "ratman")
+	rat.set("sfx_aggro", "squeak")
+	rat.set("sfx_hurt", "squeak")
+	rat.set("sfx_die", "squeak_die")
+	rat.set("bark_text", "Skreee!")
 	rat.position = pos
 	add_child(rat)
 	_rats.append(rat)
