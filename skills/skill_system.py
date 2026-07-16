@@ -14,6 +14,18 @@ def can_unlock(unit, skill_id: str):
         if req not in unit.unlocked_skills:
             return False, "Prerequisites not met"
 
+    # Koulujen keskinäinen poissulkeminen: yksi caster-koulu per hahmo.
+    node_school = s.get("school")
+    if node_school:
+        try:
+            from skills.school_trees_data import school_of
+            for uid in unit.unlocked_skills:
+                other = school_of(uid)
+                if other and other != node_school:
+                    return False, f"Committed to {other.capitalize()}"
+        except Exception:
+            pass
+
     if unit.level < s.get("min_level", 1):
         return False, f"Requires Level {s.get('min_level', 1)}"
 

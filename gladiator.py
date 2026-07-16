@@ -12,6 +12,10 @@ from progression.xp_table import MAX_LEVEL, level_from_xp
 
 # Skill effects
 from skills.skills_data import SKILL_TREE
+try:
+    from skills.school_trees_data import SCHOOL_TREE as _SCHOOL_NODES
+except Exception:
+    _SCHOOL_NODES = {}
 
 # --- MODULES ---
 from renderer import GladiatorRenderer
@@ -673,6 +677,11 @@ class Gladiator(pygame.sprite.Sprite):
         self.spell_slots_unlocked = set()
         self.max_spell_tier = 0
 
+        # Koulukohtaiset erikoistumisefektit (Necro/Druid/Holy). Loitsut lukevat
+        # nämä (summon_max, lifesteal_pct, hot_power, heal_power, team_buff...).
+        self.school_effects = {}
+        self.magic_school = None
+
         # Base Stats
         base_hp_val = int(self.base_attributes.get("max_hp", self.base_attributes.get("hp", 100)))
         self.max_hp = base_hp_val
@@ -770,6 +779,16 @@ class Gladiator(pygame.sprite.Sprite):
                 self.has_second_wind = True
             if "steady_draw" in effects:
                 self.has_steady_draw = True
+
+            # Koulukohtaiset erikoistumisefektit (Necro/Druid/Holy)
+            if skill_id in _SCHOOL_NODES:
+                for k, v in effects.items():
+                    if k.startswith("school_"):
+                        self.magic_school = k[len("school_"):]
+                    elif isinstance(v, (int, float)):
+                        self.school_effects[k] = self.school_effects.get(k, 0) + v
+                    else:
+                        self.school_effects[k] = v
 
         # No implicit spell tier: spell tier must be unlocked via skill tree.
 

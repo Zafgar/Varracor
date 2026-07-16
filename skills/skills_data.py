@@ -433,3 +433,12 @@ SKILL_TREE = {
         "effects": {"spell_tier": 8, "max_mana": 200, "mana_regen": 0.2}
     },
 }
+
+
+# --- Koulukohtaiset erikoistumispuut (Necro/Druid/Holy) ---
+# Yhdistetään päälpuuhun, jotta skill_system ja Gladiator näkevät ne.
+try:
+    from skills.school_trees_data import SCHOOL_TREE as _SCHOOL_TREE
+    SKILL_TREE.update(_SCHOOL_TREE)
+except Exception:
+    pass
