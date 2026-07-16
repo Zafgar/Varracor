@@ -68,6 +68,13 @@ class WeakSword(Weapon):
             self.charge_time += 1
 
     def release_charge(self, owner, manager, target_pos):
+        # TAYSI LATAUS: LUNGE SLASH - askel eteen + raskas viilto
+        # (systems/charge_specials.py; sama pelaajalle ja AI:lle)
+        if self.charge_time >= self.max_charge:
+            from systems import charge_specials
+            charge_specials.lunge_slash(owner, self, manager, target_pos)
+            self.charge_time = 0
+            return
         if self.charge_time > 15:
             # POWER HIT
             power = self.charge_time / self.max_charge

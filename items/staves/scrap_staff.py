@@ -84,9 +84,16 @@ class ScrapStaff(Weapon):
             final_dmg = int(dmg * (1.0 + power * 1.0)) # 100% - 200% dmg
             
             size = 6 + int(power * 10) # Koko kasvaa
-            
-            proj = MagicProjectile(owner.rect.centerx, owner.rect.centery, target_pos, 12, final_dmg, owner, manager, size=size)
-            manager.vfx.add_projectile(proj)
+
+            if power >= 1.0:
+                # TAYSI LATAUS: OVERLOAD (systems/charge_specials.py)
+                from systems import charge_specials
+                charge_specials.ExplosiveBolt.spawn(
+                    owner, manager, target_pos, 12, final_dmg, size,
+                    (150, 110, 255))
+            else:
+                proj = MagicProjectile(owner.rect.centerx, owner.rect.centery, target_pos, 12, final_dmg, owner, manager, size=size)
+                manager.vfx.add_projectile(proj)
             
             sound_system.play_sound("staff_1")
             owner.attack_cooldown = int(owner.attack_speed * 1.1)  # keskitetty rytmi

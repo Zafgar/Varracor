@@ -66,6 +66,12 @@ class WeakAxe(Weapon):
             self.charge_time += 1
 
     def release_charge(self, owner, manager, target_pos):
+        # TAYSI LATAUS: WHIRLWIND - 360 asteen pyorahdys, osuu kaikkiin
+        if self.charge_time >= self.max_charge:
+            from systems import charge_specials
+            charge_specials.whirlwind(owner, self, manager, target_pos)
+            self.charge_time = 0
+            return
         mult = 1.0 + (self.charge_time / self.max_charge) * 0.9 # Max 1.9x dmg
         owner.perform_attack(None, manager, damage_mult=mult, target_pos=target_pos)
         self.charge_time = 0

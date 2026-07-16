@@ -82,9 +82,16 @@ class WeakStaff(Weapon):
             final_dmg = int(dmg * (1.0 + power * 1.2)) # Parempi bonus (1.2x)
             
             size = 8 + int(power * 12)
-            
-            proj = MagicProjectile(owner.rect.centerx, owner.rect.centery, target_pos, 14, final_dmg, owner, manager, size=size)
-            manager.vfx.add_projectile(proj)
+
+            if power >= 1.0:
+                # TAYSI LATAUS: OVERLOAD - rajahtaa osumasta (roiske)
+                from systems import charge_specials
+                charge_specials.ExplosiveBolt.spawn(
+                    owner, manager, target_pos, 14, final_dmg, size,
+                    (150, 110, 255))
+            else:
+                proj = MagicProjectile(owner.rect.centerx, owner.rect.centery, target_pos, 14, final_dmg, owner, manager, size=size)
+                manager.vfx.add_projectile(proj)
             
             sound_system.play_sound("staff_1")
             owner.attack_cooldown = owner.attack_speed  # keskitetty rytmi (weapon_feel)

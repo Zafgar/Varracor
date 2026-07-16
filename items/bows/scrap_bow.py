@@ -88,6 +88,14 @@ class ScrapBow(Weapon):
             dmg = self.calculate_damage({"dex": owner.dexterity})
             final_dmg = int(dmg * (0.5 + power * 0.5)) # 50% - 100% vahinko
             final_dmg = int(final_dmg * getattr(owner, 'weapon_affinities', {}).get('bow', 1.0))
+            if power >= 1.0:
+                # TAYSI VETO: CLEAN SHOT +25 % (puhdas irrotus palkitaan)
+                final_dmg = int(final_dmg * 1.25)
+                if manager:
+                    manager.vfx.show_damage(owner.rect.centerx,
+                                            owner.rect.top - 40,
+                                            "CLEAN SHOT!",
+                                            color=(180, 255, 180))
             speed = 10 + power * 15 # Nopeus kasvaa latauksella
             
             # Luo ammus

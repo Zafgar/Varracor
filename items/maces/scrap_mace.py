@@ -66,6 +66,12 @@ class ScrapMace(Weapon):
             self.charge_time += 1
 
     def release_charge(self, owner, manager, target_pos):
+        # TAYSI LATAUS: GROUND SLAM (systems/charge_specials.py)
+        if self.charge_time >= self.max_charge:
+            from systems import charge_specials
+            charge_specials.ground_slam(owner, self, manager, target_pos)
+            self.charge_time = 0
+            return
         # SKULL CRUSHER: Max latauksella varma stunni (tai pidempi)
         mult = 1.0 + (self.charge_time / self.max_charge) * 0.5 # Max 1.5x dmg
         

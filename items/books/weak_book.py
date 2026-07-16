@@ -51,9 +51,21 @@ class WeakBook(Weapon):
             pygame.draw.rect(surface, (80, 40, 40), (x+size*0.2, y+size*0.2, size*0.6, size*0.6))
 
     def update_charge(self, owner, manager):
-        pass # Ei latausta
-        
+        # ARCANE STREAM: LMB pohjassa suoltaa pikkusalamia hajonnalla
+        # (systems/charge_specials.py). Nopea napautus = normaali laukaus
+        # releasesta; AI kutsuu vain release_chargea eli säilyttää
+        # yksittäislaukausrytminsä.
+        from systems import charge_specials
+        self._held_frames = getattr(self, "_held_frames", 0) + 1
+        self._stream_ctr = charge_specials.stream_bolt(
+            owner, self, manager, getattr(self, "_stream_ctr", 0))
+
     def release_charge(self, owner, manager, target_pos):
+        held = getattr(self, "_held_frames", 0)
+        self._held_frames = 0
+        self._stream_ctr = 0
+        if held > 10:
+            return   # streamattiin jo - ei bonuslaukausta päälle
         if owner.attack_cooldown <= 0:
             # Stamina cost
             base_cost = 8

@@ -66,10 +66,14 @@ class WeakMace(Weapon):
             self.charge_time += 1
 
     def release_charge(self, owner, manager, target_pos):
-        mult = 1.0 + (self.charge_time / self.max_charge) * 0.6
+        # TAYSI LATAUS: GROUND SLAM - aalto vahingoittaa, horjuttaa
+        # ja tyontaa kaikkia lahella (systems/charge_specials.py)
         if self.charge_time >= self.max_charge:
-            mult *= 1.4 # Extra bonus
-            if manager: manager.trigger_screen_shake(7)
+            from systems import charge_specials
+            charge_specials.ground_slam(owner, self, manager, target_pos)
+            self.charge_time = 0
+            return
+        mult = 1.0 + (self.charge_time / self.max_charge) * 0.6
             
         owner.perform_attack(None, manager, damage_mult=mult, target_pos=target_pos)
         self.charge_time = 0

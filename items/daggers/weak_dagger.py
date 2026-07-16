@@ -66,6 +66,19 @@ class WeakDagger(Weapon):
             self.charge_time += 1
 
     def release_charge(self, owner, manager, target_pos):
+        # TAYSI LATAUS: FAN OF KNIVES - kolmen veitsen viuhka
+        if self.charge_time >= self.max_charge and owner.attack_cooldown <= 0 \
+                and owner.current_stamina >= 18:
+            from systems import charge_specials
+            owner.current_stamina -= 18
+            dmg = self.calculate_damage({"dex": owner.dexterity})
+            img = self.image
+            proj_img = pygame.transform.rotate(img, -90) if img else None
+            charge_specials.fan_of_knives(owner, self, manager, target_pos,
+                                          dmg, 20, proj_img)
+            owner.attack_cooldown = 30
+            self.charge_time = 0
+            return
         if self.charge_time > 10 and owner.attack_cooldown <= 0:
             base_cost = 15
             cost = max(5, int(base_cost - (owner.dexterity * 0.3)))
