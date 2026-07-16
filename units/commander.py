@@ -863,6 +863,25 @@ class Commander(Gladiator):
                 if w and getattr(w, "charge_enabled", False):
                     # Lataava ase (Jousi, Sauva, Varsijousi)
                     w.update_charge(self, manager)
+                    # GAME FEEL: täyden latauksen kuittaus KERRAN -
+                    # kultainen aura + MAX!-teksti + ääni, jotta pelaaja
+                    # tietää tarkalleen milloin power-isku on valmis
+                    if getattr(w, "charge_time", 0) >= getattr(w, "max_charge", 60):
+                        if not getattr(w, "_full_charge_cued", False):
+                            w._full_charge_cued = True
+                            if manager:
+                                manager.vfx.show_damage(
+                                    self.rect.centerx, self.rect.top - 40,
+                                    "MAX!", color=(255, 220, 90))
+                                try:
+                                    manager.vfx.create_charge_aura(
+                                        self, duration=20, color=(255, 220, 90))
+                                except Exception:
+                                    pass
+                            from sound_manager import sound_system as _ss
+                            _ss.play_sound("swish")
+                    elif getattr(w, "charge_time", 0) == 0:
+                        w._full_charge_cued = False
                 else:
                     # Normaali lyönti (Miekka, Kirves, Kirja)
                     self.perform_attack(None, manager, target_pos=(world_mx, world_my))
