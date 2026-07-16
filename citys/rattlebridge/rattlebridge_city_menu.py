@@ -433,12 +433,12 @@ class RattlebridgeCityMenu(BaseMenu):
                     self.manager.world_map_return_state = "rattlebridge_city"
                     self.next_state = "world_map"
                 return
-            if keybinds.matches(event.key, "dash") and not self.show_map:
-                mx, my = pygame.mouse.get_pos()
-                dx = mx + self.camera_x - self.player.rect.centerx
-                dy = my + self.camera_y - self.player.rect.centery
+            if not self.show_map:
+                from systems import walk_control
                 try:
-                    self.player.perform_dash(dx, dy)
+                    walk_control.handle_dash_keydown(
+                        self.player, event,
+                        camera=(self.camera_x, self.camera_y))
                 except Exception:
                     pass
 
@@ -450,42 +450,12 @@ class RattlebridgeCityMenu(BaseMenu):
         if self.dialogue_npc or self.show_map:
             self.player.animation_state = "idle"
             return
-        keys = pygame.key.get_pressed()
-        speed = 4.2
-        from systems import keybinds as _kb
-        wants_sprint = _kb.pressed(keys, "sprint")
-        try:
-            self.player.set_sprinting(wants_sprint)
-            if self.player.is_sprinting and self.player.current_stamina > 0.5:
-                speed *= 1.5
-        except Exception:
-            pass
-
-        dx = float(_kb.pressed(keys, "move_right") - _kb.pressed(keys, "move_left")) * speed
-        dy = float(_kb.pressed(keys, "move_down") - _kb.pressed(keys, "move_up")) * speed
-        if dx and dy:
-            dx *= 0.7071
-            dy *= 0.7071
-
-        moved = False
-        if not getattr(self.player, "is_dashing", False):
-            if dx:
-                old_x = self.player.rect.x
-                self.player.rect.x += int(round(dx))
-                if not self.city.is_walkable(self.player.rect):
-                    self.player.rect.x = old_x
-                else:
-                    moved = True
-                    self.player.facing_right = dx > 0
-            if dy:
-                old_y = self.player.rect.y
-                self.player.rect.y += int(round(dy))
-                if not self.city.is_walkable(self.player.rect):
-                    self.player.rect.y = old_y
-                else:
-                    moved = True
-
-        self.player.animation_state = "run" if moved else "idle"
+        # Yhtenäinen kävelytilan ohjaus (systems/walk_control.py)
+        from systems import walk_control
+        walk_control.move_player(
+            self.player,
+            walkable=self.city.is_walkable,
+            camera=(getattr(self, "camera_x", 0), getattr(self, "camera_y", 0)))
         try:
             self.player.update(self.city.obstacles, self.manager)
         except Exception:

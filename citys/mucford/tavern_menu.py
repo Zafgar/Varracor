@@ -581,13 +581,9 @@ class TavernMenu(BaseMenu):
                         sound_system.play_sound('click') # "Slide" ääni
 
                 # --- COMBAT CONTROLS ---
-                if event.key == pygame.K_SPACE:
-                    mx, my = pygame.mouse.get_pos()
-                    wx = mx + self.camera_offset[0]
-                    wy = my + self.camera_offset[1]
-                    dx = wx - self.player.rect.centerx
-                    dy = wy - self.player.rect.centery
-                    self.player.perform_dash(dx, dy)
+                from systems import walk_control
+                walk_control.handle_dash_keydown(
+                    self.player, event, camera=self.camera_offset)
 
     def update(self):
         super().update() # Calls base update (editor)
@@ -703,56 +699,15 @@ class TavernMenu(BaseMenu):
         # Poistetaan tämä erillinen looppi ja luotetaan yllä olevaan.
         pass
 
-        # Simple Movement Logic
-        keys = pygame.key.get_pressed()
-        dx, dy = 0, 0
-        speed = 5
-        
-        # Block
-        # self.player.set_blocking(keys[pygame.K_LSHIFT]) # Ei blockia tavernassa
-        
-        if not self.player.is_dashing:
-            if keys[pygame.K_w]: dy = -speed
-            if keys[pygame.K_s]: dy = speed
-            if keys[pygame.K_a]: dx = -speed
-            if keys[pygame.K_d]: dx = speed
-        
-        # Commander seuraa aina hiirtä
-        mx, my = pygame.mouse.get_pos()
-        wx = mx + self.camera_offset[0]
-        self.player.facing_right = (wx >= self.player.rect.centerx)
+        # Yhtenäinen kävelytilan ohjaus (systems/walk_control.py):
+        # sama nopeus, sprintti, keybinds ja törmäys kuin muuallakin
+        from systems import walk_control
+        walk_control.move_player(
+            self.player,
+            obstacles=self.arena.obstacles,
+            bounds=pygame.Rect(0, 0, self.arena.width, self.arena.height),
+            camera=self.camera_offset)
 
-        if dx != 0 or dy != 0:
-            # Tallenna vanha sijainti törmäystarkistusta varten
-            old_rect = self.player.rect.copy()
-            
-            # X-liike
-            self.player.rect.x += dx
-            # Tarkista seinät
-            for obs in self.arena.obstacles:
-                if self.player.rect.colliderect(obs.rect):
-                    if dx > 0: self.player.rect.right = obs.rect.left
-                    if dx < 0: self.player.rect.left = obs.rect.right
-
-            # Y-liike
-            self.player.rect.y += dy
-            # Tarkista seinät
-            for obs in self.arena.obstacles:
-                if self.player.rect.colliderect(obs.rect):
-                    if dy > 0: self.player.rect.bottom = obs.rect.top
-                    if dy < 0: self.player.rect.top = obs.rect.bottom
-            
-            self.player.animation_state = "run"
-            
-            # Clamp to arena bounds (varmuuden vuoksi)
-            if self.player.rect.left < 0: self.player.rect.left = 0
-            if self.player.rect.right > self.arena.width: self.player.rect.right = self.arena.width
-            if self.player.rect.top < 0: self.player.rect.top = 0
-            if self.player.rect.bottom > self.arena.height: self.player.rect.bottom = self.arena.height
-            
-        else:
-            self.player.animation_state = "idle"
-            
         # Update player animation
         self.player.update(self.arena.obstacles, self.manager)
         

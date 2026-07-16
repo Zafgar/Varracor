@@ -1392,13 +1392,9 @@ class MuckfordCityMenu(BaseMenu):
             if keybinds.matches(event.key, "usable_2"): self._use_player_ability("usable2")
 
             # --- COMBAT CONTROLS ---
-            if keybinds.matches(event.key, "dash"):
-                mx, my = pygame.mouse.get_pos()
-                wx = mx + self.camera_x
-                wy = my + self.camera_y
-                dx = wx - self.player.rect.centerx
-                dy = wy - self.player.rect.centery
-                self.player.perform_dash(dx, dy)
+            from systems import walk_control
+            walk_control.handle_dash_keydown(
+                self.player, event, camera=(self.camera_x, self.camera_y))
 
             if event.key == pygame.K_ESCAPE:
                 self.show_pause_menu = True
@@ -1410,70 +1406,22 @@ class MuckfordCityMenu(BaseMenu):
         if self.show_pause_menu or self.manager.show_inventory or self.manager.active_dialogue:
             return
 
-        # 1. Pelaajan logiikka (MANUAALINEN LIIKE)
-        keys = pygame.key.get_pressed()
-        dx, dy = 0, 0
-        speed = 4.0 # Pelaajan nopeus kaupungissa
-        
-        # Shift = sprintti (kuluttaa staminaa VAIN liikkuessa).
-        from systems import keybinds as _kb
-        wants_sprint = _kb.pressed(keys, "sprint")
+        # 1. Pelaajan logiikka: yhtenäinen kävelytilan ohjaus
+        # (systems/walk_control.py - sama sääntö joka näytössä)
+        from systems import walk_control
+        moved = walk_control.move_player(
+            self.player,
+            obstacles=self.arena.obstacles,
+            bounds=pygame.Rect(0, 0, self.arena.width, self.arena.height),
+            camera=(self.camera_x, self.camera_y))
 
-        # Estä manuaalinen liike jos dash on käynnissä (Commander hoitaa sen itse)
-        if not self.player.is_dashing:
-            if _kb.pressed(keys, "move_up"): dy = -speed
-            if _kb.pressed(keys, "move_down"): dy = speed
-            if _kb.pressed(keys, "move_left"): dx = -speed
-            if _kb.pressed(keys, "move_right"): dx = speed
-
-            # Pelkkä SHIFT ilman WASD: juokse hiiren osoittamaan suuntaan
-            if wants_sprint and dx == 0 and dy == 0:
-                mx, my = pygame.mouse.get_pos()
-                wx = mx + self.camera_x - self.player.rect.centerx
-                wy = my + self.camera_y - self.player.rect.centery
-                dist = math.hypot(wx, wy)
-                if dist > 40:  # pieni kuollut alue ettei tärise paikallaan
-                    dx = (wx / dist) * speed
-                    dy = (wy / dist) * speed
-
-        # BUGIKORJAUS: sprintti kulutti staminaa vaikka hahmo seisoi
-        # paikallaan - sprintataan vain kun oikeasti liikutaan
-        moving = (dx != 0 or dy != 0)
-        self.player.set_sprinting(wants_sprint and moving)
-        if self.player.is_sprinting and self.player.current_stamina > 0.5:
-            dx *= 1.5
-            dy *= 1.5
-        
-        if dx != 0 or dy != 0:
-            # Liikkuminen keskeyttää kalastuksen
-            if self.fishing_session:
-                self.fishing_session = None
-                self.fishing_flash = 0
-                self.manager.vfx.show_damage(
-                    self.player.rect.centerx, self.player.rect.top - 30,
-                    "Reeled in.", color=(180, 180, 180))
-            self.player.animation_state = "run"
-            self.player.facing_right = (dx > 0) if dx != 0 else self.player.facing_right
-            
-            # Liiku ja tarkista törmäykset
-            self.player.rect.x += dx
-            for obs in self.arena.obstacles:
-                if self.player.rect.colliderect(obs.rect):
-                    if dx > 0: self.player.rect.right = obs.rect.left
-                    if dx < 0: self.player.rect.left = obs.rect.right
-            
-            self.player.rect.y += dy
-            for obs in self.arena.obstacles:
-                if self.player.rect.colliderect(obs.rect):
-                    if dy > 0: self.player.rect.bottom = obs.rect.top
-                    if dy < 0: self.player.rect.top = obs.rect.bottom
-            
-            # Rajoita kartalle
-            self.player.rect.clamp_ip(pygame.Rect(0, 0, self.arena.width, self.arena.height))
-        elif self.player.animation_timer <= 0:
-            # Käynnissä oleva lyönti-/keräysanimaatio saa pyöriä loppuun
-            # (pelitesti 16: idle ylikirjoitti hakkuun heilautuksen)
-            self.player.animation_state = "idle"
+        # Liikkuminen keskeyttää kalastuksen
+        if moved and self.fishing_session:
+            self.fishing_session = None
+            self.fishing_flash = 0
+            self.manager.vfx.show_damage(
+                self.player.rect.centerx, self.player.rect.top - 30,
+                "Reeled in.", color=(180, 180, 180))
 
         # Päivitä pelaajan tilat (cooldowns, mana regen) ilman AI:ta
         self.player.update(self.arena.obstacles, self.manager)

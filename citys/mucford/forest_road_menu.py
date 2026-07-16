@@ -308,23 +308,14 @@ class ForestRoadMenu(GameplayScreen):
 
         # 1. PLAYER CONTROL
         if self.combat_locked:
-            # WALKING MODE: Vain liikkuminen, ei taistelua
-            keys = pygame.key.get_pressed()
-            dx, dy = 0, 0
-            speed = 4.0
-            if keys[pygame.K_w]: dy = -speed
-            if keys[pygame.K_s]: dy = speed
-            if keys[pygame.K_a]: dx = -speed
-            if keys[pygame.K_d]: dx = speed
-            
-            if dx != 0 or dy != 0:
-                self.player.facing_right = (dx > 0) if dx != 0 else self.player.facing_right
-                self.player.rect.x += dx
-                self.player.rect.y += dy
-                self.player.rect.clamp_ip(pygame.Rect(0, 0, self.arena.width, self.arena.height))
-                self.player.animation_state = "run"
-            else:
-                self.player.animation_state = "idle"
+            # WALKING MODE: Vain liikkuminen, ei taistelua - yhtenäinen
+            # kävelytilan ohjaus (systems/walk_control.py)
+            from systems import walk_control
+            walk_control.move_player(
+                self.player,
+                obstacles=self.arena.obstacles,
+                bounds=pygame.Rect(0, 0, self.arena.width, self.arena.height),
+                camera=(self.camera_x, self.camera_y))
             self.player.update(self.arena.obstacles, self.manager)
         else:
             # BATTLE MODE: Täysi kontrolli (Commander-luokka hoitaa inputin)

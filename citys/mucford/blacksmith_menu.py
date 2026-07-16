@@ -169,55 +169,23 @@ class BlacksmithMenu(BaseMenu):
                             return
 
             # Combat controls (Dash)
-            if event.key == pygame.K_SPACE:
-                mx, my = pygame.mouse.get_pos()
-                wx = mx + self.camera_x
-                wy = my + self.camera_y
-                dx = wx - self.player.rect.centerx
-                dy = wy - self.player.rect.centery
-                self.player.perform_dash(dx, dy)
+            from systems import walk_control
+            walk_control.handle_dash_keydown(
+                self.player, event, camera=(self.camera_x, self.camera_y))
 
     def update(self):
         super().update() # BaseMenu update (editor)
         
         if self.active_anvil: return
 
-        # Pelaajan liike
-        keys = pygame.key.get_pressed()
-        dx, dy = 0, 0
-        speed = 4.0
-        
-        if not self.player.is_dashing:
-            if keys[pygame.K_w]: dy = -speed
-            if keys[pygame.K_s]: dy = speed
-            if keys[pygame.K_a]: dx = -speed
-            if keys[pygame.K_d]: dx = speed
-            
-        # Käänny hiiren suuntaan
-        mx, my = pygame.mouse.get_pos()
-        wx = mx + self.camera_x
-        self.player.facing_right = (wx >= self.player.rect.centerx)
-        
-        if dx != 0 or dy != 0:
-            self.player.animation_state = "run"
-            # X
-            self.player.rect.x += dx
-            for obs in self.arena.obstacles:
-                if self.player.rect.colliderect(obs.rect):
-                    if dx > 0: self.player.rect.right = obs.rect.left
-                    if dx < 0: self.player.rect.left = obs.rect.right
-            # Y
-            self.player.rect.y += dy
-            for obs in self.arena.obstacles:
-                if self.player.rect.colliderect(obs.rect):
-                    if dy > 0: self.player.rect.bottom = obs.rect.top
-                    if dy < 0: self.player.rect.top = obs.rect.bottom
-            
-            # Rajoita huoneeseen
-            self.player.rect.clamp_ip(pygame.Rect(0, 0, self.arena.width, self.arena.height))
-        else:
-            self.player.animation_state = "idle"
-            
+        # Yhtenäinen kävelytilan ohjaus (systems/walk_control.py)
+        from systems import walk_control
+        walk_control.move_player(
+            self.player,
+            obstacles=self.arena.obstacles,
+            bounds=pygame.Rect(0, 0, self.arena.width, self.arena.height),
+            camera=(self.camera_x, self.camera_y))
+
         self.player.update(self.arena.obstacles, self.manager)
         self.arena.update(manager=self.manager)
         self._update_camera()

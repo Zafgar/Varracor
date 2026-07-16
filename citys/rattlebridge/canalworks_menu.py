@@ -88,37 +88,12 @@ class CanalworksMenu(BaseMenu):
         return not any(rect.colliderect(blocker) for blocker in self.blockers)
 
     def _move(self):
-        keys = pygame.key.get_pressed()
-        speed = 4.0
-        wants_sprint = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
-        try:
-            self.player.set_sprinting(wants_sprint)
-            if self.player.is_sprinting and self.player.current_stamina > 0.5:
-                speed *= 1.45
-        except Exception:
-            pass
-        dx = float(keys[pygame.K_d] - keys[pygame.K_a]) * speed
-        dy = float(keys[pygame.K_s] - keys[pygame.K_w]) * speed
-        if dx and dy:
-            dx *= 0.7071
-            dy *= 0.7071
-        moved = False
-        if dx:
-            old = self.player.rect.x
-            self.player.rect.x += int(round(dx))
-            if not self._walkable(self.player.rect):
-                self.player.rect.x = old
-            else:
-                moved = True
-                self.player.facing_right = dx > 0
-        if dy:
-            old = self.player.rect.y
-            self.player.rect.y += int(round(dy))
-            if not self._walkable(self.player.rect):
-                self.player.rect.y = old
-            else:
-                moved = True
-        self.player.animation_state = "run" if moved else "idle"
+        # Yhtenäinen kävelytilan ohjaus (systems/walk_control.py)
+        from systems import walk_control
+        walk_control.move_player(
+            self.player,
+            walkable=self._walkable,
+            camera=(getattr(self, "camera_x", 0), getattr(self, "camera_y", 0)))
         try:
             self.player.update(self.blockers, self.manager)
         except Exception:
