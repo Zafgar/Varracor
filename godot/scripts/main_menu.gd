@@ -28,7 +28,11 @@ func _ready() -> void:
 	box.add_child(_spacer(30))
 
 	_btn(box, "NEW GAME", func(): Router.goto("res://scenes/intro.tscn"))
-	_btn(box, "CONTINUE", func(): Router.goto("res://scenes/main.tscn"))
+	_btn(box, "CONTINUE", func():
+		SaveGame.pending_load = true
+		Router.goto("res://scenes/main.tscn"))
+	# CONTINUE vain jos tallennus on olemassa
+	_buttons[1].disabled = not SaveGame.has_save()
 	_btn(box, "OPTIONS", func(): Router.goto("res://scenes/options_menu.tscn"))
 	_btn(box, "QUIT", func(): get_tree().quit())
 

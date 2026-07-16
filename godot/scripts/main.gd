@@ -14,7 +14,13 @@ func _ready() -> void:
 	_build_environment()
 	_build_arena()
 	player = _spawn_player()
-	_spawn_dummies()
+	# CONTINUE päävalikosta: ladataan tallennettu tila commanderiin
+	if SaveGame.pending_load:
+		SaveGame.pending_load = false
+		var state := SaveGame.load_state()
+		if not state.is_empty():
+			player.apply_state(state)
+	_spawn_enemies()
 	_build_camera()
 	_build_hud()
 	add_child(load("res://scripts/pause_menu.gd").new())
@@ -100,28 +106,14 @@ func _spawn_player() -> CharacterBody3D:
 	return p
 
 
-func _spawn_dummies() -> void:
-	# Harjoitusrotat: pienet tummat kapselit (placeholder)
-	for i in range(3):
-		var d := CharacterBody3D.new()
-		d.position = Vector3(-6 + i * 6, 0.5, -8)
-		var mesh := MeshInstance3D.new()
-		var cm := CapsuleMesh.new()
-		cm.radius = 0.45
-		cm.height = 1.0
-		mesh.mesh = cm
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.35, 0.28, 0.24)
-		mesh.material_override = mat
-		mesh.rotation_degrees.x = 90.0   # rotta makaa vaakatasossa
-		d.add_child(mesh)
-		var col := CollisionShape3D.new()
-		var shape := CapsuleShape3D.new()
-		shape.radius = 0.45
-		shape.height = 1.0
-		col.shape = shape
-		d.add_child(col)
-		add_child(d)
+func _spawn_enemies() -> void:
+	# Harjoitusviholliset: jahtaavat pelaajaa, ottavat vahinkoa (enemy.gd)
+	for pos in [Vector3(-6, 0.6, -8), Vector3(0, 0.6, -12),
+			Vector3(6, 0.6, -8), Vector3(16, 0.6, 2)]:
+		var e := CharacterBody3D.new()
+		e.set_script(load("res://scripts/enemy.gd"))
+		e.position = pos
+		add_child(e)
 
 
 func _build_camera() -> void:
@@ -132,13 +124,19 @@ func _build_camera() -> void:
 
 
 func _build_hud() -> void:
-	# Ohjevihje (PS5-ohjain pohjana) - siisti pikku paneeli alakulmaan
+	# Taistelu-HUD: palkit + loitsupaikat (hud.gd)
+	var hud := CanvasLayer.new()
+	hud.set_script(load("res://scripts/hud.gd"))
+	hud.set("player", player)
+	add_child(hud)
+
+	# Ohjevihje (molemmat ohjaustavat) - pikku paneeli alakulmaan
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var panel := PanelContainer.new()
 	panel.theme = UITheme.build()
 	panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	panel.position = Vector2(24, -70)
-	var l := UITheme.hint("Vasen tatti / WASD  liiku      Cross / Space  dash      Options / Esc  pause")
+	var l := UITheme.hint("Tatti/WASD liiku   R2/LMB lyö   Cross/Space dash   Square-Triangle-L1 / 1-2-3 loitsut   Options/Esc pause")
 	panel.add_child(l)
 	layer.add_child(panel)

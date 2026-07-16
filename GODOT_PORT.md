@@ -60,6 +60,23 @@ py-arvot = exportatut arvot.
     musiikki sointukierroilla per näkymä (menu/intro/arena) +
     SFX (click/confirm/back/whoosh/hit). Oikeat äänet vaihdetaan
     tilalle myöhemmin - rajapinta (Audio.sfx / Audio.play_music) pysyy.
+- **Vaihe 0.75 – Commander pelattavaksi (TEHTY)**
+  - MOLEMMAT ohjaustavat täysin rinnakkain: PS5 (vasen tatti liike,
+    oikea tatti tähtäys, R2 lyönti, Square/Triangle/L1 loitsut) JA
+    WASD+hiiri (hiiritähtäys raycastilla lattiatasoon, LMB lyönti,
+    1/2/3 loitsut). Twin-stick: hahmo katsoo tähtäyssuuntaan.
+  - Commander (player.gd): statit stat_target-käyrästä, HP/mana/stamina,
+    dash staminakustannuksella, lähitaistelu (8 + STR*0.6), 3 loitsu-
+    paikkaa katalogista (mana tier_mana-taulusta, vahinko
+    scaled_damage-kaavasta, cooldown arkkityypin mukaan).
+  - Loitsuprojektiiili (bolt.gd, väri vahinkotyypistä + valo + purske)
+    ja AOE-nova (laajeneva rengas). Viholliset (enemy.gd): jahtaus,
+    kontaktivahinko, osumavälähdys, kuolinpurske.
+  - HUD (hud.gd): HP/Mana/Stamina-palkit + loitsupaikat cooldown-
+    verhoineen ja molempien ohjaustapojen näppäinvihjeet.
+  - Save/load samalla idealla kuin optiot: SaveGame-autoload
+    (user://save.json, versioitu), pause-valikon SAVE GAME,
+    päävalikon CONTINUE aktiivinen vain jos tallennus on olemassa.
 - **Vaihe 1 – Ydinsimulaatio**
   - Yksikködata Resourceina; statit käyrästä + gearista + puu-%
   - Vahinko/parannus, statukset (Burn/Poison/Regen/Slow), kuolema

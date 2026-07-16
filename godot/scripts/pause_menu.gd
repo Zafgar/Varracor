@@ -4,6 +4,7 @@ extends CanvasLayer
 ## lapsentauti #3). Resume / Options / Main Menu.
 
 var _panel: Control
+var _saved_label: Label
 
 
 func _ready() -> void:
@@ -29,12 +30,16 @@ func _ready() -> void:
 
 	box.add_child(UITheme.title("PAUSED", 44))
 	_btn(box, "RESUME", func(): toggle(false))
+	_btn(box, "SAVE GAME", func(): _save_game())
 	_btn(box, "OPTIONS", func():
 		toggle(false)
 		Router.goto("res://scenes/options_menu.tscn"))
 	_btn(box, "MAIN MENU", func():
 		toggle(false)
 		Router.goto("res://scenes/main_menu.tscn", false))
+
+	_saved_label = UITheme.hint("")
+	box.add_child(_saved_label)
 
 
 func _btn(parent: Node, text: String, action: Callable) -> void:
@@ -45,6 +50,17 @@ func _btn(parent: Node, text: String, action: Callable) -> void:
 		Audio.sfx("confirm")
 		action.call())
 	parent.add_child(b)
+
+
+func _save_game() -> void:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		_saved_label.text = "No commander to save"
+		return
+	if SaveGame.save_state(players[0].state_dict()):
+		_saved_label.text = "Game saved!"
+	else:
+		_saved_label.text = "Save failed"
 
 
 func _unhandled_input(event: InputEvent) -> void:

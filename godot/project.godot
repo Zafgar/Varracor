@@ -17,6 +17,7 @@ InputSetup="*res://scripts/input_setup.gd"
 Audio="*res://scripts/audio_director.gd"
 Router="*res://scripts/scene_router.gd"
 Catalogs="*res://scripts/catalogs.gd"
+SaveGame="*res://scripts/save_manager.gd"
 
 [display]
 
