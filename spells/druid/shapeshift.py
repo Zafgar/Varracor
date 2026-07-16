@@ -217,9 +217,13 @@ def tick(unit, manager=None):
     if unit.current_hp <= 0 or getattr(unit, "is_dead", False):
         exit_form(unit, manager, broken=True)
         return
-    # Mana kuluu joka frame; kun loppuu, muoto purkautuu
+    # Mana kuluu joka frame; kun loppuu, muoto purkautuu.
+    # druid_wild-relikvit (form_upkeep_cut) alentavat ylläpitoa (max -50%).
+    cut = float((getattr(unit, "school_effects", {}) or {})
+                .get("form_upkeep_cut", 0.0))
+    drain = form["mana_per_sec"] * max(0.5, 1.0 - cut)
     unit._shift_mana_acc = getattr(unit, "_shift_mana_acc", 0.0) \
-        + form["mana_per_sec"] / 60.0
+        + drain / 60.0
     if unit._shift_mana_acc >= 1.0:
         drain = int(unit._shift_mana_acc)
         unit._shift_mana_acc -= drain

@@ -46,6 +46,12 @@ class SchoolSpellShop(BaseMenu):
             spells = get_pure_catalog_spells()
         else:
             spells = get_catalog_school_spells(self.school)
+        # Erikoistumisvarusteet (relikvit + caster-kaavut) samasta kaupasta
+        try:
+            from items.gear_catalog import gear_for_school
+            spells.extend(gear_for_school(self.school))
+        except Exception:
+            pass
         spells.sort(key=lambda s: (int(getattr(s, "tier", 0)),
                                     getattr(s, "name", "")))
         return spells
@@ -87,9 +93,13 @@ class SchoolSpellShop(BaseMenu):
             return
         self.manager.gold -= cost
         # Lisää TUORE olio (katalogin instanssit ovat jaettuja tälle näkymälle)
+        fresh = None
         from spells.catalog import make_catalog_spell
-        fresh = make_catalog_spell(getattr(spell, "spell_id", "")) or spell
-        self.manager.equipment_bag.append(fresh)
+        fresh = make_catalog_spell(getattr(spell, "spell_id", ""))
+        if fresh is None and getattr(spell, "gear_id", None):
+            from items.gear_catalog import make_gear
+            fresh = make_gear(spell.gear_id)
+        self.manager.equipment_bag.append(fresh or spell)
         sound_system.play_sound('buy')
 
     def handle_event(self, event):

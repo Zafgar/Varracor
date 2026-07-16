@@ -613,6 +613,11 @@ class Gladiator(pygame.sprite.Sprite):
                 if "shield" not in self.weapon_masteries:
                     return False, "Shield proficiency required."
                 return True, ""
+            if t == "relic":
+                # Relikvit vaativat Relic User -noden (int-haara)
+                if "relic" not in self.weapon_masteries:
+                    return False, "Relic proficiency required (Relic User)."
+                return True, ""
             # Off-hand weapon needs dual wield unlock
             if getattr(item, "slot_type", "") == "main_hand" or hasattr(item, "calculate_damage"):
                 if not self.can_dual_wield:
@@ -838,6 +843,14 @@ class Gladiator(pygame.sprite.Sprite):
                 self.dexterity += int(getattr(item, "dex_bonus", 0) or 0)
             if hasattr(item, "int_bonus"):
                 self.intelligence += int(getattr(item, "int_bonus", 0) or 0)
+
+            # Erikoistumisvarusteet (relikvit yms.): koulubonukset kertyvät
+            # school_effects-sanakirjaan kuten puun nodet
+            for _k, _v in (getattr(item, "school_bonuses", {}) or {}).items():
+                if isinstance(_v, (int, float)):
+                    self.school_effects[_k] = self.school_effects.get(_k, 0) + _v
+                else:
+                    self.school_effects[_k] = _v
 
             if hasattr(item, "passive_bonuses"):
                 bonuses = getattr(item, "passive_bonuses", {}) or {}

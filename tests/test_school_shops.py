@@ -116,7 +116,9 @@ def test_bought_spell_is_castable():
     m = _manager()
     m.gold = 100000
     shop = _shops(m)["pure"]
-    shop.selected = 0
+    # Valitse LOITSU (kaupassa on nyt myös varusteita)
+    shop.selected = next(i for i, s in enumerate(shop.spells)
+                         if getattr(s, "spell_id", None))
     surf = pygame.Surface((1920, 1080))
     shop.draw(surf)
     shop.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1,
