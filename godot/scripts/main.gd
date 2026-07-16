@@ -16,6 +16,9 @@ func _ready() -> void:
 	player = _spawn_player()
 	_spawn_dummies()
 	_build_camera()
+	_build_hud()
+	add_child(load("res://scripts/pause_menu.gd").new())
+	Audio.play_music("arena")
 	# Data-putken savutesti: sama kaava kuin py-versiossa
 	print("[Varracor3D] stat_target(20) = ", Catalogs.stat_target(20))
 	print("[Varracor3D] Arcane Dart T1 dmg @INT50 = ",
@@ -126,3 +129,16 @@ func _build_camera() -> void:
 	rig.set_script(load("res://scripts/camera_rig.gd"))
 	rig.set("target_path", player.get_path())
 	add_child(rig)
+
+
+func _build_hud() -> void:
+	# Ohjevihje (PS5-ohjain pohjana) - siisti pikku paneeli alakulmaan
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	var panel := PanelContainer.new()
+	panel.theme = UITheme.build()
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	panel.position = Vector2(24, -70)
+	var l := UITheme.hint("Vasen tatti / WASD  liiku      Cross / Space  dash      Options / Esc  pause")
+	panel.add_child(l)
+	layer.add_child(panel)

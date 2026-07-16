@@ -95,9 +95,16 @@ def test_godot_project_skeleton_present():
     root = os.path.dirname(DATA)
     for rel in ("project.godot", "scenes/main.tscn", "scripts/main.gd",
                 "scripts/player.gd", "scripts/camera_rig.gd",
-                "scripts/catalogs.gd"):
+                "scripts/catalogs.gd", "scripts/input_setup.gd",
+                "scripts/audio_director.gd", "scripts/scene_router.gd",
+                "scripts/ui_theme.gd", "scripts/pause_menu.gd",
+                "scenes/main_menu.tscn", "scripts/main_menu.gd",
+                "scenes/options_menu.tscn", "scripts/options_menu.gd",
+                "scenes/intro.tscn", "scripts/intro.gd"):
         assert os.path.exists(os.path.join(root, rel)), f"{rel} puuttuu"
     # Autoload rekisteröity
     with open(os.path.join(root, "project.godot"), encoding="utf-8") as f:
         proj = f.read()
-    assert "Catalogs=" in proj and "main.tscn" in proj
+    assert "Catalogs=" in proj and "InputSetup=" in proj
+    assert "Audio=" in proj and "Router=" in proj
+    assert "main_menu.tscn" in proj, "peli käynnistyy päävalikkoon"

@@ -38,11 +38,28 @@ py-arvot = exportatut arvot.
 
 ## Vaiheet (kohde: pelattava Godot-versio alusta loppuun)
 
-- **Vaihe 0 – Perusta (TEHTY tässä commitissa)**
+- **Vaihe 0 – Perusta (TEHTY)**
   - Godot 4 -projekti `godot/`, top-down 3D -prototyyppi: areena,
     WASD+dash-pelaaja, seurauskamera, dummy-viholliset, glow-ympäristö
   - Data-putki: `tools/export_gamedata.py` → `godot/data/*.json` +
     `Catalogs`-autoload + py-testit jotka vahtivat peilin tuoreutta
+- **Vaihe 0.5 – Kuori: ohjain, valikot, intro, audio (TEHTY)**
+  - PS5 DualSense POHJANA: vasen tatti = liike (analoginen), Cross =
+    dash/valinta (+ DualSense-tärinä dashissa), Options = pause, Circle =
+    takaisin. Actionit rekisteröidään koodissa (input_setup.gd);
+    näppäimistö toimii rinnalla.
+  - UI-teema koodilla (ui_theme.gd): tumma paneeli + kultakorostus,
+    selkeä fokustyyli ohjainnavigointiin. Ei asseteja.
+  - Valikot scene-pohjaisina + Router-feidit: päävalikko (New Game/
+    Continue/Options/Quit), optiot (Master/Music/SFX-väylät + fullscreen,
+    säilyy user://settings.cfg), pause-overlay areenassa (MODAALINEN -
+    ei klikkivuotoja).
+  - Alkuintro: samat 10 narraatiokohtausta kuin py-versiossa, feidit +
+    tunnelmapartikkelit per kohtaus, skip Crossilla.
+  - Audio KOKONAAN syntetisoitu koodilla (audio_director.gd): pad-
+    musiikki sointukierroilla per näkymä (menu/intro/arena) +
+    SFX (click/confirm/back/whoosh/hit). Oikeat äänet vaihdetaan
+    tilalle myöhemmin - rajapinta (Audio.sfx / Audio.play_music) pysyy.
 - **Vaihe 1 – Ydinsimulaatio**
   - Yksikködata Resourceina; statit käyrästä + gearista + puu-%
   - Vahinko/parannus, statukset (Burn/Poison/Regen/Slow), kuolema
