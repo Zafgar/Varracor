@@ -360,8 +360,26 @@ class BaseAI:
 
             # --- MELEE CHARGE LOGIC (Spear/Sword) ---
             is_heavy_melee = (is_spear or is_sword or is_axe or is_mace)
+            # AOE-erikoiset (kirveen WHIRLWIND, nuijan GROUND SLAM) ovat
+            # huonoja yhtä vastaan - AI lataa ne vain kun lähellä on
+            # useampi vihollinen tai kohde blokkaa (pelitesti 25: mace-AI
+            # latasi slamia joka 1v1-lyöntiin ja DPS romahti)
+            _aoe_charge_ok = True
+            if (is_axe or is_mace) and self.charge_timer == 0:
+                _near_enemies = 0
+                for _u in all_units:
+                    if _u is self.unit or getattr(_u, "is_dead", False):
+                        continue
+                    if self.unit.is_ally(_u):
+                        continue
+                    if math.hypot(_u.rect.centerx - self.unit.rect.centerx,
+                                  _u.rect.centery - self.unit.rect.centery) < 95:
+                        _near_enemies += 1
+                _aoe_charge_ok = (_near_enemies >= 2
+                                  or getattr(target, "is_blocking", False))
             # Vain jos staminaa on tarpeeksi (> 40) TAI lataus on jo käynnissä (ettei se katkea)
-            if is_heavy_melee and has_charge_mech and (self.unit.current_stamina > 40 or self.charge_timer > 0):
+            if is_heavy_melee and has_charge_mech and _aoe_charge_ok and \
+                    (self.unit.current_stamina > 40 or self.charge_timer > 0):
                 # Jos ollaan lähellä, voidaan ladata power hit / dash
                 # Spear: Dash range on pidempi
                 charge_dist = attack_range + (100 if is_spear else 0)
@@ -391,6 +409,18 @@ class BaseAI:
                 if self.unit.attack_cooldown <= 0:
                     self.unit.set_blocking(False)
                     self.unit.perform_attack(target, manager)
+                elif self.unit.attack_cooldown > 12:
+                    # KIERTOLIIKE (pelitesti 25): osumien välissä EI seisota
+                    # tapissa vaan kierretään kohdetta - AI on vaikeampi
+                    # naulita ja näyttää elävältä. Suunta vaihtuu ajoittain.
+                    self._orbit_timer = getattr(self, "_orbit_timer", 0) - 1
+                    if self._orbit_timer <= 0:
+                        self._orbit_dir = random.choice((-1, 1))
+                        self._orbit_timer = random.randint(45, 100)
+                    perp_x = -dy / (dist or 1) * self._orbit_dir
+                    perp_y = dx / (dist or 1) * self._orbit_dir
+                    self._move_towards(perp_x * 40, perp_y * 40, 40,
+                                       obstacles, all_units, manager)
             else:
                 self.state = "chase"
                 
@@ -405,8 +435,11 @@ class BaseAI:
                     target_is_fleeing = True
 
                 # 1. Dash Logic (Gap Close / Dodge)
-                # Käytä dashia jos kohde kaukana ja staminaa riittää hyökkäykseenkin
-                if dist > 100 and self.unit.current_stamina > 50:
+                # Käytä dashia jos kohde kaukana ja staminaa riittää
+                # hyökkäykseenkin. Pakenevaa saa syöksyä lähempääkin
+                # (pelitesti 25: hit-and-run ei ole ilmaista).
+                if self.unit.current_stamina > 40 and \
+                        (dist > 100 or (target_is_fleeing and dist > 70)):
                     should_dash = False
                     dash_dx, dash_dy = dx, dy
 
@@ -427,15 +460,27 @@ class BaseAI:
                             return # Dash hoitaa liikkeen
 
                 # 2. Sprint Logic
-                # Sprinttaa herkemmin jos kohde on ranged tai pakenee
+                # Sprinttaa herkemmin jos kohde on ranged tai pakenee.
+                # PAKENEVAA vastaan säästetään staminaa DASHEIHIN (pelitesti
+                # 25): tasavauhtinen sprinttikisa ei koskaan kuro väliä,
+                # mutta syöksy kuroo ~75 px per lataus - siksi sprintataan
+                # vain kun staminaa riittää molempiin.
                 sprint_limit = 200
                 if target_is_ranged or target_is_fleeing:
                     sprint_limit = 80
-                
-                if dist > sprint_limit and self.unit.current_stamina > 35:
+
+                sprint_floor = 55 if target_is_fleeing else 35
+                if dist > sprint_limit and self.unit.current_stamina > sprint_floor:
                     self.unit.set_sprinting(True)
-                
-                self.navigate_to(target.rect.center, obstacles, all_units, manager)
+
+                # LEIKKAA KULMA (pelitesti 25): jahtaa kohteen ENNUSTETTUA
+                # sijaintia nykyisen sijaan - kiertävää/pakenevaa pelaajaa
+                # ei voi enää juoksuttaa ympyrää. Ennakko skaalautuu
+                # etäisyyteen (kaukaa isompi ennakko).
+                lead = min(30.0, dist / max(0.5, self.unit.walk_speed))
+                aim_x = target.rect.centerx + target_vx * lead
+                aim_y = target.rect.centery + target_vy * lead
+                self.navigate_to((aim_x, aim_y), obstacles, all_units, manager)
 
     def _maybe_use_racial(self, target, manager):
         """Käyttää rodun erikoiskyvyn kun tilanne on otollinen."""
@@ -620,8 +665,12 @@ class BaseAI:
         # "säästelevät staminaa"). Pitkä väli kohteeseen + staminaa yli
         # 45 % -> juokse kiinni. Lähellä kävellään, jotta staminaa jää
         # itse taisteluun.
+        # HUOM (pelitesti 25): raja EI saa alittaa dash-budjettia (40) -
+        # muuten navigate pinnaa staminan hoveriin jossa syöksy ei koskaan
+        # laukea ja pakenevaa kohdetta ei ikinä saada kiinni.
         if dist > 220 and \
-                self.unit.current_stamina > self.unit.max_stamina * 0.45:
+                self.unit.current_stamina > max(
+                    self.unit.max_stamina * 0.45, 55):
             self.unit.set_sprinting(True)
 
         # Normalisoitu suunta kohteeseen

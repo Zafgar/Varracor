@@ -1227,6 +1227,13 @@ class Gladiator(pygame.sprite.Sprite):
         if self.attack_cooldown > 0:
             return False
         if self.current_stamina < 5:
+            # GAME FEEL: kerro pelaajalle MIKSI lyönti ei lähde
+            if manager and self is getattr(manager, "player_character", None):
+                if getattr(self, "_exhaust_flash_cd", 0) <= 0:
+                    self._exhaust_flash_cd = 45
+                    manager.vfx.show_damage(self.rect.centerx,
+                                            self.rect.top - 30,
+                                            "EXHAUSTED", color=(160, 160, 160))
             return False
 
         # --- UUSI: Hyökkäys peruuttaa blockauksen ---
@@ -1492,6 +1499,30 @@ class Gladiator(pygame.sprite.Sprite):
 
         # Osuma keskeyttää passiivisen HP-regenin 5 sekunniksi
         self.hp_regen_delay = 300
+
+        # --- LAUMA-APU (pelitesti 25): kitetystä ei palkita ---
+        # Kun yksikköön osutaan, lähellä olevat TOIMETTOMAT liittolaiset
+        # kääntyvät hyökkääjää vastaan. Pelaaja ei voi enää nyppiä
+        # vihollisia yksi kerrallaan max-rangesta - lauma vastaa yhdessä.
+        if attacker is not None and manager is not None and \
+                not self.is_ally(attacker):
+            for ally in (getattr(manager, "all_units", None) or ()):
+                if ally is self or ally is attacker or \
+                        getattr(ally, "is_dead", False):
+                    continue
+                if not self.is_ally(ally):
+                    continue
+                ai = getattr(ally, "ai_controller", None)
+                if ai is None:
+                    continue
+                cur = getattr(ai, "current_target", None)
+                if cur is not None and not getattr(cur, "is_dead", False):
+                    continue   # on jo kimpussa jonkun
+                d = math.hypot(ally.rect.centerx - self.rect.centerx,
+                               ally.rect.centery - self.rect.centery)
+                if d <= 350:
+                    ai.current_target = attacker
+                    ai.rethink_timer = max(getattr(ai, "rethink_timer", 0), 60)
 
         # --- POINT BLANK: etäaseet heikkoja nollaetäisyydeltä ---
         # Melee vs ranged -dynamiikka (systems/weapon_feel.py): jousi/
@@ -1910,6 +1941,8 @@ class Gladiator(pygame.sprite.Sprite):
             self.riposte_timer -= 1
         if getattr(self, "shield_bash_cd", 0) > 0:
             self.shield_bash_cd -= 1
+        if getattr(self, "_exhaust_flash_cd", 0) > 0:
+            self._exhaust_flash_cd -= 1
 
         can_regen = not (self.is_blocking or self.is_sprinting or self.is_dashing or self.is_charging) and self.stun_timer <= 0
         if can_regen:
