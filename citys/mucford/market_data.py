@@ -74,6 +74,10 @@ MARKET_SHOPS = OrderedDict({
             {"name": "Iron Helm", "price": 34, "kind": "item"},
             {"name": "Pot Lid", "price": 14, "kind": "item"},
             {"name": "Wooden Buckler", "price": 24, "kind": "item"},
+            # Armor rework (pelitesti 26): tier 1-2 -varusteet katalogista.
+            # Hinnat täytetään moduulin lopussa gear-katalogin hinnoilla
+            # (_fill_mudguard_tier_gear) - EI käsin kovakoodattuja.
+            {"name": "__TIER_GEAR__", "price": 0, "kind": "item"},
         ),
     },
     "bittersip": {
@@ -118,3 +122,26 @@ MARKET_SHOPS = OrderedDict({
         ),
     },
 })
+
+
+def _fill_mudguard_tier_gear():
+    """Armor rework (pelitesti 26): Mudguard myy tier 1-2 -taistelija-
+    varusteet suoraan katalogista - nimet JA hinnat gear_catalogista,
+    ei käsin ylläpidettäviä kopioita. Placeholder '__TIER_GEAR__'
+    korvataan aidoilla riveillä importin yhteydessä."""
+    from items.gear_catalog import make_gear
+    rows = []
+    for gid in ("juggernaut_t1", "ranger_t1", "battlemage_t1",
+                "greathelm_t1", "warhelm_t1", "hood_t1", "circlet_t1",
+                "veilmask_t1", "buckler_t1", "aegis_t1",
+                "bulwark_shield_t1",
+                "warrior_t2", "skirmisher_t2", "greathelm_t2",
+                "aegis_t2"):
+        g = make_gear(gid)
+        rows.append({"name": g.name, "price": g.cost, "kind": "item"})
+    shop = MARKET_SHOPS["mudguard_armory"]
+    goods = [e for e in shop["goods"] if e["name"] != "__TIER_GEAR__"]
+    shop["goods"] = tuple(goods + rows)
+
+
+_fill_mudguard_tier_gear()

@@ -212,6 +212,16 @@ def create_item(name):
     except Exception:
         pass
 
+    # Tier-varusteet (items/gear_catalog.py): gear_id tai näyttönimi -
+    # ilman tätä tallennettu TieredGear katosi latauksessa
+    try:
+        from items.gear_catalog import make_gear_by_name
+        _g = make_gear_by_name(name)
+        if _g is not None:
+            return _g
+    except Exception:
+        pass
+
     for C in get_available_item_classes():
         try:
             if C.__name__ == name:

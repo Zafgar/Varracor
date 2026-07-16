@@ -92,6 +92,125 @@ LINES = {
         "color": (255, 240, 170),
         "theme": "A dawn-blessed censer of the Synod",
     },
+
+    # ================= ARMOR REWORK (pelitesti 26) =================
+    # Iso panssarikatalogi: 6 uutta vartalolinjaa, 5 kypärälinjaa (head-
+    # slot) ja 3 kilpilinjaa. Numerot samasta budjettikäyrästä; hinnat
+    # slotin mukaan (price_mult). Ei piirtografiikkaa hahmojen päälle.
+
+    # --- VARTALOT ---
+    "juggernaut": {
+        "slot": "body", "kind": "armor", "armor_group": "heavy",
+        "weights": {"str": 0.30}, "defense_share": 0.55,
+        "hp_per_tier": 45, "speed_penalty": -0.08,
+        "color": (120, 120, 135),
+        "theme": "A walking wall of riveted iron",
+    },
+    "ranger": {
+        "slot": "body", "kind": "armor", "armor_group": "light",
+        "weights": {"dex": 0.60, "int": 0.10}, "defense_share": 0.10,
+        "hp_per_tier": 12,
+        "color": (120, 160, 110),
+        "theme": "Trail-worn light armor that never slows the shot",
+    },
+    "battlemage": {
+        "slot": "body", "kind": "armor", "armor_group": "medium",
+        "weights": {"int": 0.45, "str": 0.25}, "defense_share": 0.20,
+        "mana_per_tier": 15,
+        "color": (150, 130, 190),
+        "theme": "War-plate etched with channeling runes",
+    },
+    "bloodweave": {
+        "slot": "body", "kind": "armor", "armor_group": "cloth",
+        "school": "necromancy",
+        "weights": {"int": 0.65}, "defense_share": 0.05,
+        "hp_per_tier": 20,
+        "school_bonuses": lambda t: {"lifesteal_pct": round(0.01 * t, 2)},
+        "color": (120, 170, 120),
+        "theme": "Robes sewn with red thread that drinks",
+    },
+    "verdant": {
+        "slot": "body", "kind": "armor", "armor_group": "light",
+        "school": "druidism",
+        "weights": {"int": 0.55, "dex": 0.15}, "defense_share": 0.05,
+        "hp_per_tier": 15,
+        "school_bonuses": lambda t: {"hot_power": t // 3},
+        "color": (110, 190, 110),
+        "theme": "Living bark that grows to fit the wearer",
+    },
+    "zealot": {
+        "slot": "body", "kind": "armor", "armor_group": "medium",
+        "school": "holy",
+        "weights": {"int": 0.45, "str": 0.20}, "defense_share": 0.15,
+        "school_bonuses": lambda t: {"heal_power": t // 3},
+        "color": (230, 220, 160),
+        "theme": "Consecrated mail that shines in the dark",
+    },
+
+    # --- KYPÄRÄT (head-slot, halvempia kuin vartalot) ---
+    "greathelm": {
+        "slot": "head", "kind": "armor", "armor_group": "heavy",
+        "weights": {"str": 0.30}, "defense_share": 0.45,
+        "hp_per_tier": 15, "price_mult": 0.7,
+        "color": (140, 140, 150),
+        "theme": "A slit-eyed helm that has heard axes ring",
+    },
+    "warhelm": {
+        "slot": "head", "kind": "armor", "armor_group": "medium",
+        "weights": {"str": 0.20, "dex": 0.25}, "defense_share": 0.25,
+        "hp_per_tier": 10, "price_mult": 0.7,
+        "color": (160, 150, 130),
+        "theme": "An open-faced helm for those who watch the field",
+    },
+    "hood": {
+        "slot": "head", "kind": "armor", "armor_group": "light",
+        "weights": {"dex": 0.55}, "defense_share": 0.05,
+        "price_mult": 0.7,
+        "color": (100, 110, 100),
+        "theme": "A deep hood that keeps your face a rumor",
+    },
+    "circlet": {
+        "slot": "head", "kind": "armor", "armor_group": "cloth",
+        "weights": {"int": 0.60}, "mana_per_tier": 12,
+        "price_mult": 0.7,
+        "color": (170, 160, 220),
+        "theme": "A thin band that hums against the temples",
+    },
+    "veilmask": {
+        "slot": "head", "kind": "armor", "armor_group": "light",
+        "weights": {"int": 0.30, "dex": 0.30}, "defense_share": 0.05,
+        "price_mult": 0.7,
+        "color": (150, 140, 170),
+        "theme": "A half-mask worn by blade-dancers and hexblades",
+    },
+
+    # --- KILVET (off-hand; tier 4+ vaatii Tower Discipline -noden) ---
+    "buckler": {
+        "slot": "off_hand", "kind": "shield",
+        "weights": {"dex": 0.25}, "defense_share": 0.15,
+        "block_base": 0.08, "block_per_tier": 0.015,
+        "stamina_eff": 0.9, "price_mult": 0.9,
+        "color": (170, 160, 140),
+        "theme": "A fencer's disc that turns blades, not blows",
+    },
+    "aegis": {
+        "slot": "off_hand", "kind": "shield",
+        "weights": {"str": 0.10}, "defense_share": 0.30,
+        "hp_per_tier": 10,
+        "block_base": 0.12, "block_per_tier": 0.02,
+        "speed_penalty": -0.03, "price_mult": 0.9,
+        "color": (150, 150, 165),
+        "theme": "A soldier's kite shield, dented and true",
+    },
+    "bulwark_shield": {
+        "slot": "off_hand", "kind": "shield",
+        "weights": {}, "defense_share": 0.45,
+        "hp_per_tier": 20,
+        "block_base": 0.18, "block_per_tier": 0.025,
+        "stamina_eff": 0.85, "speed_penalty": -0.10, "price_mult": 0.9,
+        "color": (120, 125, 140),
+        "theme": "A tower of steel you live behind",
+    },
 }
 
 
@@ -110,7 +229,7 @@ class TieredGear(Item):
         self.armor_group = line.get("armor_group", "")
         self.flavor = spec.get("flavor", "")
         self.rarity = RARITY_BY_TIER.get(self.tier, "Rare")
-        self.cost = gear_price(self.tier)
+        self.cost = int(gear_price(self.tier) * line.get("price_mult", 1.0))
         self.level_req = gear_level_req(self.tier)
         self.level_required = self.level_req   # can_equip lukee tämän
         self.icon_color = line.get("color", (160, 160, 170))
@@ -133,6 +252,20 @@ class TieredGear(Item):
         sb = line.get("school_bonuses")
         self.school_bonuses = {k: v for k, v in (sb(self.tier) if sb else {}).items()
                                if v}
+
+        # Raskaat panssarit/tornikilvet hidastavat (negatiivinen bonus)
+        self.speed_bonus = float(line.get("speed_penalty", 0.0))
+
+        # Kilvet: aktiivinen blokki (set_blocking/take_damage) +
+        # passiivinen block_chance; tier 4+ vaatii Tower Discipline -noden
+        if line["kind"] == "shield":
+            self.type = "Shield"
+            self.block_chance = round(min(
+                0.55, float(line.get("block_base", 0.10))
+                + float(line.get("block_per_tier", 0.02)) * self.tier), 3)
+            self.stamina_efficiency = float(line.get("stamina_eff", 1.0))
+            self.shield_tier = 2 if self.tier >= 4 else 1
+
         self.description = self.short_line()
 
     def short_line(self):
@@ -153,7 +286,14 @@ class TieredGear(Item):
         if self.flavor:
             lines.append(self.flavor)
             lines.append("")
-        slot_lbl = "Body armor" if self.slot_type == "body" else "Off-hand relic"
+        if self.slot_type == "body":
+            slot_lbl = "Body armor"
+        elif self.slot_type == "head":
+            slot_lbl = "Helmet"
+        elif str(self.type).lower() == "shield":
+            slot_lbl = "Shield (off-hand)"
+        else:
+            slot_lbl = "Off-hand relic"
         lines.append(f"Slot: {slot_lbl}   Tier: {self.tier}   ({self.rarity})")
         if self.armor_group:
             lines.append(f"Armor class: {self.armor_group.capitalize()}")
@@ -170,6 +310,18 @@ class TieredGear(Item):
             stats.append(f"+{mr}/s mana regen")
         if stats:
             lines.append("Stats: " + ", ".join(stats))
+        if str(self.type).lower() == "shield":
+            lines.append(f"Block: {int(self.block_chance * 100)}% passive "
+                         f"(RMB blocks fully, LMB bashes)")
+            if self.stamina_efficiency < 1.0:
+                lines.append(f"Blocking costs "
+                             f"{int((1 - self.stamina_efficiency) * 100)}% "
+                             f"less stamina")
+            if self.shield_tier >= 2:
+                lines.append("Requires: Tower Discipline (skill tree)")
+        if self.speed_bonus:
+            lines.append(f"Weight: {int(abs(self.speed_bonus) * 100)}% "
+                         f"slower movement")
         for k, v in self.school_bonuses.items():
             tpl = self._SB_LABELS.get(k, k + " +{v}")
             lines.append("Specialization: "

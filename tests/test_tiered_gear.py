@@ -52,10 +52,12 @@ def _caster_unit(level=28):
 # ----------------------------------------------------------------------
 
 def test_catalog_size_and_unique_ids():
+    # Armor rework (pelitesti 26): 9 alkup. linjaa + 6 vartaloa +
+    # 5 kypärää + 3 kilpeä = 23 linjaa x 8 tieriä = 184
     from items.gear_catalog import CATALOG
-    assert len(CATALOG) == 72
+    assert len(CATALOG) == 184
     ids = [g["id"] for g in CATALOG]
-    assert len(set(ids)) == 72
+    assert len(set(ids)) == 184
 
 
 def test_budgets_follow_curve():

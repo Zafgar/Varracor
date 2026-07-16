@@ -11,7 +11,7 @@ from progression.stat_curve import gear_stat_budget
 GEAR_TIER_LEVEL = {1: 3, 2: 7, 3: 11, 4: 15, 5: 19, 6: 23, 7: 26, 8: 30}
 
 # Slotin osuus tason gear-kokonaisbudjetista (ase ~25% hoidetaan erikseen)
-SLOT_SHARE = {"body": 0.45, "off_hand": 0.30}
+SLOT_SHARE = {"body": 0.45, "off_hand": 0.30, "head": 0.20}
 
 # Ostohinta per tier (SP) - hieman loitsuja halvempi
 GEAR_TIER_PRICE = {1: 100, 2: 300, 3: 650, 4: 1300, 5: 2400, 6: 4200,

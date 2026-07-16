@@ -43,6 +43,68 @@ NAMES = {
         "Tin Censer", "Wax-blessed Icon", "Pilgrim's Reliquary",
         "Dawnlight Censer", "Beacon of Aurelian", "Saint's Radiance",
         "Chalice of First Light", "Fragment of the True Sun"],
+
+    # ===== ARMOR REWORK (pelitesti 26): vartalot =====
+    "juggernaut": [
+        "Scrapbolt Harness", "Quarry Plate", "Gatewarden's Bulk",
+        "Siegebreaker Plate", "Molewatcher's Fortress", "Rampart Colossus",
+        "The Unmoved Mountain", "Heart of the Bastion"],
+    "ranger": [
+        "Marsh-stalker Wraps", "Fowler's Jerkin", "Causeway Runner's Kit",
+        "Mirewood Trailguard", "Hawkeye Halfcoat", "Fenshadow Weave",
+        "Skyline Strider Garb", "Mantle of the Last Track"],
+    "battlemage": [
+        "Conscript's Runevest", "Sparkbound Brigandine", "Hexguard Lamellar",
+        "Warcaster's Panoply", "Stormscript Cuirass", "Runeblood Warplate",
+        "Archmagus Vanguard", "Panoply of the Ninth Seal"],
+    "bloodweave": [
+        "Stained Shroud", "Mourner's Wrap", "Red-thread Vestment",
+        "Gravecloth Regalia", "Sanguine Cerements", "Robe of Quiet Veins",
+        "Shroud of the Pale Court", "Vestment of the Long Hunger"],
+    "verdant": [
+        "Mosscloak", "Bogbark Wrap", "Thornwoven Coat",
+        "Wildgrove Mantle", "Heartwood Carapace", "Mistletoe Regalia",
+        "Cloak of the Green Sleep", "Second Skin of the Forest"],
+    "zealot": [
+        "Lay Brother's Mail", "Votive Hauberk", "Litany-scored Mail",
+        "Consecrated Warcoat", "Radiant Vigil Plate", "Mail of the Unbroken Hymn",
+        "Aurora Sanctified Plate", "Raiment of the First Dawn"],
+
+    # ===== Kypärät (head) =====
+    "greathelm": [
+        "Dented Pot Helm", "Militia Greathelm", "Pitchampion's Visage",
+        "Bastion Greathelm", "Wyrmjaw Helm", "Colossus Crown-helm",
+        "Sunforged Warcrown", "Helm of the Worldwall"],
+    "warhelm": [
+        "Cracked Halfhelm", "Watchman's Sallet", "Duelist's Crest",
+        "Fieldmarshal's Helm", "Windcutter Sallet", "Viperfang Helm",
+        "Ghostface Warhelm", "Crest of the Eclipse"],
+    "hood": [
+        "Sackcloth Hood", "Poacher's Cowl", "Cutpurse Shadowcap",
+        "Nightwalk Cowl", "Whisperweave Hood", "Cowl of Missing Faces",
+        "Ghoststep Veil", "Hood of the Unseen Hand"],
+    "circlet": [
+        "Copper Band", "Scribe's Fillet", "Runeworn Circlet",
+        "Collegium Diadem", "Third-Eye Circlet", "Archon's Halo-band",
+        "Crown of Waking Dreams", "Circlet of the First Thought"],
+    "veilmask": [
+        "Linen Halfmask", "Mummer's Visor", "Hexblade's Veil",
+        "Bladedancer's Mask", "Mask of Quiet Steps", "Veil of Twin Moons",
+        "Faceless Regalia", "Mask of the Last Secret"],
+
+    # ===== Kilvet (off-hand) =====
+    "buckler": [
+        "Pot-lid Buckler", "Skirmisher's Disc", "Duelist's Roundel",
+        "Wasp-steel Buckler", "Mirrorguard Disc", "Serpent-coil Buckler",
+        "Ghostmetal Roundel", "Eye of the Storm"],
+    "aegis": [
+        "Plank Kite Shield", "Militia Aegis", "Pitfighter's Ward",
+        "Bastion Kite", "Wyrmscale Aegis", "Colossus Ward",
+        "Sunforged Aegis", "Aegis of the Worldwall"],
+    "bulwark_shield": [
+        "Door-plank Pavise", "Quarry Tower Shield", "Gatewarden's Pavise",
+        "Siegewall Bulwark", "Molewatcher's Gate", "Rampart Pavise",
+        "The Standing Wall", "Gate of the Bastion"],
 }
 
 FLAVOR = {
@@ -58,6 +120,23 @@ FLAVOR = {
     "druid_life": "Green life coiled tight, waiting for a wound to fill.",
     "druid_wild": "The beast within settles when it smells old blood.",
     "holy_light": "Light gathered patiently, ounce by blessed ounce.",
+    # Armor rework (pelitesti 26)
+    "juggernaut": "You do not dodge in this. You do not need to.",
+    "ranger": "Light enough to run the causeways, tough enough to "
+              "shrug the reeds.",
+    "battlemage": "Steel that carries a spell the way a scabbard "
+                  "carries a blade.",
+    "bloodweave": "The thread was white once. It fed well.",
+    "verdant": "It grows back faster than they can cut it away.",
+    "zealot": "Every ring of this mail has heard a hymn.",
+    "greathelm": "The world through a slit: small, loud, survivable.",
+    "warhelm": "Keeps your skull whole and your eyes on the field.",
+    "hood": "Faces are for people who want to be remembered.",
+    "circlet": "Thought moves easier when the temples are cool.",
+    "veilmask": "Half the face, twice the doubt in their guard.",
+    "buckler": "Catch the blade, not the blow. Then answer.",
+    "aegis": "A soldier's honest wall - carried, not built.",
+    "bulwark_shield": "When it is planted, the argument is over.",
 }
 
 CATALOG = []
@@ -98,6 +177,20 @@ def gear_for_school(school):
 
 
 def martial_gear():
-    """Soturilinjat (warrior/skirmisher) - myydään sepältä myöhemmin."""
+    """Ei-koulusidonnaiset taistelijavarusteet (vartalot, kypärät,
+    kilvet) - myydään sepältä/panssarikauppiaalta."""
+    from items.tiered_gear import LINES
     return [TieredGear(g) for g in CATALOG
-            if g["line"] in ("warrior", "skirmisher")]
+            if LINES[g["line"]].get("school") is None
+            and LINES[g["line"]]["kind"] in ("armor", "shield")]
+
+
+def make_gear_by_name(name):
+    """Luo varusteen gear_id:llä TAI näyttönimellä (save/load käyttää)."""
+    spec = _BY_ID.get(name)
+    if spec is None:
+        for g in CATALOG:
+            if g["name"] == name:
+                spec = g
+                break
+    return TieredGear(spec) if spec else None
