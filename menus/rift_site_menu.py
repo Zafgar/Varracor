@@ -72,22 +72,21 @@ LOCATION_THEMES = {
 }
 
 
+# Teemadatan luokkanimi -> rekisterin kanoninen nimi. Itse luokat tulevat
+# KESKITETYSTÄ rekisteristä (units/monster_registry.py) - repeämäinvaasio
+# voi käyttää mitä tahansa pelin monsteria millä tahansa teemalla.
+_REGISTRY_NAMES = {
+    "BogLeech": "Bog Leech", "GiantFrog": "Giant Frog",
+    "UndeadSkeleton": "Skeleton", "UndeadZombie": "Zombie",
+    "UndeadSkeletonArcher": "Skeleton Archer",
+    "GiantRat": "Giant Rat", "RatRider": "Rat Rider",
+    "CorruptedCrow": "Corrupted Crow",
+}
+
+
 def _unit_class(name):
-    from units.bog_leech import BogLeech
-    from units.giant_frog import GiantFrog
-    from units.undead_skeleton import UndeadSkeleton
-    from units.undead_zombie import UndeadZombie
-    from units.undead_skeleton_archer import UndeadSkeletonArcher
-    from units.rat import GiantRat
-    from units.rat_rider import RatRider
-    from units.corrupted_crow import CorruptedCrow
-    return {
-        "BogLeech": BogLeech, "GiantFrog": GiantFrog,
-        "UndeadSkeleton": UndeadSkeleton, "UndeadZombie": UndeadZombie,
-        "UndeadSkeletonArcher": UndeadSkeletonArcher,
-        "GiantRat": GiantRat, "RatRider": RatRider,
-        "CorruptedCrow": CorruptedCrow,
-    }[name]
+    from units.monster_registry import monster_class
+    return monster_class(_REGISTRY_NAMES.get(name, name))
 
 
 def make_boss(cls, name, x, y):

@@ -43,15 +43,10 @@ from units.human import Human
 from units.orc import Orc
 from units.elf import Elf
 from units.goblin import Goblin
-from units.rat import GiantRat
-from units.rat_rider import RatRider
-from units.undead_skeleton import UndeadSkeleton
-from units.undead_zombie import UndeadZombie
-from units.undead_skeleton_archer import UndeadSkeletonArcher
 from units.commander import Commander
 from units.villager import Villager
-from units.corrupted_crow import CorruptedCrow
-from units.mnemonic_devourer import MnemonicDevourer
+# HUOM: monsterit luodaan units/monster_registry.py:n kautta
+# (create_enemy_by_name) - ei suoria monster-importteja tänne.
 
 # --- CUSTOM ITEMS (New Paths) ---
 from items.swords.rat_sword import RatPoisonSword
@@ -963,43 +958,29 @@ class GameManager:
         self.pathfinder = NavigationGrid(self.current_arena)
 
     def create_enemy_by_name(self, name):
-        # Tarkistetaan onko kyseessä Boss (Rat King)
-        if name == "Rat King":
-            from units.rat_king import RatKing
-            # Etsitään bossin sijainti (keskellä)
-            boss = RatKing("Rat King", 0, 0)
-            boss.assign_manager(self)
-            return boss
+        """Luo vihollisen nimellä KESKITETYSTÄ rekisteristä.
 
-        if name in ("Troll", "Forest Troll"):
-            from units.troll import Troll
-            return Troll("Forest Troll", 0, 0)
-
-        if name in ("Cave Broodmother", "Broodmother"):
-            from units.cave_spider import CaveBroodmother
-            return CaveBroodmother("Cave Broodmother", 0, 0)
-        if name == "Spiderling":
-            from units.cave_spider import Spiderling
-            return Spiderling("Spiderling", 0, 0)
-
-        if name in ("Hush-Mantle", "Hush Mantle"):
-            from units.rattlebridge_threats import HushMantle
-            return HushMantle("Hush-Mantle", 0, 0)
-        if name == "Gutter Vermin":
-            from units.rattlebridge_threats import GutterVermin
-            return GutterVermin("Gutter Vermin", 0, 0)
-        if name == "Red Lantern Cadaver":
-            from units.rattlebridge_threats import RedLanternCadaver
-            return RedLanternCadaver("Red Lantern Cadaver", 0, 0)
-
+        Kaikki monsterit tulevat units/monster_registry.py:stä - sama
+        nimi->luokka-järjestelmä joka kartalla ja missiossa. Humanoidit
+        (Bandit) eivät ole monstereita, joten ne käsitellään erikseen.
+        """
         RED = ENEMY_TEAM
-        if name == 'Giant Rat': return GiantRat(name, 0, 0)
-        if name == 'Rat Rider': return RatRider(name, 0, 0, RED)
-        if name == 'Bandit': return Human("Bandit", 0, 0, RED, "Common")
-        if name == 'Skeleton': return UndeadSkeleton("Skeleton", 0, 0, RED)
-        if name == 'Zombie': return UndeadZombie("Zombie", 0, 0, RED)
-        if name == 'Skeleton Archer': return UndeadSkeletonArcher("Archer", 0, 0, RED)
-        if name == 'Corrupted Crow': return CorruptedCrow("Crow", 0, 0, RED)
+        if name == 'Bandit':
+            return Human("Bandit", 0, 0, RED, "Common")
+        if name == 'Goblin':
+            return Goblin("Goblin", 0, 0, RED)
+
+        from units.monster_registry import create_monster, monster_info
+        if monster_info(name) is not None:
+            enemy = create_monster(name, 0, 0, RED)
+            if hasattr(enemy, "assign_manager"):
+                enemy.assign_manager(self)
+            return enemy
+
+        # Tuntematon nimi: näkyvä varoitus lokiin (aiemmin hiljainen
+        # Goblin-korvike piilotti mission-datan kirjoitusvirheet)
+        print(f"[WARN] create_enemy_by_name: tuntematon vihollinen {name!r} "
+              "- käytetään Goblin-sijaista")
         return Goblin("Minion", 0, 0, RED)
 
     def generate_random_enemy_team(self, count):

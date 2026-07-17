@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from settings import ENEMY_TEAM
-from units.tier0_monsters import TIER0_MONSTER_BY_SPECIES
+from units.monster_registry import create_monster as _registry_create
 
 
 @dataclass(frozen=True)
@@ -154,11 +154,9 @@ def create_monster(
     *,
     name: Optional[str] = None,
 ):
-    monster_class = TIER0_MONSTER_BY_SPECIES.get(species)
-    if monster_class is None:
-        raise KeyError(f"Unknown Tier 0 monster: {species}")
-    display_name = name or species
-    return monster_class(display_name, int(x), int(y), team_color)
+    # Luonti kulkee keskitetyn rekisterin kautta (yksi järjestelmä joka
+    # kartalle) - ekologia lisää vain habitaatti/ryhmäkoko-säännöt päälle.
+    return _registry_create(species, x, y, team_color, display_name=name)
 
 
 def spawn_group(
