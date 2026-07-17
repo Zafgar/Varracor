@@ -40,30 +40,11 @@ from units.mnemonic_devourer import MnemonicDevourer
 from assets.tiles.water import (
     FishingJetty, WaterBody, carve_water, rebuild_water_blockers,
 )
-
-class StoneFloor(Prop):
-    def __init__(self, x, y, variant=1):
-        super().__init__(x, y, 40, 40, color=(60, 60, 65))
-        self.rect = pygame.Rect(x, y, 0, 0)
-        self.is_structure = False
-        self.has_shadow = False
-        self.is_floor = True
-
-class WoodFloor(Prop):
-    def __init__(self, x, y, variant=1):
-        super().__init__(x, y, 40, 40, color=(80, 50, 30))
-        self.rect = pygame.Rect(x, y, 0, 0)
-        self.is_structure = False
-        self.has_shadow = False
-        self.is_floor = True
-
-class GrassFloor(Prop):
-    def __init__(self, x, y, variant=1):
-        super().__init__(x, y, 40, 40, color=(40, 80, 40))
-        self.rect = pygame.Rect(x, y, 0, 0)
-        self.is_structure = False
-        self.has_shadow = False
-        self.is_floor = True
+from assets.tiles.editor_floors import StoneFloor, WoodFloor, GrassFloor
+from assets.tiles.effect_emitters import (
+    SmokeEmitter, FogPatch, EmberEmitter, FireflySwarm,
+)
+from systems import map_document
 
 class MapEditor:
     def __init__(self, manager):
@@ -105,6 +86,9 @@ class MapEditor:
             # -> lammet/joet/meret), FishingJetty klikillä rannalle. Esteet
             # lasketaan automaattisesti laituriaukkoineen.
             "Water": [WaterBody, FishingJetty],
+            # Tunnelmaefektit: savu/sumu/kipinät/tulikärpäset - eivät
+            # esteitä, variant ([ ja ]) säätää voimakkuutta/sädettä
+            "Effects": [SmokeEmitter, FogPatch, EmberEmitter, FireflySwarm],
             "Farm": [Barn, ChickenCoop, FarmStorage, FarmFenceHorizontal, FarmFenceVertical, 
                      MuckfordField, ManurePile],
             "Crypt": [CryptPillar, CryptBigPillar, CryptRock, BrokenPillar, CryptCoffin, CryptTree, CryptGrass],
@@ -117,7 +101,9 @@ class MapEditor:
                 CorruptedCrow, BogLeech, GiantFrog,
                 MnemonicDevourer
             ],
-            "System": ["Load Test Map"]
+            # System-rivit rakennetaan _system_items():ssä (mm. custom-
+            # karttojen Load-rivit maps/custom_maps.py-rekisteristä)
+            "System": []
         }
         
         self.current_category = "Furniture"
@@ -136,8 +122,8 @@ class MapEditor:
         self.shadow_active = True
         self.shadow_shape = "ellipse" # ellipse, rect, circle
         
-        # Note Editing
-        self.typing_note = False
+        # Tekstinsyöttö (note / kartan nimi / kartan koko / yksikön nimi)
+        self.typing_mode = None     # None | "note" | "map_name" | "map_size" | "unit_name"
         self.note_text_buffer = ""
         self.note_target_prop = None
 
@@ -190,19 +176,13 @@ class MapEditor:
         offset = (cam_x, cam_y)
 
         # --- TEXT INPUT MODE ---
-        if self.typing_note:
+        if self.typing_mode:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
-                    # Save note
-                    if self.note_target_prop:
-                        self.note_target_prop._editor_note = self.note_text_buffer
-                        self.note_target_prop._editor_created = True # Ensure export
-                        print(f"Note set: {self.note_text_buffer}")
-                    self.typing_note = False
-                    self.note_target_prop = None
+                    self._commit_text_input()
                     return True
                 elif event.key == pygame.K_ESCAPE:
-                    self.typing_note = False
+                    self.typing_mode = None
                     self.note_target_prop = None
                     return True
                 elif event.key == pygame.K_BACKSPACE:
@@ -235,7 +215,20 @@ class MapEditor:
             if event.key == pygame.K_F9:
                 self.export_map()
                 return True
-                
+
+            # F7 = nimeä kartta, Shift+F7 = muuta areenan kokoa
+            if event.key == pygame.K_F7:
+                if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                    self._start_text_input("map_size")
+                else:
+                    self._start_text_input("map_name")
+                return True
+
+            # U = nimeä osoitettu yksikkö (NPC/monsteri)
+            if event.key == pygame.K_u:
+                self.start_unit_rename(offset)
+                return True
+
             if event.key == pygame.K_DELETE:
                 self.delete_hovered(offset)
                 return True
@@ -318,10 +311,11 @@ class MapEditor:
                     self.dragged_prop.rect.x += nudge_x
                     self.dragged_prop.rect.y += nudge_y
                     self.dragged_prop.image_pos = self.dragged_prop.rect.topleft
-                # Muuten liikuta kameraa (tai haamua jos hiiri ei liiku)
+                # Muuten panoroi kameraa reippaasti (isot kartat)
                 else:
-                    self.manager.camera_x += nudge_x
-                    self.manager.camera_y += nudge_y
+                    pan = self.grid_size * 3
+                    self.manager.camera_x += (nudge_x > 0) * pan - (nudge_x < 0) * pan
+                    self.manager.camera_y += (nudge_y > 0) * pan - (nudge_y < 0) * pan
                 return True
 
             # --- NEW CONTROLS ---
@@ -424,49 +418,15 @@ class MapEditor:
         return False
 
     def save_project(self, filename="test_map_project.json"):
-        data = {
-            "props": [],
-            "floor_props": []
-        }
-        
-        def serialize(p):
-            pos = getattr(p, "image_pos", None) or p.rect.topleft
-            obj_data = {
-                "class": p.__class__.__name__,
-                "x": pos[0],
-                "y": pos[1],
-            }
-            # Vesi/laituri yms: mitat ja seed talteen
-            if hasattr(p, "serialize_extra"):
-                obj_data.update(p.serialize_extra())
-            if hasattr(p, "variant"): obj_data["variant"] = p.variant
-            if hasattr(p, "angle") and p.angle != 0: obj_data["angle"] = p.angle
-            if hasattr(p, "facing_right"): obj_data["facing_right"] = p.facing_right
-            if hasattr(p, "team_color") and p.team_color != "Neutral":
-                obj_data["team_color"] = p.team_color
-            if hasattr(p, "_editor_note"): obj_data["note"] = p._editor_note
-            
-            if hasattr(p, "equipment"):
-                equip_list = {}
-                for slot, item in p.equipment.items():
-                    if item and getattr(item, "name", "") not in ["Fists", "No Armor"]:
-                        equip_list[slot] = item.name
-                if equip_list:
-                    obj_data["equipment"] = equip_list
-            
-            return obj_data
-
-        if self.manager.current_arena:
-            for p in self.manager.current_arena.props:
-                data["props"].append(serialize(p))
-            if hasattr(self.manager.current_arena, "floor_props"):
-                for p in self.manager.current_arena.floor_props:
-                    data["floor_props"].append(serialize(p))
-                    
+        """Tallentaa koko areenan (meta + sisältö) projektiksi.
+        Serialisointi on jaettu systems/map_document.py:n kanssa."""
+        if not self.manager.current_arena:
+            return
+        doc = map_document.serialize_map(self.manager.current_arena)
         try:
             with open(filename, "w") as f:
-                json.dump(data, f, indent=4)
-            print(f"Project saved to {filename}")
+                json.dump(doc, f, indent=2)
+            print(f"Project saved to {filename} ({doc['name']})")
             if hasattr(self.manager, "vfx"):
                 self.manager.vfx.show_damage(SCREEN_WIDTH//2, SCREEN_HEIGHT//2, "PROJECT SAVED", color=GREEN)
         except Exception as e:
@@ -476,28 +436,75 @@ class MapEditor:
         if not os.path.exists(filename):
             print(f"Project file {filename} not found.")
             return
-
         try:
             with open(filename, "r") as f:
                 data = json.load(f)
         except Exception as e:
             print(f"Error loading project: {e}")
             return
-
-        if self.manager.current_arena:
+        if not self.manager.current_arena:
+            return
+        if data.get("format") == map_document.FORMAT_KEY:
+            map_document.apply_to_arena(data, self.manager.current_arena,
+                                        self.manager)
+        else:
+            # Legacy-projekti (pelkät props/floor_props ilman metaa)
             self.manager.current_arena.props.clear()
             self.manager.current_arena.obstacles.clear()
             if hasattr(self.manager.current_arena, "floor_props"):
                 self.manager.current_arena.floor_props.clear()
-            
             self._reconstruct_list(data.get("props", []), is_floor=False)
             self._reconstruct_list(data.get("floor_props", []), is_floor=True)
-            # Vesien esteet lasketaan uudestaan laituriaukkoineen
             rebuild_water_blockers(self.manager.current_arena)
-            
-            print(f"Project loaded from {filename}")
-            if hasattr(self.manager, "vfx"):
-                self.manager.vfx.show_damage(SCREEN_WIDTH//2, SCREEN_HEIGHT//2, "PROJECT LOADED", color=GREEN)
+        print(f"Project loaded from {filename}")
+        if hasattr(self.manager, "vfx"):
+            self.manager.vfx.show_damage(SCREEN_WIDTH//2, SCREEN_HEIGHT//2, "PROJECT LOADED", color=GREEN)
+
+    # ------------------------------------------------ tekstinsyöttö
+    def _start_text_input(self, mode, target=None):
+        self.typing_mode = mode
+        self.note_target_prop = target
+        arena = self.manager.current_arena
+        if mode == "map_name":
+            self.note_text_buffer = str(getattr(arena, "map_name", "") or "")
+        elif mode == "map_size":
+            self.note_text_buffer = (f"{getattr(arena, 'width', 0)}x"
+                                     f"{getattr(arena, 'height', 0)}")
+        elif mode == "unit_name":
+            self.note_text_buffer = str(getattr(target, "name", ""))
+        else:
+            self.note_text_buffer = str(getattr(target, "_editor_note", ""))
+
+    def _commit_text_input(self):
+        mode = self.typing_mode
+        text = self.note_text_buffer.strip()
+        arena = self.manager.current_arena
+        if mode == "note" and self.note_target_prop:
+            self.note_target_prop._editor_note = text
+            self.note_target_prop._editor_created = True
+            print(f"Note set: {text}")
+        elif mode == "map_name" and arena is not None and text:
+            arena.map_name = text
+            print(f"Map renamed: {text}")
+        elif mode == "map_size" and arena is not None:
+            try:
+                w, h = (int(v) for v in text.lower().replace(" ", "").split("x"))
+                map_document.resize_arena(arena, max(1920, w), max(1080, h))
+                print(f"Arena resized: {arena.width}x{arena.height}")
+            except Exception:
+                print(f"Bad size (use WIDTHxHEIGHT): {text!r}")
+        elif mode == "unit_name" and self.note_target_prop and text:
+            self.note_target_prop.name = text
+            self.note_target_prop._editor_created = True
+            print(f"Unit renamed: {text}")
+        self.typing_mode = None
+        self.note_target_prop = None
+
+    def start_unit_rename(self, offset):
+        mx, my = pygame.mouse.get_pos()
+        found = self._find_hovered(mx + offset[0], my + offset[1])
+        if found and hasattr(found, "name") and hasattr(found, "team_color"):
+            self._start_text_input("unit_name", found)
 
     def _get_class_by_name(self, name):
         for cat_list in self.categories.values():
@@ -571,7 +578,10 @@ class MapEditor:
                     self.manager.current_arena.floor_props.append(obj)
                 else:
                     self.manager.current_arena.props.append(obj)
-                    if obj.rect.w > 0 and obj.rect.h > 0 and not isinstance(obj, Gladiator) and not getattr(obj, "is_floor", False):
+                    if obj.rect.w > 0 and obj.rect.h > 0 \
+                            and not isinstance(obj, Gladiator) \
+                            and not getattr(obj, "is_floor", False) \
+                            and not getattr(obj, "is_effect", False):
                         self.manager.current_arena.obstacles.append(obj)
                         
             except Exception as e:
@@ -614,9 +624,20 @@ class MapEditor:
 
     def update(self):
         if not self.active: return
-        
+
         cam_x = getattr(self.manager, "camera_x", 0)
         cam_y = getattr(self.manager, "camera_y", 0)
+
+        # Efektiemitterit ja vedet elävät myös editorissa (ruuduissa,
+        # jotka eivät itse päivitä propeja)
+        arena = self.manager.current_arena
+        if arena is not None:
+            for p in arena.props:
+                if getattr(p, "is_effect", False):
+                    p.update(None, self.manager)
+            for p in getattr(arena, "floor_props", []):
+                if isinstance(p, WaterBody):
+                    p.update(None, self.manager)
         
         if self.dragged_prop:
             mx, my = pygame.mouse.get_pos()
@@ -702,7 +723,13 @@ class MapEditor:
         pygame.draw.rect(screen, (0, 0, 0, 200), (0, 0, SCREEN_WIDTH, 40))
             
         shad_txt = self.shadow_shape if self.shadow_active else "OFF"
-        info_text = f"EDITOR | Tool: {tool_name} | Var: {self.variant_index} | Ang: {self.ghost_angle} | Grid(G) | Snap(X): {snap_txt} | Shadow(J): {shad_txt} | Shift+Drag: Fill | ALT: Menu | F9: Export"
+        arena = self.manager.current_arena
+        map_name = getattr(arena, "map_name", "") or "Unnamed"
+        map_size = (f"{getattr(arena, 'width', 0)}x"
+                    f"{getattr(arena, 'height', 0)}")
+        info_text = (f"EDITOR | {map_name} [{map_size}] | Tool: {tool_name} "
+                     f"| Var: {self.variant_index} | Snap(X): {snap_txt} "
+                     f"| Shadow(J): {shad_txt} | ALT: Menu | F9: Export")
         draw_text(info_text, font_small, GREEN, screen, 10, 10)
         
         # Team Indicator in Top Bar (Right side)
@@ -813,15 +840,22 @@ class MapEditor:
         self._draw_hover_info(screen, offset)
 
         # Draw Typing UI
-        if self.typing_note:
+        if self.typing_mode:
             cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
             box_w, box_h = 500, 80
             rect = pygame.Rect(cx - box_w//2, cy - box_h//2, box_w, box_h)
-            
+
             pygame.draw.rect(screen, (30, 30, 40), rect, border_radius=8)
             pygame.draw.rect(screen, GOLD_COLOR, rect, 2, border_radius=8)
-            
-            draw_text("EDIT NOTE (Enter to save, Esc to cancel):", font_small, GRAY, screen, rect.x + 15, rect.y + 10)
+
+            labels = {
+                "note": "EDIT NOTE",
+                "map_name": "MAP NAME",
+                "map_size": "ARENA SIZE (esim. 8000x5000)",
+                "unit_name": "UNIT NAME",
+            }
+            label = labels.get(self.typing_mode, "EDIT")
+            draw_text(f"{label} (Enter to save, Esc to cancel):", font_small, GRAY, screen, rect.x + 15, rect.y + 10)
             draw_text(self.note_text_buffer + "|", font_main, WHITE, screen, rect.x + 15, rect.y + 40)
 
         # Draw Help Overlay
@@ -838,20 +872,24 @@ class MapEditor:
             "EDITOR CONTROLS",
             "F5: Save Project",
             "F6: Load Project",
+            "F7: Map Name",
+            "Shift+F7: Arena Size",
             "F8: Toggle Editor",
+            "F9: Export Map Code",
             "ESC: Test Mode (Play)",
             "ALT: Open/Close Menu",
             "LMB: Place / Select / Move",
             "RMB: Cancel Selection",
             "DEL: Delete Object",
             "R: Rotate Object",
-            "ARROWS: Nudge Position",
+            "ARROWS: Pan / Nudge",
             "G: Toggle Grid",
             "X: Toggle Snap",
             "J: Toggle Shadow",
             "Shift+J: Shadow Shape",
             "H: Toggle Hitboxes",
             "N: Edit Note",
+            "U: Rename Unit",
             "Shift+Arrows: Resize Box",
             "Alt+Arrows: Move Box",
             "Enter: Apply Box to All",
@@ -861,7 +899,6 @@ class MapEditor:
             "Shift+1-4: Edit Gear",
             "Ctrl+Z: Undo",
             "Ctrl+D: Duplicate",
-            "F9: Export Map"
         ]
         
         w = 220
@@ -961,8 +998,11 @@ class MapEditor:
         
         # Items
         item_y = cat_y + 10 - self.scroll_y
-        items = self.categories[self.current_category]
-        
+        if self.current_category == "System":
+            items = self._system_items()
+        else:
+            items = self.categories[self.current_category]
+
         # Clip
         clip_rect = pygame.Rect(self.menu_rect.left, cat_y + 2, self.menu_rect.width, SCREEN_HEIGHT - cat_y - 70)
         screen.set_clip(clip_rect)
@@ -992,32 +1032,70 @@ class MapEditor:
         pygame.draw.rect(screen, WHITE, swatch_rect, 1, border_radius=3)
         draw_text(team_name, font_main, WHITE, screen, self.menu_rect.left + 45, bot_y + 32)
 
+    def _system_items(self):
+        """System-välilehden rivit: karttakomennot + custom-kartat."""
+        items = ["Export Map Code (F9)", "Rename Map (F7)",
+                 "Resize Arena (Shift+F7)", "New Blank Map"]
+        try:
+            from maps.custom_maps import custom_map_names
+            items.extend(f"Load: {name}" for name in custom_map_names())
+        except Exception:
+            pass
+        return items
+
+    def _run_system_command(self, name):
+        arena = self.manager.current_arena
+        if name.startswith("Export Map Code"):
+            self.export_map()
+        elif name.startswith("Rename Map"):
+            self._start_text_input("map_name")
+        elif name.startswith("Resize Arena"):
+            self._start_text_input("map_size")
+        elif name == "New Blank Map" and arena is not None:
+            doc = {"format": map_document.FORMAT_KEY, "version": 1,
+                   "name": getattr(arena, "map_name", "New Map") or "New Map",
+                   "width": getattr(arena, "width", 5760),
+                   "height": getattr(arena, "height", 3240),
+                   "props": [], "floor_props": [], "units": []}
+            map_document.apply_to_arena(doc, arena, self.manager)
+            print("Arena cleared (New Blank Map)")
+        elif name.startswith("Load: ") and arena is not None:
+            from maps.custom_maps import get_custom_map
+            doc = get_custom_map(name[6:])
+            if doc:
+                map_document.apply_to_arena(doc, arena, self.manager)
+                print(f"Custom map loaded: {doc['name']} "
+                      f"({doc['width']}x{doc['height']})")
+                if hasattr(self.manager, "vfx"):
+                    self.manager.vfx.show_damage(
+                        SCREEN_WIDTH//2, SCREEN_HEIGHT//2,
+                        f"LOADED: {doc['name']}", color=GREEN)
+
     def handle_menu_click(self, mx, my):
         # Check Categories
         cat_y = 10
         x = self.menu_rect.left + 10
-        
+
         for cat in self.categories.keys():
             if pygame.Rect(x, cat_y, 200, 25).collidepoint(mx, my):
                 self.current_category = cat
                 self.scroll_y = 0
                 return
             cat_y += 30
-            
+
         # Check Items
         item_y = cat_y + 10 - self.scroll_y
-        items = self.categories[self.current_category]
-        
+        if self.current_category == "System":
+            items = self._system_items()
+        else:
+            items = self.categories[self.current_category]
+
         for item_class in items:
             name = item_class if isinstance(item_class, str) else item_class.__name__
             if pygame.Rect(x, item_y, 250, 20).collidepoint(mx, my):
-                # Special System Commands
-                if name == "Load Test Map":
-                    # Aseta tila main.py:n kautta (vaatii että 'test_arena' on rekisteröity)
-                    self.manager.pending_state_change = "test_arena"
-                    self.toggle() # Sulje editori
+                if isinstance(item_class, str):
+                    self._run_system_command(name)
                     return
-
                 self.selected_prop_class = item_class
                 self.ghost_class = None # Force regen
                 self.ghost_angle = 0
@@ -1121,10 +1199,12 @@ class MapEditor:
             self.manager.current_arena.props.append(obj)
         
         # KORJAUS: Älä lisää yksiköitä (Gladiator) esteisiin, muuten ne törmäävät itseensä!
-        # Älä myöskään lisää lattiaa esteisiin
-        if obj.rect.w > 0 and obj.rect.h > 0 and not isinstance(obj, Gladiator) and not getattr(obj, "is_floor", False):
+        # Älä myöskään lisää lattiaa tai efektiemittereitä esteisiin
+        if obj.rect.w > 0 and obj.rect.h > 0 and not isinstance(obj, Gladiator) \
+                and not getattr(obj, "is_floor", False) \
+                and not getattr(obj, "is_effect", False):
             self.manager.current_arena.obstacles.append(obj)
-            
+
         # Tag for export
         obj._editor_created = True
         
@@ -1189,14 +1269,9 @@ class MapEditor:
 
     def start_note_input(self, offset):
         mx, my = pygame.mouse.get_pos()
-        wx = mx + offset[0]
-        wy = my + offset[1]
-        
-        found = self._find_hovered(wx, wy)
+        found = self._find_hovered(mx + offset[0], my + offset[1])
         if found:
-            self.note_target_prop = found
-            self.typing_note = True
-            self.note_text_buffer = getattr(found, "_editor_note", "")
+            self._start_text_input("note", found)
 
     def handle_inventory_edit(self, key, offset):
         mx, my = pygame.mouse.get_pos()
@@ -1465,7 +1540,10 @@ class MapEditor:
             new_obj.team_color = col
             
             self.manager.current_arena.props.append(new_obj)
-            if new_obj.rect.w > 0 and new_obj.rect.h > 0 and not isinstance(new_obj, Gladiator):
+            if new_obj.rect.w > 0 and new_obj.rect.h > 0 \
+                    and not isinstance(new_obj, Gladiator) \
+                    and not getattr(new_obj, "is_floor", False) \
+                    and not getattr(new_obj, "is_effect", False):
                 self.manager.current_arena.obstacles.append(new_obj)
             
             new_obj._editor_created = True
@@ -1478,128 +1556,34 @@ class MapEditor:
             print(f"Duplicated {found}")
 
     def export_map(self):
-        # Generate code from actual objects in the arena
-        hitbox_changes = {}
-        lines = []
-        
-        # Yhdistä props ja floor_props vientiä varten
-        all_export_props = list(self.manager.current_arena.props)
-        if hasattr(self.manager.current_arena, "floor_props"):
-            all_export_props.extend(self.manager.current_arena.floor_props)
-        
-        for p in all_export_props:
-            # Kerää hitbox-muutokset
-            if getattr(p, "_hitbox_modified", False):
-                cls_name = p.__class__.__name__
-                rel_x = p.rect.x - p.image_pos[0]
-                rel_y = p.rect.y - p.image_pos[1]
-                hitbox_changes[cls_name] = (rel_x, rel_y, p.rect.w, p.rect.h)
+        """Vie KOKO kartan yhdeksi JSON-riviksi (VARRACOR-MAP).
 
-            if getattr(p, "_editor_created", False):
-                # Add note comment
-                note = getattr(p, "_editor_note", "")
-                if note:
-                    lines.append(f"# NOTE: {note}")
-
-                cls_name = p.__class__.__name__
-                x, y = p.image_pos
-                
-                # Format color tuple
-                col = getattr(p, "team_color", None)
-                col_str = f"({col[0]}, {col[1]}, {col[2]})" if col else "RED"
-                
-                var_name = "u" # Variable name for unit
-                
-                # Special export for Units
-                if isinstance(p, Villager):
-                    lines.append(f"{var_name} = Villager('Villager', 'Human', {x}, {y}, {col_str})")
-                elif isinstance(p, Bard):
-                    lines.append(f"{var_name} = Bard('Bard', 'Elf', {x}, {y}, {col_str})")
-                elif isinstance(p, MardaShant):
-                    lines.append(f"{var_name} = MardaShant({x}, {y})")
-                elif isinstance(p, GiantRat):
-                    lines.append(f"{var_name} = GiantRat('Rat', {x}, {y}, team_color={col_str})")
-                elif isinstance(p, Human):
-                    lines.append(f"{var_name} = Human('Bandit', {x}, {y}, {col_str}, 'Common')")
-                elif isinstance(p, Orc):
-                    lines.append(f"{var_name} = Orc('Orc', {x}, {y}, {col_str})")
-                elif isinstance(p, Elf):
-                    lines.append(f"{var_name} = Elf('Elf', {x}, {y}, {col_str})")
-                elif isinstance(p, Goblin):
-                    lines.append(f"{var_name} = Goblin('Goblin', {x}, {y}, {col_str})")
-                elif isinstance(p, RatRider):
-                    lines.append(f"{var_name} = RatRider('Rat Rider', {x}, {y}, {col_str})")
-                elif isinstance(p, RatKing):
-                    lines.append(f"{var_name} = RatKing('Rat King', {x}, {y})")
-                elif isinstance(p, UndeadSkeleton):
-                    lines.append(f"{var_name} = UndeadSkeleton('Skeleton', {x}, {y}, {col_str})")
-                elif isinstance(p, UndeadZombie):
-                    lines.append(f"{var_name} = UndeadZombie('Zombie', {x}, {y}, {col_str})")
-                elif isinstance(p, UndeadSkeletonArcher):
-                    lines.append(f"{var_name} = UndeadSkeletonArcher('Archer', {x}, {y}, {col_str})")
-                elif isinstance(p, CorruptedCrow):
-                    lines.append(f"{var_name} = CorruptedCrow('Crow', {x}, {y}, {col_str})")
-                elif isinstance(p, BogLeech):
-                    lines.append(f"{var_name} = BogLeech('Leech', {x}, {y}, {col_str})")
-                elif isinstance(p, GiantFrog):
-                    lines.append(f"{var_name} = GiantFrog('Frog', {x}, {y}, {col_str})")
-                elif isinstance(p, MnemonicDevourer):
-                    lines.append(f"{var_name} = MnemonicDevourer(); {var_name}.rect.topleft = ({x}, {y})")
-                else:
-                    # Standard Props
-                    args = f"{x}, {y}"
-                    if hasattr(p, "variant"):
-                        args += f", variant={p.variant}"
-                    
-                    # Construct lines
-                    lines.append(f"p = {cls_name}({args})")
-                    
-                    if hasattr(p, "angle") and p.angle != 0:
-                        lines.append(f"p.rotate({p.angle})")
-                        
-                    # Export Team Color if not Neutral
-                    if hasattr(p, "team_color") and p.team_color != "Neutral":
-                        col = p.team_color
-                        if isinstance(col, (tuple, list)):
-                            lines.append(f"p.team_color = ({col[0]}, {col[1]}, {col[2]})")
-                            
-                    # Export Shadow
-                    if hasattr(p, "has_shadow") and p.has_shadow is False:
-                        lines.append(f"p.has_shadow = False")
-                    
-                    if hasattr(p, "_shadow_shape") and p._shadow_shape != "ellipse":
-                        lines.append(f"p._shadow_shape = '{p._shadow_shape}'")
-
-                    # Jos on lattia, lisää floor_props listaan
-                    if getattr(p, "is_floor", False):
-                        lines.append(f"self.floor_props.append(p)")
-                    else:
-                        lines.append(f"self._add_prop(p)")
-                    continue # Skip unit logic for props
-
-                # Export Equipment for Units
-                if hasattr(p, "equipment"):
-                    for slot, item in p.equipment.items():
-                        if item and item.name not in ["Fists", "No Armor"]:
-                            lines.append(f"{var_name}.equip_item(create_item('{item.name}'))")
-                
-                # Export Facing
-                if hasattr(p, "facing_right") and not p.facing_right:
-                    lines.append(f"{var_name}.facing_right = False")
-                
-                # Add to arena
-                lines.append(f"self.arena.props.append({var_name})")
-                # Note: Units are NOT added to obstacles in editor, so we don't export them as obstacles either.
-
-        with open("map_export.txt", "a") as f:
-            if hitbox_changes:
-                f.write("\n# --- HITBOX UPDATES (Paste to class __init__) ---\n")
-                for cls, (rx, ry, w, h) in hitbox_changes.items():
-                    f.write(f"# {cls}: coll_rect = pygame.Rect(x + {rx}, y + {ry}, {w}, {h})\n")
-            
-            f.write("\n# --- EXPORTED MAP DATA ---\n")
-            for line in lines:
-                f.write(line + "\n")
-        print("Exported to map_export.txt")
+        Rivi kirjoitetaan map_export.txt:hen ja tulostetaan konsoliin
+        selkein merkein. Työnkulku: kopioi rivi chattiin -> se
+        kovakoodataan maps/custom_maps.py-rekisteriin -> System-valikon
+        'Load:' lataa sen takaisin editoriin millä koneella tahansa.
+        """
+        arena = self.manager.current_arena
+        if arena is None:
+            return
+        doc = map_document.serialize_map(arena)
+        blob = map_document.export_blob(doc)
+        try:
+            with open("map_export.txt", "w") as f:
+                f.write(blob + "\n")
+        except Exception as e:
+            print(f"Error writing map_export.txt: {e}")
+        stats = (f"{len(doc['props'])} props, "
+                 f"{len(doc['floor_props'])} floor, "
+                 f"{len(doc['units'])} units, "
+                 f"{doc['width']}x{doc['height']}")
+        print("=" * 70)
+        print(f"MAP EXPORT: {doc['name']} ({stats})")
+        print("KOPIOI ALLA OLEVA RIVI (myos map_export.txt:ssa):")
+        print("=" * 70)
+        print(blob)
+        print("=" * 70)
         if hasattr(self.manager, "vfx"):
-            self.manager.vfx.show_damage(SCREEN_WIDTH//2, SCREEN_HEIGHT//2, "MAP EXPORTED", color=GREEN)
+            self.manager.vfx.show_damage(
+                SCREEN_WIDTH//2, SCREEN_HEIGHT//2,
+                f"EXPORTED: {doc['name']}", color=GREEN)
