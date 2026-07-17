@@ -55,9 +55,11 @@ def test_shared_geometry_api():
     # Keskipiste on vedessä, kaukana ulkopuolella ei
     assert water.contains_point(water.rect.center)
     assert not water.contains_point((water.rect.left - 200, water.rect.centery))
-    # Rannat ovat rectin sisällä
+    # Rannat pysyvät rectin tuntumassa (kohina saa ylittää reunan
+    # korkeintaan shore_variance-verran, kuten vanhassa mallissa)
     left, right = water.bounds_at(water.rect.centery)
-    assert water.rect.left <= left < right <= water.rect.right
+    margin = water.shore_variance + 20
+    assert water.rect.left - margin <= left < right <= water.rect.right + margin
     # Esteet seuraavat rantaa ja ylityskaista jää auki
     band = (700, 800)
     barriers = water.make_collision_barriers([band])
