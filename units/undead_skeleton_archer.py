@@ -15,7 +15,6 @@ class UndeadSkeletonArcher(Gladiator):
         self.current_hp = 50
         self.strength = 6
         self.dexterity = 10
-        self.speed = 1.8
         self.defense = 0
         
         self.attack_range = 300 # Ranged
@@ -36,6 +35,10 @@ class UndeadSkeletonArcher(Gladiator):
 
         # Equip Weapon
         self.equip_item(WeakBow())
+
+        # Asetetaan equipin JÄLKEEN (calculate_final_stats nollaisi
+        # walk_speedin dex-kaavaan)
+        self.speed = self.walk_speed = 2.2
 
     def load_assets(self):
         return True

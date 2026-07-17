@@ -16,9 +16,8 @@ class UndeadSkeleton(Gladiator):
         self.current_hp = 60
         self.strength = 8
         self.dexterity = 12
-        self.speed = 2.2 # Melko nopea
         self.defense = 0
-        
+
         self.attack_range = 40
         self.ai_controller = UndeadAI(self)
         
@@ -36,6 +35,10 @@ class UndeadSkeleton(Gladiator):
 
         # Annetaan luurangolle miekka (jotta se pitää ääntä ja tekee vahinkoa)
         self.equip_item(WeakSword())
+
+        # Nopea rivivihollinen. Asetetaan equipin JÄLKEEN, koska
+        # calculate_final_stats nollaisi walk_speedin dex-kaavaan.
+        self.speed = self.walk_speed = 2.5
 
     def load_assets(self):
         return True

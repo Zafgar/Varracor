@@ -28,6 +28,10 @@ class BaseAI:
         self.cover_cooldown = 0   # Estää ikuisen suojassa kyyhöttämisen
         self.no_los_timer = 0     # Kauanko kohde on ollut piilossa
 
+        # Luonneliput: alaluokat (esim. UndeadAI) säätävät näitä sen
+        # sijaan että kirjoittaisivat liike-/väistölogiikan uusiksi
+        self.allow_dash = True    # False = ei syöksyjä (vääjäämätön marssi)
+
     def execute_ai(self, all_units, obstacles=None, manager=None):
         if self.unit.is_dead: return
         
@@ -83,7 +87,7 @@ class BaseAI:
 
         # 2. SELF PRESERVATION (AoE & Kiting) - High Priority
         # Vaatii staminaa (Dash cost = 30)
-        if manager and self.unit.current_stamina > 35:
+        if manager and self.allow_dash and self.unit.current_stamina > 35:
             # A) AoE Dodge (Väistetään maassa olevia efektejä)
             if hasattr(manager, "vfx") and hasattr(manager.vfx, "floor_particles"):
                 hits = pygame.sprite.spritecollide(self.unit, manager.vfx.floor_particles, False)
@@ -438,7 +442,7 @@ class BaseAI:
                 # Käytä dashia jos kohde kaukana ja staminaa riittää
                 # hyökkäykseenkin. Pakenevaa saa syöksyä lähempääkin
                 # (pelitesti 25: hit-and-run ei ole ilmaista).
-                if self.unit.current_stamina > 40 and \
+                if self.allow_dash and self.unit.current_stamina > 40 and \
                         (dist > 100 or (target_is_fleeing and dist > 70)):
                     should_dash = False
                     dash_dx, dash_dy = dx, dy

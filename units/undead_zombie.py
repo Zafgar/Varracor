@@ -15,8 +15,9 @@ class UndeadZombie(Gladiator):
         self.current_hp = 120
         self.strength = 12
         self.dexterity = 2
-        self.speed = 1.0 # Hidas
         self.defense = 2
+        # Hidas laahustaja - vaarallinen vain laumassa/ahtaissa paikoissa
+        self.speed = self.walk_speed = 1.7
         
         self.attack_range = 35
         self.ai_controller = UndeadAI(self)

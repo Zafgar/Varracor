@@ -17,9 +17,10 @@ class RatRider(Gladiator):
         self.current_hp = 240
         self.strength = 32
         self.dexterity = 15
-        self.speed = 2.0
         self.attack_speed = 45
         self.cost = 120
+        # Liikkuva ratsu - rynnäkkö (charge) on varsinainen välinkuroja
+        self.speed = self.walk_speed = 2.7
         
         # Abilities
         self.charge_cooldown = 0
