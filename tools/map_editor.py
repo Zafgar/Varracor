@@ -44,7 +44,34 @@ from assets.tiles.editor_floors import StoneFloor, WoodFloor, GrassFloor
 from assets.tiles.effect_emitters import (
     SmokeEmitter, FogPatch, EmberEmitter, FireflySwarm,
 )
+from systems.field_kit import (
+    FieldResourceNode, FloorPatch, GateZone, WallSegment,
+)
 from systems import map_document
+
+# Variant ([ ja ]) kiertää näitä kenttäpakin tyylejä editorissa
+GATE_KINDS = ["arch", "sign", "ladder", "grate", "portal"]
+NODE_STYLES = ["herb", "reeds", "driftwood", "clay", "ore", "crystal",
+               "mushroom", "bone", "scrap", "wood"]
+WALL_STYLES = ["crypt", "rock", "sewer"]
+FLOOR_STYLES = ["crypt", "rock", "sewer", "dirt"]
+
+
+def _make_kit_instance(cls, x, y, variant):
+    """Kenttäpakin luokat tarvitsevat erikoiskonstruktorit editorissa."""
+    if cls is GateZone:
+        kind = GATE_KINDS[(variant - 1) % len(GATE_KINDS)]
+        return GateZone(x, y, kind=kind, label=kind.upper())
+    if cls is FieldResourceNode:
+        style = NODE_STYLES[(variant - 1) % len(NODE_STYLES)]
+        return FieldResourceNode("", x, y, style.title(), style)
+    if cls is WallSegment:
+        style = WALL_STYLES[(variant - 1) % len(WALL_STYLES)]
+        return WallSegment(x, y, 120, 120, style=style)
+    if cls is FloorPatch:
+        style = FLOOR_STYLES[(variant - 1) % len(FLOOR_STYLES)]
+        return FloorPatch(x, y, 240, 240, style=style)
+    return None
 
 class MapEditor:
     def __init__(self, manager):
@@ -89,6 +116,10 @@ class MapEditor:
             # Tunnelmaefektit: savu/sumu/kipinät/tulikärpäset - eivät
             # esteitä, variant ([ ja ]) säätää voimakkuutta/sädettä
             "Effects": [SmokeEmitter, FogPatch, EmberEmitter, FireflySwarm],
+            # Kenttäpakki: portit (sisään/ulos), keräysnodet, luolasto-
+            # seinät ja -lattiat. Variant kiertää tyyliä; seinä/lattia
+            # venyy Shift+raahauksella yhdeksi palaksi
+            "Field": [GateZone, FieldResourceNode, WallSegment, FloorPatch],
             "Farm": [Barn, ChickenCoop, FarmStorage, FarmFenceHorizontal, FarmFenceVertical, 
                      MuckfordField, ManurePile],
             "Crypt": [CryptPillar, CryptBigPillar, CryptRock, BrokenPillar, CryptCoffin, CryptTree, CryptGrass],
@@ -617,6 +648,27 @@ class MapEditor:
                 print(f"Water carved: {water.rect}")
             return
 
+        # Seinä/lattia: raahaus = YKSI venytetty pala, ei ruudukkotäyttö
+        if self.selected_prop_class in (WallSegment, FloorPatch):
+            w = max(self.grid_size, int(ex - sx))
+            h = max(self.grid_size, int(ey - sy))
+            arena = self.manager.current_arena
+            if arena is None:
+                return
+            styles = WALL_STYLES if self.selected_prop_class is WallSegment \
+                else FLOOR_STYLES
+            style = styles[(self.variant_index - 1) % len(styles)]
+            obj = self.selected_prop_class(int(sx), int(sy), w, h, style=style)
+            obj._editor_created = True
+            if getattr(obj, "is_floor", False):
+                arena.floor_props.append(obj)
+            else:
+                arena.props.append(obj)
+                arena.obstacles.append(obj)
+            self.history.append({"type": "place", "obj": obj})
+            print(f"{self.selected_prop_class.__name__} placed: {obj.rect}")
+            return
+
         # Loop ja aseta
         for cy in range(int(sy), int(ey) + 1, gs):
             for cx in range(int(sx), int(ex) + 1, gs):
@@ -757,8 +809,13 @@ class MapEditor:
                     current_color = self.team_colors[self.team_color_idx][1]
                     # Try with variant
                     try:
+                        kit_ghost = _make_kit_instance(
+                            self.selected_prop_class, wx, wy,
+                            self.variant_index)
                         # Special handling for Units in ghost
-                        if self.selected_prop_class == Villager:
+                        if kit_ghost is not None:
+                            self.ghost_instance = kit_ghost
+                        elif self.selected_prop_class == Villager:
                             self.ghost_instance = Villager("Ghost", "Human", wx, wy, current_color)
                         elif self.selected_prop_class == Bard:
                             self.ghost_instance = Bard("Ghost", "Elf", wx, wy, current_color)
@@ -1129,9 +1186,14 @@ class MapEditor:
                 return
 
             current_color = self.team_colors[self.team_color_idx][1]
-            
+
+            # Kenttäpakin luokat (portit, nodet, seinät, lattiat)
+            kit_obj = _make_kit_instance(self.selected_prop_class, x, y,
+                                         self.variant_index)
+            if kit_obj is not None:
+                obj = kit_obj
             # Special handling for Units
-            if self.selected_prop_class == Villager:
+            elif self.selected_prop_class == Villager:
                 obj = Villager("Villager", "Human", x, y, current_color)
             elif self.selected_prop_class == Bard:
                 obj = Bard("Bard", "Elf", x, y, current_color)

@@ -29,6 +29,7 @@ from settings import (
     WHITE,
 )
 from sound_manager import sound_system
+from systems.field_kit import FieldResourceNode
 from assets.tiles.water import FishingAnchor, WaterBody
 from ui_kit import draw_text, font_main, font_small, format_money
 from units.corrupted_crow import CorruptedCrow
@@ -57,88 +58,30 @@ def _cost_text(cost: Dict[str, int]) -> str:
     return ", ".join(f"{amount} {name}" for name, amount in cost.items())
 
 
-class MarshResourceNode(Prop):
-    """Small procedural gathering node with no external sprite dependency."""
+class MarshResourceNode(FieldResourceNode):
+    """Suon keräysnode - runko tulee kenttäpakista (systems/field_kit),
+    tässä vain suokohtaiset piirtotyylit ja tilastokoukku."""
 
-    def __init__(
-        self,
-        x: int,
-        y: int,
-        resource_name: str,
-        style: str,
-        amount: Tuple[int, int] = (1, 2),
-    ):
-        super().__init__(x, y, 52, 52, color=(0, 0, 0))
-        self.resource_name = resource_name
-        self.style = style
-        self.min_amount = int(amount[0])
-        self.max_amount = int(amount[1])
-        self.harvested = False
-        self.has_shadow = style not in ("reeds", "herb")
-        self.interaction_range = 74
-        self.interaction_label = f"Gather {resource_name}"
-        self.type = "resource"
-        self.blocks_projectiles = False
-        self._redraw()
+    SIZE = 52
 
-    def _redraw(self):
-        surface = pygame.Surface((52, 52), pygame.SRCALPHA)
-        if self.harvested:
-            pygame.draw.ellipse(surface, (65, 58, 43, 90), (8, 38, 36, 8))
-            self.image = surface
-            return
+    def _paint_bogwort(image, s):
+        for dx in (-9, -3, 4, 10):
+            pygame.draw.line(image, (59, 132, 83), (26, 49), (26 + dx, 15), 3)
+        pygame.draw.circle(image, (151, 106, 191), (17, 15), 4)
+        pygame.draw.circle(image, (151, 106, 191), (30, 11), 4)
+        pygame.draw.circle(image, (151, 106, 191), (38, 19), 3)
 
-        if self.style == "reeds":
-            for index, dx in enumerate((7, 14, 21, 29, 37, 44)):
-                height = 24 + (index % 3) * 7
-                pygame.draw.line(
-                    surface,
-                    (86, 130 + (index % 2) * 18, 74),
-                    (dx, 49),
-                    (dx + (index % 2) * 3 - 1, 49 - height),
-                    3,
-                )
-                pygame.draw.line(
-                    surface,
-                    (156, 125, 65),
-                    (dx - 1, 49 - height),
-                    (dx + 3, 43 - height),
-                    3,
-                )
-        elif self.style == "driftwood":
-            pygame.draw.line(surface, (104, 77, 49), (7, 39), (45, 17), 9)
-            pygame.draw.line(surface, (139, 104, 65), (9, 35), (44, 16), 3)
-            pygame.draw.line(surface, (91, 66, 44), (24, 28), (17, 13), 5)
-            pygame.draw.line(surface, (91, 66, 44), (34, 23), (47, 30), 4)
-        elif self.style == "clay":
-            pygame.draw.ellipse(surface, (104, 74, 55), (4, 24, 44, 24))
-            pygame.draw.ellipse(surface, (142, 94, 67), (10, 19, 30, 18))
-            pygame.draw.arc(surface, (75, 55, 44), (13, 22, 24, 14), 0.1, 2.7, 2)
-        else:  # Bogwort
-            for dx in (-9, -3, 4, 10):
-                pygame.draw.line(surface, (59, 132, 83), (26, 49), (26 + dx, 15), 3)
-            pygame.draw.circle(surface, (151, 106, 191), (17, 15), 4)
-            pygame.draw.circle(surface, (151, 106, 191), (30, 11), 4)
-            pygame.draw.circle(surface, (151, 106, 191), (38, 19), 3)
-        self.image = surface
-        self.image_pos = self.rect.topleft
+    # "herb" säilyttää suon violetin bogwort-ulkoasun (vanha else-haara)
+    PAINTERS = {**FieldResourceNode.PAINTERS,
+                "bogwort": _paint_bogwort, "herb": _paint_bogwort}
 
-    def harvest(self, manager) -> Optional[str]:
-        if self.harvested:
-            return None
-        amount = random.randint(self.min_amount, self.max_amount)
-        manager.inventory[self.resource_name] = (
-            int(manager.inventory.get(self.resource_name, 0)) + amount
-        )
+    def __init__(self, x, y, resource_name, style,
+                 amount: Tuple[int, int] = (1, 2)):
+        super().__init__("", x, y, resource_name, style, amount)
+
+    def _after_harvest(self, manager, amount):
         state = outskirts_state(manager)
         state["gathered_total"] = int(state.get("gathered_total", 0)) + amount
-        self.harvested = True
-        self._redraw()
-        try:
-            sound_system.play_sound("recruit")
-        except Exception:
-            pass
-        return f"+{amount} {self.resource_name}"
 
 
 class MarshBridge(Prop):

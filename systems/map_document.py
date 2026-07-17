@@ -46,6 +46,7 @@ _PROP_MODULES = (
     "assets.tiles.bog_objects",
     "assets.tiles.editor_floors",
     "assets.tiles.effect_emitters",
+    "systems.field_kit",
     "crafting.swamp.scrap_pile",
 )
 
@@ -212,6 +213,27 @@ def _construct_prop(entry: dict):
     if cls_name == "FishingJetty":
         return FishingJetty(x, y, entry.get("w", 170), entry.get("h", 64),
                             seed=entry.get("seed", 3))
+    # Kenttäpakin luokat: konstruktorit ottavat lisäargumentteja
+    if cls_name == "GateZone":
+        from systems.field_kit import GateZone
+        return GateZone(x, y, entry.get("w", 140), entry.get("h", 90),
+                        kind=entry.get("kind", "arch"),
+                        label=entry.get("label", "EXIT"),
+                        facing=entry.get("facing", "down"))
+    if cls_name == "WallSegment":
+        from systems.field_kit import WallSegment
+        return WallSegment(x, y, entry.get("w", 40), entry.get("h", 40),
+                           style=entry.get("style", "crypt"))
+    if cls_name == "FloorPatch":
+        from systems.field_kit import FloorPatch
+        return FloorPatch(x, y, entry.get("w", 200), entry.get("h", 200),
+                          style=entry.get("style", "crypt"))
+    if cls_name == "FieldResourceNode":
+        from systems.field_kit import FieldResourceNode
+        return FieldResourceNode(entry.get("node_id", ""), x, y,
+                                 entry.get("resource", "Herb"),
+                                 entry.get("style", "herb"),
+                                 tuple(entry.get("amount", (1, 2))))
     cls = _prop_class(cls_name)
     if cls is None:
         return None

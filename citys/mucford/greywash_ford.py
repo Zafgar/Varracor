@@ -9,6 +9,7 @@ import pygame
 
 from assets.tiles.prop import Prop
 from menus.gameplay_screen import GameplayScreen
+from systems.field_kit import FieldResourceNode
 from settings import ENEMY_TEAM, GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
 from assets.tiles.water import FishingAnchor, WaterBody
@@ -187,56 +188,17 @@ class FordProp(Prop):
         self.image = image
 
 
-class FordResourceNode(Prop):
-    def __init__(self, node_id: str, x: int, y: int, resource: str, style: str, amount=(1, 2), harvested=False):
-        super().__init__(x, y, 56, 56, color=(0, 0, 0))
-        self.node_id = str(node_id)
-        self.resource_name = str(resource)
-        self.style = str(style)
-        self.min_amount, self.max_amount = int(amount[0]), int(amount[1])
-        self.harvested = bool(harvested)
-        self.image_pos = (x, y)
-        self.rect = pygame.Rect(x + 5, y + 24, 46, 28)
-        self.has_shadow = style not in {"reeds", "clay"}
-        self.blocks_projectiles = False
-        self.is_structure = False
-        self._redraw()
+class FordResourceNode(FieldResourceNode):
+    """Kahluupaikan keräysnode - runko kenttäpakista, tässä vain
+    harvested_nodes-kirjanpito (piirtotyylit tulevat pakista)."""
 
-    def _redraw(self):
-        image = pygame.Surface((56, 56), pygame.SRCALPHA)
-        if self.harvested:
-            pygame.draw.ellipse(image, (66, 58, 46, 100), (8, 43, 40, 8))
-        elif self.style == "reeds":
-            for index, x in enumerate((8, 15, 23, 31, 39, 47)):
-                height = 25 + (index % 3) * 7
-                pygame.draw.line(image, (73, 122, 70), (x, 52), (x + index % 2, 52 - height), 3)
-                pygame.draw.line(image, (163, 128, 63), (x, 52 - height), (x + 4, 47 - height), 3)
-        elif self.style == "clay":
-            pygame.draw.ellipse(image, (104, 74, 55), (4, 28, 48, 23))
-            pygame.draw.ellipse(image, (151, 99, 67), (10, 21, 35, 22))
-        elif self.style == "scrap":
-            pygame.draw.polygon(image, (111, 113, 108), [(5, 46), (19, 15), (31, 43)])
-            pygame.draw.rect(image, (75, 80, 78), (23, 23, 28, 22), border_radius=3)
-            pygame.draw.circle(image, (143, 118, 73), (38, 18), 8, 3)
-        else:
-            pygame.draw.line(image, (104, 75, 47), (6, 43), (50, 18), 10)
-            pygame.draw.line(image, (151, 109, 63), (9, 39), (49, 17), 3)
-            pygame.draw.line(image, (87, 62, 42), (26, 30), (17, 12), 5)
-        self.image = image
+    SIZE = 56
 
-    def harvest(self, manager) -> Optional[str]:
-        if self.harvested:
-            return None
-        amount = random.randint(self.min_amount, self.max_amount)
-        manager.inventory[self.resource_name] = int(manager.inventory.get(self.resource_name, 0)) + amount
+    def _after_harvest(self, manager, amount):
         state = ford_state(manager)
         harvested = state.setdefault("harvested_nodes", [])
         if self.node_id not in harvested:
             harvested.append(self.node_id)
-        self.harvested = True
-        self._redraw()
-        _safe_sound("recruit")
-        return f"+{amount} {self.resource_name}"
 
 
 class FordSurveyMarker(Prop):

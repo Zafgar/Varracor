@@ -16,6 +16,7 @@ from assets.tiles.forest_objects import ForestBush, ForestGrass
 from assets.tiles.muckford_floors import MuckfordFloor
 from assets.tiles.prop import Prop
 from menus.gameplay_screen import GameplayScreen
+from systems.field_kit import FieldResourceNode
 from settings import ENEMY_TEAM, GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
 from assets.tiles.water import WaterBody
@@ -203,7 +204,11 @@ class ChapelMarker(Prop):
         self.image = image
 
 
-class ChapelResourceNode(Prop):
+class ChapelResourceNode(FieldResourceNode):
+    """Kappelin keräysnode - runko kenttäpakista, tässä vain kappelin
+    omat piirtotyylit (lotus, wax) ja harvested_nodes-kirjanpito."""
+
+    SIZE = 50
     DATA = {
         "Medicinal Herb": ("herb", (1, 2)),
         "Grave-Lotus": ("lotus", (1, 2)),
@@ -211,57 +216,34 @@ class ChapelResourceNode(Prop):
         "River Clay": ("clay", (1, 2)),
     }
 
-    def __init__(self, node_id: str, x: int, y: int, resource_name: str, harvested=False):
-        super().__init__(x, y, 50, 50, color=(0, 0, 0))
-        self.node_id = str(node_id)
-        self.resource_name = resource_name
-        self.style, self.amount = self.DATA[resource_name]
-        self.harvested = bool(harvested)
-        self.rect = pygame.Rect(x + 7, y + 24, 36, 24)
-        self.image_pos = (x, y)
-        self.blocks_projectiles = False
-        self._redraw()
+    def _paint_lotus(image, s):
+        pygame.draw.ellipse(image, (55, 95, 75), (7, 29, 36, 15))
+        for angle in range(0, 360, 60):
+            rad = math.radians(angle)
+            cx = 25 + int(math.cos(rad) * 9)
+            cy = 25 + int(math.sin(rad) * 7)
+            pygame.draw.ellipse(image, (184, 160, 194), (cx - 6, cy - 4, 12, 8))
+        pygame.draw.circle(image, (228, 209, 127), (25, 25), 4)
 
-    def _redraw(self):
-        image = pygame.Surface((50, 50), pygame.SRCALPHA)
-        if self.harvested:
-            pygame.draw.ellipse(image, (55, 55, 49, 100), (8, 39, 34, 7))
-        elif self.style == "herb":
-            for dx in (-9, -3, 4, 10):
-                pygame.draw.line(image, (74, 153, 106), (25, 46), (25 + dx, 15), 3)
-            pygame.draw.circle(image, (180, 215, 181), (18, 15), 4)
-            pygame.draw.circle(image, (180, 215, 181), (34, 11), 4)
-        elif self.style == "lotus":
-            pygame.draw.ellipse(image, (55, 95, 75), (7, 29, 36, 15))
-            for angle in range(0, 360, 60):
-                rad = math.radians(angle)
-                cx = 25 + int(math.cos(rad) * 9)
-                cy = 25 + int(math.sin(rad) * 7)
-                pygame.draw.ellipse(image, (184, 160, 194), (cx - 6, cy - 4, 12, 8))
-            pygame.draw.circle(image, (228, 209, 127), (25, 25), 4)
-        elif self.style == "wax":
-            pygame.draw.rect(image, (209, 194, 137), (15, 17, 20, 29), border_radius=5)
-            pygame.draw.line(image, (75, 64, 48), (25, 17), (25, 9), 2)
-            pygame.draw.circle(image, (235, 163, 61), (25, 7), 5)
-        else:
-            pygame.draw.ellipse(image, (95, 72, 62), (5, 25, 40, 21))
-            pygame.draw.ellipse(image, (134, 93, 77), (12, 20, 27, 17))
-        self.image = image
+    def _paint_wax(image, s):
+        pygame.draw.rect(image, (209, 194, 137), (15, 17, 20, 29), border_radius=5)
+        pygame.draw.line(image, (75, 64, 48), (25, 17), (25, 9), 2)
+        pygame.draw.circle(image, (235, 163, 61), (25, 7), 5)
 
-    def harvest(self, manager) -> Optional[str]:
-        if self.harvested:
-            return None
-        low, high = self.amount
-        amount = random.randint(low, high)
-        manager.inventory[self.resource_name] = int(manager.inventory.get(self.resource_name, 0)) + amount
+    PAINTERS = {**FieldResourceNode.PAINTERS,
+                "lotus": _paint_lotus, "wax": _paint_wax}
+
+    def __init__(self, node_id: str, x: int, y: int, resource_name: str,
+                 harvested=False):
+        style, amount = self.DATA[resource_name]
+        super().__init__(node_id, x, y, resource_name, style, amount,
+                         harvested=harvested)
+
+    def _after_harvest(self, manager, amount):
         state = drowned_chapel_state(manager)
         harvested = state.setdefault("harvested_nodes", [])
         if self.node_id not in harvested:
             harvested.append(self.node_id)
-        self.harvested = True
-        self._redraw()
-        _safe_sound("recruit")
-        return f"+{amount} {self.resource_name}"
 
 
 class DrownedChapelArena:

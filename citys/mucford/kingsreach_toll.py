@@ -9,6 +9,7 @@ import pygame
 
 from assets.tiles.prop import Prop
 from menus.gameplay_screen import GameplayScreen
+from systems.field_kit import FieldResourceNode
 from settings import ENEMY_TEAM, GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
 from ui_kit import draw_text, font_main, font_small
@@ -234,58 +235,38 @@ class TollProp(Prop):
         self.image = image
 
 
-class TollResourceNode(Prop):
-    def __init__(self, node_id, x, y, resource, style, amount=(1, 2), harvested=False):
-        super().__init__(x, y, 54, 54, color=(0, 0, 0))
-        self.node_id = str(node_id)
-        self.resource_name = str(resource)
-        self.style = str(style)
-        self.min_amount, self.max_amount = int(amount[0]), int(amount[1])
-        self.harvested = bool(harvested)
-        self.image_pos = (x, y)
-        self.rect = pygame.Rect(x + 5, y + 25, 44, 25)
-        self.blocks_projectiles = False
-        self.is_structure = False
-        self.has_shadow = style not in {"herb", "paper"}
-        self._redraw()
+class TollResourceNode(FieldResourceNode):
+    """Tulliportin keräysnode - runko kenttäpakista, tässä tullin omat
+    piirtotyylit (bandage, charcoal, paper) ja kirjanpito."""
 
-    def _redraw(self):
-        image = pygame.Surface((54, 54), pygame.SRCALPHA)
-        if self.harvested:
-            pygame.draw.ellipse(image, (67, 62, 50, 95), (7, 43, 40, 8))
-        elif self.style == "herb":
-            for dx in (-10, -4, 3, 9):
-                pygame.draw.line(image, (65, 123, 74), (27, 50), (27 + dx, 15), 3)
-            for x, y in ((16, 16), (28, 12), (38, 18)):
-                pygame.draw.circle(image, (213, 192, 93), (x, y), 4)
-        elif self.style == "bandage":
-            pygame.draw.rect(image, (206, 194, 157), (6, 24, 42, 19), border_radius=5)
-            pygame.draw.line(image, (154, 76, 66), (12, 27), (42, 39), 3)
-            pygame.draw.line(image, (154, 76, 66), (42, 27), (12, 39), 3)
-        elif self.style == "charcoal":
-            for x, y, r in ((14, 35, 10), (29, 28, 13), (42, 38, 9)):
-                pygame.draw.circle(image, (38, 39, 38), (x, y), r)
-                pygame.draw.arc(image, (89, 82, 69), (x - r + 3, y - r + 3, r * 2 - 6, r * 2 - 6), 3.3, 5.8, 2)
-        else:
-            pygame.draw.polygon(image, (210, 194, 143), [(7, 15), (45, 10), (48, 42), (10, 47)])
-            pygame.draw.line(image, (115, 83, 59), (15, 22), (39, 19), 2)
-            pygame.draw.line(image, (115, 83, 59), (14, 30), (40, 28), 2)
-            pygame.draw.line(image, (115, 83, 59), (14, 38), (34, 36), 2)
-        self.image = image
+    SIZE = 54
 
-    def harvest(self, manager) -> Optional[str]:
-        if self.harvested:
-            return None
-        amount = random.randint(self.min_amount, self.max_amount)
-        manager.inventory[self.resource_name] = int(manager.inventory.get(self.resource_name, 0)) + amount
+    def _paint_bandage(image, s):
+        pygame.draw.rect(image, (206, 194, 157), (6, 24, 42, 19), border_radius=5)
+        pygame.draw.line(image, (154, 76, 66), (12, 27), (42, 39), 3)
+        pygame.draw.line(image, (154, 76, 66), (42, 27), (12, 39), 3)
+
+    def _paint_charcoal(image, s):
+        for x, y, r in ((14, 35, 10), (29, 28, 13), (42, 38, 9)):
+            pygame.draw.circle(image, (38, 39, 38), (x, y), r)
+            pygame.draw.arc(image, (89, 82, 69),
+                            (x - r + 3, y - r + 3, r * 2 - 6, r * 2 - 6),
+                            3.3, 5.8, 2)
+
+    def _paint_paper(image, s):
+        pygame.draw.polygon(image, (210, 194, 143), [(7, 15), (45, 10), (48, 42), (10, 47)])
+        pygame.draw.line(image, (115, 83, 59), (15, 22), (39, 19), 2)
+        pygame.draw.line(image, (115, 83, 59), (14, 30), (40, 28), 2)
+        pygame.draw.line(image, (115, 83, 59), (14, 38), (34, 36), 2)
+
+    PAINTERS = {**FieldResourceNode.PAINTERS, "bandage": _paint_bandage,
+                "charcoal": _paint_charcoal, "paper": _paint_paper}
+
+    def _after_harvest(self, manager, amount):
         state = kingsreach_state(manager)
         harvested = state.setdefault("harvested_nodes", [])
         if self.node_id not in harvested:
             harvested.append(self.node_id)
-        self.harvested = True
-        self._redraw()
-        _safe_sound("recruit")
-        return f"+{amount} {self.resource_name}"
 
 
 class KingsreachTollArena:
