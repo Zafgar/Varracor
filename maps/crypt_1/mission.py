@@ -46,8 +46,12 @@ class MissionLogic:
         sound_system.play_music('assets/music/crypt_theme.wav')
 
         # --- PLAYER POSITION ---
-        # KORJATTU: Asetetaan pelaaja kartan keskelle, ei ruudun keskelle
-        cx, cy = manager.current_arena.width // 2, manager.current_arena.height // 2
+        # Pelaaja aloittaa SISÄÄNKÄYNNILTÄ (eteläinen holvikaari) - selvä
+        # "täältä tullaan sisään". Sanktuaari on suoraan pohjoiseen.
+        cx, cy = getattr(
+            manager.current_arena, "entrance_point",
+            (manager.current_arena.width // 2,
+             manager.current_arena.height // 2))
         
         # Lisätään Commander kentälle
         if manager.player_character:
@@ -108,44 +112,29 @@ class MissionLogic:
         
         print(f"--- WAVE {self.current_wave}/{self.max_waves} (Enemies: {enemy_count}) ---")
 
-        # KORJATTU: Määritellään 8 spawn-aluetta ympäri karttaa
-        w, h = manager.current_arena.width, manager.current_arena.height
-        zone_size = 400
-        margin = 200
-        
-        spawn_zones = [
-            # Corners
-            pygame.Rect(margin, margin, zone_size, zone_size),                               # Top-Left
-            pygame.Rect(w - margin - zone_size, margin, zone_size, zone_size),             # Top-Right
-            pygame.Rect(margin, h - margin - zone_size, zone_size, zone_size),             # Bottom-Left
-            pygame.Rect(w - margin - zone_size, h - margin - zone_size, zone_size, zone_size), # Bottom-Right
-            # Mids
-            pygame.Rect(margin, h // 2 - zone_size // 2, zone_size, zone_size),            # Mid-Left
-            pygame.Rect(w - margin - zone_size, h // 2 - zone_size // 2, zone_size, zone_size), # Mid-Right
-            pygame.Rect(w // 2 - zone_size // 2, margin, zone_size, zone_size),            # Top-Mid
-            pygame.Rect(w // 2 - zone_size // 2, h - margin - zone_size, zone_size, zone_size)  # Bottom-Mid
+        # Aallot vyöryvät ULKOKAMMIOIDEN portaaleista käytäviä pitkin
+        # sanktuaariin - käytävät ovat puolustettavat kuristuskohdat.
+        arena = manager.current_arena
+        w, h = arena.width, arena.height
+        chamber_portals = getattr(arena, "portal_points", None) or [
+            (w // 4, h // 4), (w * 3 // 4, h // 4),
+            (w // 4, h * 3 // 4), (w * 3 // 4, h * 3 // 4),
         ]
-        
-        # Valitaan aktiiviset spawn-alueet tälle aallolle (1-4 kpl määrästä riippuen)
+
+        # Aktiivisten portaalien määrä kasvaa aallon koon mukana (1-5)
         num_zones = 1
         if enemy_count > 8: num_zones = 2
         if enemy_count > 16: num_zones = 3
         if enemy_count > 25: num_zones = 4
-        
-        active_zones = random.sample(spawn_zones, min(len(spawn_zones), num_zones))
-        
-        # Luodaan portaalit ja tallennetaan niiden sijainnit
-        portals = []
-        for zone in active_zones:
-            px = random.randint(zone.left, zone.right)
-            py = random.randint(zone.top, zone.bottom)
-            
-            # Luodaan visuaalinen portaali (kestää 3 sekuntia)
+        if enemy_count > 32: num_zones = 5
+
+        portals = random.sample(chamber_portals,
+                                min(len(chamber_portals), num_zones))
+        for px, py in portals:
+            # Visuaalinen portaali (kestää 3 sekuntia)
             if hasattr(manager, "vfx"):
                 portal = VortexPortal(px, py, duration=180)
                 manager.vfx.floor_particles.add(portal)
-            
-            portals.append((px, py))
 
         for i in range(enemy_count):
             # Spawnataan vihollinen satunnaisesta portaalista
