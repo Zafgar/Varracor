@@ -64,11 +64,18 @@ class UndeadSkeleton(Gladiator):
                     self.sprites[act] = scaled
                 except Exception: pass
         
-        # Fallback: jos ei kuvia, luodaan placeholderit
-        if not self.sprites:
-            s = pygame.Surface((target_w, target_h))
-            s.fill((200, 200, 200)) # Luunvalkoinen
-            self.sprites["idle"] = s
+        # Fallback: koodipiirretty siluetti PUUTTUVIIN tiloihin (oikeat
+        # spritet ohittavat placeholderit automaattisesti kun ne lisätään)
+        from units.placeholder_sprites import humanoid_frames
+        placeholder = humanoid_frames(
+            (target_w, target_h),
+            body=(214, 208, 186),   # luunvalkoinen
+            accent=(126, 118, 100),
+            eye=(205, 70, 60),      # hehkuvat silmäkuopat
+            weapon="sword",
+        )
+        for state, surf in placeholder.items():
+            self.sprites.setdefault(state, surf)
 
     def perform_attack(self, target, manager=None):
         """Ylikirjoitetaan hyökkäys käyttämään omaa raapaisua."""

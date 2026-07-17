@@ -52,8 +52,18 @@ class GiantRat(Gladiator):
             # Päivitetään rect vastaamaan uutta kuvakokoa
             self.rect = self.image.get_rect(center=self.rect.center)
             return True
-            
-        return False
+
+        # Fallback: koodipiirretty rottasiluetti (ei harmaa laatikko)
+        from units.placeholder_sprites import quadruped_frames
+        self.sprites = quadruped_frames(
+            (48, 36),
+            body=(118, 92, 74),     # ruskea turkki
+            accent=(84, 62, 50),
+            eye=(226, 70, 60),
+        )
+        self.image = self.sprites["idle"]
+        self.rect = self.image.get_rect(center=self.rect.center)
+        return True
 
     def update(self, obstacles=None, manager=None):
         # Päivitetään logiikka (liike, cooldownit, animation_state)

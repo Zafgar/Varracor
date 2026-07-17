@@ -96,10 +96,24 @@ class RatKing(Gladiator):
                 self.sprites["idle"] = self.sprites.get("run") or list(self.sprites.values())[0]
             self.image = self.sprites["idle"]
             self.rect = self.image.get_rect(center=self.rect.center)
-            self.big_image = self.image 
+            self.big_image = self.image
             return True
-            
-        return False
+
+        # Fallback: koodipiirretty JÄTTIROTTA kruunuaksentilla (boss näkyy
+        # bossina ilman assetteja, ei harmaana laatikkona)
+        from units.placeholder_sprites import quadruped_frames
+        self.sprites = quadruped_frames(
+            (110, 84),
+            body=(96, 78, 92),      # kalmanharmaa-violetti turkki
+            accent=(212, 176, 84),  # kultainen kruunu/selkäkaari
+            eye=(240, 80, 70),
+        )
+        for state in ("rage", "spit"):
+            self.sprites.setdefault(state, self.sprites["attack"])
+        self.image = self.sprites["idle"]
+        self.rect = self.image.get_rect(center=self.rect.center)
+        self.big_image = self.image
+        return True
 
     def take_damage(self, amount, damage_type="Physical", attacker=None, manager=None):
         was_dead = self.is_dead

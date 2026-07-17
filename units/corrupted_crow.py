@@ -67,11 +67,18 @@ class CorruptedCrow(Gladiator):
         # Hurt (1 frame)
         self._load_frame("corrupted_crow_hurt.png", base_path, "hurt")
 
-        # Fallback
+        # Fallback: koodipiirretty varissiluetti (ei flat fill -laatikkoa)
         if not self.sprites.get("idle"):
-            s = pygame.Surface((30, 30))
-            s.fill((50, 0, 50))
-            self.sprites["idle"] = [s]
+            from units.placeholder_sprites import bird_frames
+            placeholder = bird_frames(
+                (30, 30),
+                body=(58, 44, 70),
+                accent=(84, 58, 104),
+                eye=(220, 80, 200),
+            )
+            for state, value in placeholder.items():
+                if not self.sprites.get(state):
+                    self.sprites[state] = value
 
     def _load_frame(self, filename, path, key, list_target=False):
         full_path = os.path.join(path, filename)

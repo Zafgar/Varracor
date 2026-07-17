@@ -74,19 +74,35 @@ class MnemonicDevourer(Gladiator):
         self.sprites["ability_2"] = _load("ability_2")
         self.sprites["ability_3"] = _load("ability_3")
         
+        # Fallback: koodipiirretty leijuva kauhio PUUTTUVIIN tiloihin
+        # (boss näkyy bossina ilman assetteja, ei harmaana laatikkona)
+        from units.placeholder_sprites import horror_frames
+        placeholder = horror_frames(
+            (80, 80),
+            body=(74, 52, 104),     # vortex-violetti
+            accent=(150, 96, 200),
+            eye=(120, 230, 210),
+        )
+        if not self.sprites["idle"][0]:
+            self.sprites["idle"] = [placeholder["idle"]]
+        if not self.sprites["run"][0]:
+            self.sprites["run"] = [placeholder["run"]]
+        for state, key in (("hurt", "hurt"), ("attack_start", "attack"),
+                           ("cast", "cast"), ("ability_1", "cast"),
+                           ("ability_2", "attack"), ("ability_3", "cast")):
+            if not self.sprites.get(state):
+                self.sprites[state] = placeholder[key]
+
         # Set default image
-        if self.sprites["idle"][0]:
-            self.image = self.sprites["idle"][0]
-            self.base_image = self.image
-            self.use_sprites = True
-            
-            # Update rect size but keep position
-            c = self.rect.center
-            self.rect = pygame.Rect(0, 0, 40, 30) # Hitbox jaloissa
-            self.rect.center = c
-            return True
-            
-        return False
+        self.image = self.sprites["idle"][0]
+        self.base_image = self.image
+        self.use_sprites = True
+
+        # Update rect size but keep position
+        c = self.rect.center
+        self.rect = pygame.Rect(0, 0, 40, 30) # Hitbox jaloissa
+        self.rect.center = c
+        return True
 
     def run_combat_ai(self, all_units, obstacles=None, manager=None):
         if self.is_pacified: return

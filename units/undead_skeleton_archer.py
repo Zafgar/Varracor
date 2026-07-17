@@ -65,10 +65,17 @@ class UndeadSkeletonArcher(Gladiator):
                     self.sprites[act] = scaled
                 except Exception: pass
         
-        if not self.sprites:
-            s = pygame.Surface((target_w, target_h))
-            s.fill((180, 180, 160))
-            self.sprites["idle"] = s
+        # Fallback: koodipiirretty siluetti PUUTTUVIIN tiloihin
+        from units.placeholder_sprites import humanoid_frames
+        placeholder = humanoid_frames(
+            (target_w, target_h),
+            body=(206, 200, 178),
+            accent=(118, 108, 88),
+            eye=(96, 182, 220),     # kylmänsininen tähtääjä
+            weapon="bow",
+        )
+        for state, surf in placeholder.items():
+            self.sprites.setdefault(state, surf)
 
     def perform_attack(self, target, manager=None, force_melee=False):
         """

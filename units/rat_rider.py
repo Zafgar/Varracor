@@ -62,11 +62,16 @@ class RatRider(Gladiator):
                     self.sprites[key] = pygame.transform.smoothscale(img, (128, 128))
                 except Exception: pass
         
-        if "idle" not in self.sprites:
-            s = pygame.Surface((96, 96))
-            s.fill((150, 50, 50))
-            self.sprites["idle"] = s
-            self.sprites["run"] = s
+        # Fallback: koodipiirretty ratsastajasiluetti PUUTTUVIIN tiloihin
+        from units.placeholder_sprites import rider_frames
+        placeholder = rider_frames(
+            (96, 96),
+            mount=(122, 84, 72),    # rotanruskea ratsu
+            rider=(152, 54, 50),    # punahuppuinen ratsastaja
+            eye=(240, 200, 80),
+        )
+        for state, surf in placeholder.items():
+            self.sprites.setdefault(state, surf)
 
     def update(self, obstacles=None, manager=None):
         super().update(obstacles, manager)

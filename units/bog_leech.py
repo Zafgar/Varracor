@@ -54,9 +54,14 @@ class BogLeech(Gladiator):
                 except Exception: pass
         
         if not self.sprites:
-            s = pygame.Surface(target_size)
-            s.fill((60, 40, 60))
-            self.sprites["idle"] = s
+            # Koodipiirretty iilimatosiluetti (ei flat fill -laatikkoa)
+            from units.placeholder_sprites import leech_frames
+            self.sprites = leech_frames(
+                target_size,
+                body=(88, 58, 84),
+                accent=(126, 86, 118),
+                eye=(228, 200, 90),
+            )
 
     def update(self, obstacles=None, manager=None):
         super().update(obstacles, manager)

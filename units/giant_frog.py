@@ -54,9 +54,14 @@ class GiantFrog(Gladiator):
                 except Exception: pass
         
         if not self.sprites:
-            s = pygame.Surface(target_size)
-            s.fill((40, 100, 40))
-            self.sprites["idle"] = s
+            # Koodipiirretty sammakkosiluetti (ei flat fill -laatikkoa)
+            from units.placeholder_sprites import frog_frames
+            self.sprites = frog_frames(
+                target_size,
+                body=(66, 118, 66),
+                accent=(104, 150, 86),
+                eye=(232, 224, 120),
+            )
 
     def update(self, obstacles=None, manager=None):
         super().update(obstacles, manager)

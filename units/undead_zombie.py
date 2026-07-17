@@ -53,11 +53,17 @@ class UndeadZombie(Gladiator):
                     self.sprites[act] = scaled
                 except Exception: pass
         
-        # Fallback
-        if not self.sprites:
-            s = pygame.Surface((target_w, target_h))
-            s.fill((60, 100, 60)) # Mädäntynyt vihreä
-            self.sprites["idle"] = s
+        # Fallback: koodipiirretty siluetti PUUTTUVIIN tiloihin
+        from units.placeholder_sprites import humanoid_frames
+        placeholder = humanoid_frames(
+            (target_w, target_h),
+            body=(96, 128, 84),     # mädäntynyt vihreä
+            accent=(62, 88, 58),
+            eye=(224, 220, 120),
+            weapon="none",
+        )
+        for state, surf in placeholder.items():
+            self.sprites.setdefault(state, surf)
 
     def perform_attack(self, target, manager=None):
         """Ylikirjoitetaan hyökkäys käyttämään omaa raapaisua."""
