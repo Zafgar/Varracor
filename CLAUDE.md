@@ -131,11 +131,29 @@ tiedostot kuuluu pudottaa.
   (~25 s) ja VillagerAI:n stuck-käsittely vapauttaa työkohteen - ilman
   näitä pellot lukkiutuvat pysyvästi eikä kukaan korjaa satoa.
 
-- **Mudwater Pond + kalastus** — koodipiirretty vesi (assets/tiles/water.py:
-  WaterBody = välimuistitettu pohja + animoidut aallot/kimallus/väreet/
-  ajopilkut; carve_water/carve_pond upottaa areenaan, rebuild_water_blockers
-  laskee esteet laituriaukkoineen; editorin Water-kategoria maalaa vesiä
-  SHIFT+raahauksella). Kalastus systems/fishing.py: WAITING→BITE→REELING
+- **Mudwater Pond + kalastus** — YKSI vesimalli (assets/tiles/water.py:
+  WaterBody, orgaaninen rantaprofiili; tyylit pond/river/lake; sama
+  geometria ajaa piirron, törmäyksen ja kalastuksen; contains_point/
+  bounds_at/make_collision_barriers ylityskaistoilla/fishing_anchors;
+  carve_water/carve_pond upottaa areenaan, rebuild_water_blockers laskee
+  esteet laituriaukkoineen; editorin Water-kategoria maalaa vesiä
+  SHIFT+raahauksella). systems/procedural_water.py POISTETTU - älä luo
+  rinnakkaisia vesiä.
+- **Karttatyönkulku** (systems/map_document.py + maps/custom_maps.py):
+  editorissa (F8) F7 nimeää kartan, Shift+F7 muuttaa areenan koon
+  (valtavat kartat ok), F9 vie KOKO kartan yhdeksi VARRACOR-MAP-JSON-
+  riviksi (map_export.txt + konsoli). Tekijä liittää rivin chattiin ja
+  se kovakoodataan maps/custom_maps.py:hin register(r'''...''')-
+  kutsulla; editorin System-valikon "Load: <nimi>" lataa sen takaisin.
+  Serialisointi on JAETTU (map_document) - ei erillisiä toteutuksia.
+  Efektiemitterit (assets/tiles/effect_emitters.py: savu/sumu/kipinät/
+  tulikärpäset) Effects-kategoriassa; U nimeää NPC:n, N lisää noten.
+- **Monster-rekisteri** (units/monster_registry.py) — KAIKKI monsterit
+  luodaan tämän kautta (nimi/alias -> luokka + rooli + taso). Toimii
+  millä tahansa kartalla ilman areenaa. Uusi monsteri lisätään VAIN
+  rekisteriin; game_manager.create_enemy_by_name, rift-teemat ja
+  tier0-ekologia käyttävät sitä. Kaikki AI:t perivät BaseAI:n
+  (vartiotesti valvoo). Kalastus systems/fishing.py: WAITING→BITE→REELING
   (väsytysminipeli: E pohjassa kelaa, kireys 100 = siima poikki, kala
   tempoo tierinsä mukaan), 10 kalaa tiereittäin + aarresivusaaliit
   (TREASURES, mm. Abyssal Droplet), vavat T1-5 tasovaatimuksin,
