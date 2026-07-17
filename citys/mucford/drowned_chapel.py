@@ -18,7 +18,7 @@ from assets.tiles.prop import Prop
 from menus.gameplay_screen import GameplayScreen
 from settings import ENEMY_TEAM, GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
-from systems.procedural_water import ProceduralWaterBody
+from assets.tiles.water import WaterBody
 from ui_kit import draw_text, font_main, font_small
 from units.drowned_chapel_monsters import (
     BellDrownedPilgrim,
@@ -278,10 +278,11 @@ class DrownedChapelArena:
         self.story_props: List[object] = []
         self.rng = random.Random(CHAPEL_SEED)
 
-        self.nave_flood = ProceduralWaterBody(
+        self.nave_flood = WaterBody(
             pygame.Rect(1370, 250, 760, 1900),
             seed=CHAPEL_SEED,
             name="Flooded Nave",
+            style="lake",
             flow=(0.15, 0.55),
             shore_variance=34,
             deep_margin=52,
@@ -289,10 +290,11 @@ class DrownedChapelArena:
             mid_color=(34, 70, 78),
             deep_color=(18, 43, 57),
         )
-        self.gravewater = ProceduralWaterBody(
+        self.gravewater = WaterBody(
             pygame.Rect(2500, 1190, 540, 520),
             seed=CHAPEL_SEED + 8,
             name="Sunken Graveyard",
+            style="lake",
             flow=(0.45, 0.1),
             shore_variance=28,
             deep_margin=40,

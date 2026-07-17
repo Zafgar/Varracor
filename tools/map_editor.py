@@ -524,7 +524,9 @@ class MapEditor:
                     if cls is WaterBody:
                         obj = WaterBody(x, y, obj_data.get("w", 400),
                                         obj_data.get("h", 300),
-                                        seed=obj_data.get("seed", 7))
+                                        seed=obj_data.get("seed", 7),
+                                        name=obj_data.get("name", "water"),
+                                        style=obj_data.get("style", "auto"))
                     elif cls is FishingJetty:
                         obj = FishingJetty(x, y, obj_data.get("w", 170),
                                            obj_data.get("h", 64),

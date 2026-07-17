@@ -48,11 +48,12 @@ def test_pond_carved_with_walkable_jetty():
     arena = city.arena
     assert hasattr(arena, "fishing_pond") and hasattr(arena, "fishing_spot")
     blockers = [o for o in arena.obstacles if getattr(o, "is_water", False)]
-    assert len(blockers) == 3
+    # Rantaviivaa seuraavia estepaloja on useita (yhtenäinen vesimalli)
+    assert len(blockers) >= 3
     # Laiturin keskikohta kulkukelpoinen, syvä vesi ei
     jc = arena.fishing_jetty.center
     assert not any(b.rect.collidepoint(jc) for b in blockers)
-    deep = (arena.fishing_pond.centerx, arena.fishing_pond.top + 15)
+    deep = arena.fishing_pond.center
     assert any(b.rect.collidepoint(deep) for b in blockers)
     # Lammen alle ei jäänyt puita/esteitä
     for prop in arena.props:

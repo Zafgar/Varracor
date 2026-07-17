@@ -19,7 +19,7 @@ from lore.world_map_data import LOCATIONS
 from menus.regional_staging_menu import RegionalStagingMenu
 from minigames.marsh_fishing import MarshFishingMenu, choose_fish
 from settings import ENEMY_TEAM
-from systems.procedural_water import FishingAnchor
+from assets.tiles.water import FishingAnchor
 from systems.whisper_marsh_story import (
     _patch_world_map_metadata,
     _refresh_story_props,

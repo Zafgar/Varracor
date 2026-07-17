@@ -29,7 +29,7 @@ from settings import (
     WHITE,
 )
 from sound_manager import sound_system
-from systems.procedural_water import FishingAnchor, ProceduralWaterBody
+from assets.tiles.water import FishingAnchor, WaterBody
 from ui_kit import draw_text, font_main, font_small, format_money
 from units.corrupted_crow import CorruptedCrow
 from units.rat import GiantRat
@@ -247,10 +247,11 @@ class WhisperMarshArena:
         self.development_props: List[object] = []
         self.rng = random.Random(MAP_SEED)
 
-        self.greywash_channel = ProceduralWaterBody(
+        self.greywash_channel = WaterBody(
             pygame.Rect(1510, -50, 820, self.height + 100),
             seed=MAP_SEED,
             name="Greywash Channel",
+            style="river",
             flow=(0.25, 1.0),
             shore_variance=52,
             deep_margin=58,
@@ -258,10 +259,11 @@ class WhisperMarshArena:
             mid_color=(39, 77, 91),
             deep_color=(18, 47, 67),
         )
-        self.whisper_pool = ProceduralWaterBody(
+        self.whisper_pool = WaterBody(
             pygame.Rect(2670, 1240, 610, 520),
             seed=MAP_SEED + 9,
             name="Whisper Pool",
+            style="lake",
             flow=(0.8, 0.15),
             shore_variance=38,
             deep_margin=46,

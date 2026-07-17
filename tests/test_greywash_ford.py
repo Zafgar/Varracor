@@ -33,7 +33,7 @@ from menus.regional_staging_menu import RegionalStagingMenu
 from minigames.marsh_fishing import FISH_TABLES, MarshFishingMenu, choose_fish
 from settings import ENEMY_TEAM, PLAYER_TEAM
 from systems.greywash_ford_integration import _patch_world_map_data
-from systems.procedural_water import FishingAnchor
+from assets.tiles.water import FishingAnchor
 from systems.tier0_world_tracker import tier0_area_advice, tier0_phase
 from systems.whisper_marsh_story import whisper_marsh_story_state
 from units.greywash_ford_monsters import (

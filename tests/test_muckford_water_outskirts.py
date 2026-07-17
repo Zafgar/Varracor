@@ -11,7 +11,7 @@ pygame.display.set_mode((1280, 720))
 
 from systems.muckford_opening_integration import install_muckford_opening_integration
 from systems.muckford_outskirts_integration import _patch_world_map_data
-from systems.procedural_water import ProceduralWaterBody
+from assets.tiles.water import ProceduralWaterBody
 
 install_muckford_opening_integration()
 

@@ -11,7 +11,7 @@ from assets.tiles.prop import Prop
 from menus.gameplay_screen import GameplayScreen
 from settings import ENEMY_TEAM, GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
-from systems.procedural_water import FishingAnchor, ProceduralWaterBody
+from assets.tiles.water import FishingAnchor, WaterBody
 from ui_kit import draw_text, font_main, font_small
 from units.greywash_ford_monsters import CaptainGarranVale, CrownDeserter, FordBrute, GreywashRiverjaw
 from units.villager import Villager
@@ -315,10 +315,11 @@ class GreywashFordArena:
         self.whisper_exit = pygame.Rect(2860, self.height - 80, 850, 110)
         self.kingsreach_exit = pygame.Rect(-25, 280, 100, 570)
         self._generate_floor()
-        self.river = ProceduralWaterBody(
+        self.river = WaterBody(
             pygame.Rect(1450, -40, 1000, self.height + 80),
             seed=FORD_SEED,
             name="Greywash Ford",
+            style="river",
             flow=(0.20, 2.15),
             shore_variance=64,
             deep_margin=78,

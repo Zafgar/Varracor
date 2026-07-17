@@ -17,7 +17,7 @@ from assets.tiles.prop import Prop
 from menus.gameplay_screen import GameplayScreen
 from settings import ENEMY_TEAM, GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
-from systems.procedural_water import ProceduralWaterBody
+from assets.tiles.water import WaterBody
 from ui_kit import draw_text, font_main, font_small
 from units.rat import GiantRat
 from units.tier0_monsters import MudMite, ReedSkitter
@@ -328,10 +328,11 @@ class LowFieldsArena:
             pygame.Rect(340, 0, 250, self.height),
             pygame.Rect(340, 910, 2470, 210),
         )
-        self.irrigation = ProceduralWaterBody(
+        self.irrigation = WaterBody(
             pygame.Rect(1465, 220, 285, 1750),
             seed=MAP_SEED + 2,
             name="Low Fields Irrigation",
+            style="river",
             flow=(0.18, 0.95),
             shore_variance=18,
             deep_margin=24,

@@ -11,7 +11,7 @@ import pygame
 from menus.base_menu import BaseMenu
 from settings import GOLD_COLOR, GRAY, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, WHITE
 from sound_manager import sound_system
-from systems.procedural_water import FishingAnchor
+from assets.tiles.water import FishingAnchor
 from ui_kit import draw_text, font_main, font_small, font_title
 
 
