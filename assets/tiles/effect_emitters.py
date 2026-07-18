@@ -17,12 +17,16 @@ import random
 import pygame
 
 
-class EffectEmitter:
-    """Yhteinen pohja: pieni lähdeglyyfi + partikkelipäivitys."""
+class EffectEmitter(pygame.sprite.Sprite):
+    """Yhteinen pohja: pieni lähdeglyyfi + partikkelipäivitys.
+
+    Sprite-kantaluokka, jotta missiokarttojen setup voi lisätä propit
+    all_units-ryhmään kaatumatta."""
 
     GLYPH_COLOR = (200, 200, 200)
 
     def __init__(self, x, y, variant=1):
+        super().__init__()
         self.variant = max(1, int(variant))
         self.rect = pygame.Rect(int(x), int(y), 24, 24)
         self.is_structure = False
