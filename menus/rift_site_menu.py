@@ -24,7 +24,30 @@ from sound_manager import sound_system
 from systems import keybinds
 from ui_kit import draw_text, font_title, font_main, font_small
 
-ARENA_W, ARENA_H = 2400, 1500
+ARENA_W, ARENA_H = 4200, 2600
+
+# Teemakohtainen maasto: (resurssit, kasvusto, vesialtaat)
+THEME_TERRAIN = {
+    "marsh": {
+        "resources": [("River Reed", "reeds", 4), ("Bogwort", "herb", 4),
+                      ("Clay", "clay", 3)],
+        "waters": [pygame.Rect(700, 300, 700, 520),
+                   pygame.Rect(1500, 1750, 800, 560)],
+        "flora": "marsh",
+    },
+    "graveyard": {
+        "resources": [("Grave Dust", "bone", 5), ("Ancient Bone", "bone", 4),
+                      ("Crypt Moss", "mushroom", 3)],
+        "waters": [pygame.Rect(800, 1800, 620, 480)],
+        "flora": "graveyard",
+    },
+    "bogwood": {
+        "resources": [("Nightcap Fungus", "mushroom", 5),
+                      ("Driftwood", "wood", 4), ("Bogwort", "herb", 3)],
+        "waters": [pygame.Rect(900, 1650, 720, 540)],
+        "flora": "bogwood",
+    },
+}
 
 # Teemat: lattia, koristeväri, aallot (luokkanimi, määrä) ja boss
 THEMES = {
@@ -125,21 +148,143 @@ def make_boss(cls, name, x, y):
 
 
 class _RiftArena:
-    """Kevyt proseduraalinen erämaakenttä repeämätaistelulle."""
+    """Riivattu erämaa repeämätaistelulle (pelitesti 30).
 
-    def __init__(self, theme):
+    EI enää tyhjä tasanko: teemakohtainen maasto (puut/haudat/rauniot),
+    vesialtaat, kerättävät resurssit, polku sisäänkäynniltä repeämälle,
+    kraatteri repeämän ympärillä ja tunnelmaefektit. Rakennettu
+    kenttäpakilla + yhtenäisellä vesimallilla."""
+
+    def __init__(self, theme, theme_id="marsh"):
         self.width = ARENA_W
         self.height = ARENA_H
         self.theme = theme
+        self.theme_id = theme_id
         self.obstacles = []
         self.props = []
+        self.floor_props = []
+        self.waters = []
         self._base = None
         rng = random.Random(hash(theme["title"]) & 0xFFFF)
-        # Hajanaisia "tuppaita" (läiskiä) koristeeksi - ei törmäystä
+        self._rng = rng
         self._patches = [(rng.randint(80, ARENA_W - 120),
                           rng.randint(80, ARENA_H - 120),
-                          rng.randint(30, 90)) for _ in range(60)]
+                          rng.randint(30, 90)) for _ in range(140)]
 
+        terrain = THEME_TERRAIN.get(theme_id, THEME_TERRAIN["marsh"])
+        self.entrance_point = (300, ARENA_H // 2)
+        self.rift_point = (ARENA_W - 560, ARENA_H // 2)
+        # Polku sisäänkäynniltä repeämälle + taistelukenttä repeämän
+        # edessä pidetään esteettömänä
+        self._path_rect = pygame.Rect(120, ARENA_H // 2 - 130,
+                                      ARENA_W - 600, 260)
+        self._rift_clearing = pygame.Rect(ARENA_W - 1250,
+                                          ARENA_H // 2 - 620, 1250, 1240)
+
+        self._build_water(terrain)
+        self._build_flora(terrain, rng)
+        self._build_resources(terrain, rng)
+        self._build_atmosphere(rng)
+
+    # ------------------------------------------------------------ build
+    def _build_water(self, terrain):
+        from assets.tiles.water import WaterBody
+        for index, rect in enumerate(terrain.get("waters", [])):
+            water = WaterBody(rect, seed=hash(self.theme_id) % 997 + index,
+                              name=f"{self.theme_id} pool {index}",
+                              style="lake")
+            self.waters.append(water)
+            self.obstacles.extend(water.make_collision_barriers(()))
+
+    def _avoid_rects(self):
+        return [self._path_rect, self._rift_clearing] + \
+            [w.rect.inflate(80, 80) for w in self.waters]
+
+    def _build_flora(self, terrain, rng):
+        from systems.field_kit import WallSegment, spread_points
+        flora = terrain.get("flora", "marsh")
+        area = pygame.Rect(150, 150, self.width - 300, self.height - 300)
+        avoid = self._avoid_rects()
+
+        if flora == "marsh":
+            from assets.tiles.bog_objects import BogTree, BogReed
+            from assets.tiles.forest_objects import ForestRockBig
+            classes = (BogTree, BogTree, BogReed, ForestRockBig)
+            count = 55
+        elif flora == "graveyard":
+            from citys.mucford.drowned_chapel import ChapelStone
+            from assets.tiles.crypt_objects import CryptTree, BrokenPillar
+            # Hautarivit: järjestäytyneet rivistöt pohjois- ja eteläosaan
+            for row_y in (450, 700, self.height - 800, self.height - 550):
+                for gx in range(500, self.width - 1500, 260):
+                    if any(r.collidepoint(gx, row_y) for r in avoid):
+                        continue
+                    grave = ChapelStone(gx, row_y, 44, 66, "grave",
+                                        blocking=True)
+                    self.props.append(grave)
+                    self.obstacles.append(grave)
+            # Rauniokappeli keskellä pohjoista
+            ruin = pygame.Rect(1800, 300, 700, 400)
+            for wall_rect in (pygame.Rect(ruin.x, ruin.y, ruin.w, 50),
+                              pygame.Rect(ruin.x, ruin.y, 50, ruin.h),
+                              pygame.Rect(ruin.right - 50, ruin.y, 50,
+                                          ruin.h // 2)):
+                wall = WallSegment(wall_rect.x, wall_rect.y, wall_rect.w,
+                                   wall_rect.h, style="crypt")
+                self.props.append(wall)
+                self.obstacles.append(wall)
+            classes = (CryptTree, BrokenPillar)
+            count = 18
+        else:  # bogwood
+            from assets.tiles.muckford_objects import MuckfordTree
+            from assets.tiles.forest_objects import ForestBush, ForestRockBig
+            classes = (MuckfordTree, MuckfordTree, ForestBush, ForestRockBig)
+            count = 70
+
+        for x, y in spread_points(rng, area, count, min_dist=150,
+                                  avoid=avoid):
+            prop = rng.choice(classes)(x, y)
+            self.props.append(prop)
+            self.obstacles.append(prop)
+
+    def _build_resources(self, terrain, rng):
+        from systems.field_kit import FieldResourceNode, spread_points
+        area = pygame.Rect(300, 200, self.width - 900, self.height - 400)
+        avoid = self._avoid_rects()
+        index = 0
+        for resource, style, count in terrain.get("resources", []):
+            for x, y in spread_points(rng, area, count, min_dist=260,
+                                      avoid=avoid):
+                self.props.append(FieldResourceNode(
+                    f"rift_{self.theme_id}_{index}", x, y, resource, style))
+                index += 1
+
+    def _build_atmosphere(self, rng):
+        from assets.tiles.effect_emitters import (
+            EmberEmitter, FireflySwarm, FogPatch,
+        )
+        rx, ry = self.rift_point
+        # Kraatterin kipinät ja kumma hehku repeämän ympärillä
+        for dx, dy in ((-220, -160), (140, -200), (-180, 220), (120, 180)):
+            self.props.append(EmberEmitter(rx + dx, ry + dy, variant=2))
+        self.props.append(FogPatch(rx - 60, ry, variant=4))
+        if self.theme_id == "graveyard":
+            for _ in range(4):
+                self.props.append(FogPatch(
+                    rng.randint(500, self.width - 1400),
+                    rng.randint(400, self.height - 400), variant=3))
+        elif self.theme_id == "bogwood":
+            for _ in range(4):
+                self.props.append(FireflySwarm(
+                    rng.randint(500, self.width - 1400),
+                    rng.randint(400, self.height - 400), variant=2))
+        else:
+            for _ in range(3):
+                self.props.append(FogPatch(
+                    rng.randint(500, self.width - 1400),
+                    rng.randint(400, self.height - 400), variant=2))
+
+    # ------------------------------------------------------------ draw
     def draw_background(self, screen, offset=(0, 0)):
         if self._base is None:
             base = pygame.Surface((self.width, self.height))
@@ -147,11 +292,33 @@ class _RiftArena:
             for x, y, r in self._patches:
                 pygame.draw.ellipse(base, self.theme["accent"],
                                     (x, y, r * 2, r))
+            # Kulunut polku sisäänkäynniltä repeämälle
+            path = self._path_rect
+            path_col = tuple(min(255, c + 18) for c in self.theme["floor"])
+            pygame.draw.rect(base, path_col,
+                             (path.x, path.centery - 70, path.w, 140),
+                             border_radius=60)
+            # Kraatteri: kärventynyt maa repeämän ympärillä
+            rx, ry = self.rift_point
+            for radius, col in ((520, (30, 24, 34)), (360, (24, 18, 28)),
+                                (220, (18, 13, 22))):
+                pygame.draw.ellipse(
+                    base, col, (rx - radius, ry - radius * 2 // 3,
+                                radius * 2, radius * 4 // 3))
             # Reunavarjostus
             pygame.draw.rect(base, (20, 18, 22),
                              (0, 0, self.width, self.height), 24)
             self._base = base
         screen.blit(self._base, (-int(offset[0]), -int(offset[1])))
+        for water in self.waters:
+            water.draw(screen, offset)
+
+    def update_ambient(self, manager):
+        for p in self.props:
+            if getattr(p, "is_effect", False):
+                p.update(None, manager)
+        for water in self.waters:
+            water.update(None, manager)
 
 
 class RiftSiteMenu(GameplayScreen):
@@ -174,9 +341,10 @@ class RiftSiteMenu(GameplayScreen):
         loc = getattr(self.manager, "pending_world_location", None)
         self.theme_id = LOCATION_THEMES.get(loc, self.theme_id)
         self.theme = THEMES[self.theme_id]
-        self.arena = _RiftArena(self.theme)
+        self.arena = _RiftArena(self.theme, self.theme_id)
 
-        from assets.tiles.muckford_objects import RiftFissure, RoadSignpost
+        from assets.tiles.muckford_objects import RiftFissure
+        from systems.field_kit import GateZone
         # ISO repeämä kentän itälaidalla
         self.rift = RiftFissure(ARENA_W - 560, ARENA_H // 2 - 100)
         # Iso versio: tuplakuva, isompi saalis, sinetöinti vasta bossin
@@ -197,13 +365,15 @@ class RiftSiteMenu(GameplayScreen):
         self.rift.interaction_label = "Rift"
         self.arena.props.append(self.rift)
 
-        # Paluukyltti sisäänkäynnillä (länsi)
-        self.signpost = RoadSignpost(140, ARENA_H // 2 - 80)
+        # SELVÄ sisään/ulos: porttikyltti sisäänkäynnillä (länsi)
+        self.signpost = GateZone(110, ARENA_H // 2 - 100, 160, 110,
+                                 kind="sign", label="WORLD MAP",
+                                 facing="left")
         self.arena.props.append(self.signpost)
 
-        # Pelaaja sisään länsilaidalta
+        # Pelaaja sisään länsilaidalta (portin vierestä)
         self.player = self.manager.player_character
-        self.player.rect.center = (280, ARENA_H // 2)
+        self.player.rect.center = self.arena.entrance_point
         self.player.current_hp = max(self.player.current_hp, 1)
 
         # Retkikunta mukaan + kaatumisesta rescue Muckfordiin (pelitesti 21)
@@ -334,13 +504,25 @@ class RiftSiteMenu(GameplayScreen):
         if self.manager.active_dialogue or self.manager.dialogue_cooldown > 0:
             return
         px, py = self.player.rect.center
-        # Paluukyltti
+        # Paluuportti
         sp = self.signpost.rect
-        if math.hypot(px - sp.centerx, py - sp.centery) < 120:
+        if math.hypot(px - sp.centerx, py - sp.centery) < 130:
             self.manager.world_map_return_state = "world_map"
             self.next_state = "world_map"
             sound_system.play_sound("click")
             return
+        # Kerättävät resurssit (kenttäpakin nodet)
+        from systems.field_kit import FieldResourceNode
+        for prop in self.arena.props:
+            if isinstance(prop, FieldResourceNode) and not prop.harvested:
+                if math.hypot(px - prop.rect.centerx,
+                              py - prop.rect.centery) < prop.interaction_range:
+                    message = prop.harvest(self.manager)
+                    if message:
+                        self.manager.vfx.show_damage(
+                            prop.rect.centerx, prop.rect.top - 24,
+                            message, color=(180, 230, 160))
+                    return
         # Repeämä
         rr = self.rift.rect
         if math.hypot(px - rr.centerx, py - rr.centery) < 170:
@@ -365,6 +547,9 @@ class RiftSiteMenu(GameplayScreen):
         # invaasio nollautuu seuraavalla käynnillä on_enterissä)
         if self.next_state:
             return
+
+        # Maasto elää: emitterit ja vesi
+        self.arena.update_ambient(self.manager)
 
         # Repeämä sykkii (partikkelit + kanava sinetöinnissä)
         if self.phase == "sealable":
