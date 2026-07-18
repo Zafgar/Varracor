@@ -42,9 +42,12 @@ class MissionLogic:
         if not music_found:
             sound_system.play_music('assets/music/crypt_theme.wav')
 
-        # Aseta pelaaja keskelle
-        cx, cy = manager.current_arena.width // 2, manager.current_arena.height // 2
-        
+        # Pelaaja aloittaa SISÄÄNKÄYNNILTÄ (lounainen porttikyltti)
+        cx, cy = getattr(
+            manager.current_arena, "entrance_point",
+            (manager.current_arena.width // 2,
+             manager.current_arena.height // 2))
+
         if manager.player_character:
             pc = manager.player_character
             if pc not in manager.active_player_units:
@@ -81,18 +84,23 @@ class MissionLogic:
         
         print(f"--- BOG WAVE {self.current_wave} (Enemies: {enemy_count}) ---")
         
-        w, h = manager.current_arena.width, manager.current_arena.height
-        
-        # --- SPAWN LOGIC (8 Random Spottia kartan sisällä) ---
-        # Määritellään marginaali reunoista, jotta ei spawnata seinän sisään
-        margin = 300
-        
-        # Arvotaan 8 pistettä tälle aallolle
+        arena = manager.current_arena
+        w, h = arena.width, arena.height
+
+        # Aallot nousevat MAASTOSTA (arena.spawn_zones: lampien takamaat,
+        # pesän edusta) - ei satunnaisesti pelaajan niskaan tai veteen
+        zones = getattr(arena, "spawn_zones", None)
         spawn_spots = []
-        for _ in range(8):
-            sx = random.randint(margin, w - margin)
-            sy = random.randint(margin, h - margin)
-            spawn_spots.append((sx, sy))
+        if zones:
+            for _ in range(8):
+                zone = random.choice(zones)
+                spawn_spots.append((random.randint(zone.left, zone.right),
+                                    random.randint(zone.top, zone.bottom)))
+        else:
+            margin = 300
+            for _ in range(8):
+                spawn_spots.append((random.randint(margin, w - margin),
+                                    random.randint(margin, h - margin)))
 
         for i in range(enemy_count):
             # Valitaan yksi pisteistä

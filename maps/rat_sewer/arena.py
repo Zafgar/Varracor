@@ -11,6 +11,7 @@ class Arena:
         self.tile_size = 128 # Oletetaan 128x128 laatat
         
         self.obstacles = []
+        self.props = []
         # Putkien suut pohjoisseinällä: näistä valuu limaa ja niistä
         # vyöryy rottia (Rat Kingin summon + monsterijahdin spawnit)
         self.pipe_points = [(520, 300), (self.width // 2, 260),
@@ -19,7 +20,22 @@ class Arena:
         # Lavastuspisteet (pelitesti 22): pelaajien sisäänkäynti lännessä,
         # Rat Kingin roskavaltaistuin idässä
         self.entry_pos = (320, self.height // 2)
+        self.entrance_point = self.entry_pos
         self.throne_pos = (self.width - 460, self.height // 2)
+
+        # SELVÄ sisäänkäynti: viemäriritilä lännessä (pelitesti 30) +
+        # kerättävää viemärin nurkissa (E kerää, sama järjestelmä)
+        from systems.field_kit import FieldResourceNode, GateZone
+        self.props.append(GateZone(140, self.height // 2 - 70, 150, 100,
+                                   kind="grate", label="MUCKFORD SEWERS",
+                                   facing="left"))
+        for node_id, x, y, resource, style in (
+                ("sewer_scrap_1", 700, 480, "Rusty Scrap", "scrap"),
+                ("sewer_scrap_2", 1650, 1050, "Rusty Scrap", "scrap"),
+                ("sewer_bone_1", 1150, 1150, "Bone Shard", "bone"),
+                ("sewer_moss_1", 1900, 500, "Crypt Moss", "mushroom")):
+            self.props.append(FieldResourceNode(node_id, x, y, resource,
+                                                style, (1, 2)))
 
         # --- TUNNELMA (sovitettu käyttäjän bosses/-paketin lairista) ---
         # Viemärivesi virtaa etelälaidalla; kuplia, ajopuita ja putkista

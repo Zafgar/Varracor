@@ -185,6 +185,26 @@ class _RiftArena:
         self._build_flora(terrain, rng)
         self._build_resources(terrain, rng)
         self._build_atmosphere(rng)
+        self._clear_path_corridor()
+
+    def _clear_path_corridor(self):
+        """Takaa että kulkukäytävä sisäänkäynniltä repeämälle JA repeämän
+        taistelukenttä pysyvät aukinaisina: poistaa esteet joiden
+        JALANJÄLKI leikkaa suoja-alueet (spread_points suojaa vain
+        spawn-pisteen, ei koko footprintiä)."""
+        keepouts = [self._path_rect, self._rift_clearing]
+        keep = []
+        for prop in self.props:
+            rect = getattr(prop, "rect", None)
+            blocks = prop in self.obstacles
+            if rect is not None and blocks \
+                    and not getattr(prop, "is_effect", False) \
+                    and not getattr(prop, "is_gate", False) \
+                    and any(rect.colliderect(zone) for zone in keepouts):
+                self.obstacles.remove(prop)
+                continue
+            keep.append(prop)
+        self.props = keep
 
     # ------------------------------------------------------------ build
     def _build_water(self, terrain):
@@ -197,7 +217,9 @@ class _RiftArena:
             self.obstacles.extend(water.make_collision_barriers(()))
 
     def _avoid_rects(self):
-        return [self._path_rect, self._rift_clearing] + \
+        # Inflatoidaan polku, jotta propin JALANJÄLKI (ei vain
+        # spawn-piste) pysyy poissa kulkukäytävältä
+        return [self._path_rect.inflate(180, 180), self._rift_clearing] + \
             [w.rect.inflate(80, 80) for w in self.waters]
 
     def _build_flora(self, terrain, rng):

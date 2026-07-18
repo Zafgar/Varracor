@@ -19,6 +19,15 @@ class MissionLogic:
         manager.all_units.empty()
         for u in manager.active_player_units: manager.all_units.add(u)
 
+        # Kartan propit peliin (portti + kerättävät nodet)
+        for p in getattr(manager.current_arena, "props", []):
+            if not hasattr(p, "run_combat_ai"):
+                p.run_combat_ai = lambda *a, **k: None
+            if not hasattr(p, "take_damage"):
+                p.take_damage = lambda *a, **k: 0
+            p.team_color = "Neutral"
+            manager.all_units.add(p)
+
         # Soitetaan boss-musiikki jos kyseessä on Rat King
         if self.data.get('id') == "boss_rat_king":
             sound_system.play_music('assets/music/rat_boss_theme.wav')
