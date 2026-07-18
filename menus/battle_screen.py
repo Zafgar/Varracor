@@ -6,6 +6,35 @@ from menus.gameplay_screen import GameplayScreen
 from sound_manager import sound_system
 
 class BattleScreen(GameplayScreen):
+    def _try_harvest_nearby(self):
+        """Kerää lähin kerättävä resurssi (kenttäpakin node) taistelussa.
+
+        Sama keräysjärjestelmä joka kartalla: krypta, suo, viemäri ym.
+        missiokartat käyttävät nyt samoja FieldResourceNode-esineitä kuin
+        kaupunkiruudut."""
+        import math
+        m = self.manager
+        player = getattr(m, "player_character", None)
+        arena = getattr(m, "current_arena", None)
+        if player is None or arena is None or getattr(player, "is_dead", False):
+            return
+        px, py = player.rect.center
+        best, best_dist = None, 1e9
+        for prop in getattr(arena, "props", []):
+            if not hasattr(prop, "harvest") or getattr(prop, "harvested", True):
+                continue
+            reach = getattr(prop, "interaction_range", 0)
+            if reach <= 0:
+                continue
+            dist = math.hypot(prop.rect.centerx - px, prop.rect.centery - py)
+            if dist < reach and dist < best_dist:
+                best, best_dist = prop, dist
+        if best is not None:
+            message = best.harvest(m)
+            if message and hasattr(m, "vfx"):
+                m.vfx.show_damage(best.rect.centerx, best.rect.top - 24,
+                                  message, color=(180, 230, 160))
+
     def __init__(self, manager):
         super().__init__(manager)
         # Nappi pelin pysäyttämiseen
@@ -31,6 +60,11 @@ class BattleScreen(GameplayScreen):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_l:
                 self.manager.camera_locked = not self.manager.camera_locked
+
+            # KERÄYS (E): kenttäpakin resurssinodet toimivat myös
+            # missiokartoilla - sama järjestelmä kuin kaupunkiruuduissa
+            if event.key == pygame.K_e and not self.manager.match_over:
+                self._try_harvest_nearby()
 
             if event.key == pygame.K_p and CHEAT_MODE:
                 self.manager.world_paused = not self.manager.world_paused
